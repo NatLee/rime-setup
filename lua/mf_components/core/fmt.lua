@@ -250,7 +250,7 @@ function M.gen_jp_era4(tfmt)
   local function tail() return tfmt ~= "" and " " .. os.date(tfmt) or "" end
   return {
     { function() local jpymd = M.jp() return M.s0nd(jpymd) .. tail() end, "〔日本元号〕" },
-    { function() local jpymd = M.jp() return M.fs(M.s0nd(jpymd)) .. tail() end, "〔日本元号〕" },
+    { function() local jpymd = M.jp() return M.fs(M.s0nd(jpymd) .. tail()) end, "〔日本元号〕" },  -- 全形化包含時間整串（修正原版只包日期的不一致）
     { function() local jpymd = M.jp() return jpymd .. tail() end, "〔日本元号〕" },
     { function() local jpymd = M.jp() return M.fs(jpymd .. tail()) end, "〔日本元号〕" },
   }

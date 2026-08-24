@@ -1,0 +1,5 @@
+# symbols_bpmf.custom.yaml
+patch:
+  # 方案選單顯示名稱
+  "schema/name": "符號集"
+

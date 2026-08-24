@@ -76,22 +76,22 @@ local function custom(input, seg, env, ctx)
       yield_c( "The "..eng1_d_date(d).." of "..eng1_m_date(m)..", "..y, "〔英式日月年〕")
       if tonumber(y) > 1899 and tonumber(y) < 2101 then
         -- local chinese_date_input = to_chinese_cal_local(os.time({year = y, month = m, day = d, hour = 12}))
-        local ll_1b, ll_2b = Date2LunarDate(y .. string.format("%02d", m) .. string.format("%02d", d))
-        -- if (Date2LunarDate~=nil) then
-        if ll_1b~=nil and ll_2b~=nil then
+        -- pcall 防護：Windows 的 os.time 不支援 1970 前，1900~1969 年會拋錯中斷整次翻譯
+        local ok_l, ll_1b, ll_2b = pcall(Date2LunarDate, y .. string.format("%02d", m) .. string.format("%02d", d))
+        if ok_l and ll_1b~=nil and ll_2b~=nil then
           yield_c( ll_1b, "〔西曆→農曆〕")
           yield_c( ll_2b, "〔西曆→農曆〕")
         end
       end
       if tonumber(y) > 1901 and tonumber(y) < 2101 then
-        local All_g2, Y_g2, M_g2, D_g2 = lunarJzl(y .. string.format("%02d", m) .. string.format("%02d", d) .. 12)
-        if (All_g2~=nil) then
+        -- pcall 防護：同上，1970 前的年份不再讓整次翻譯中斷
+        local ok_g, All_g2, Y_g2, M_g2, D_g2 = pcall(lunarJzl, y .. string.format("%02d", m) .. string.format("%02d", d) .. 12)
+        if ok_g and All_g2~=nil then
           yield_c( Y_g2.."年"..M_g2.."月"..D_g2.."日", "〔西曆→農曆干支〕")
         end
-        local LDD2D = LunarDate2Date(y .. string.format("%02d", m) .. string.format("%02d", d), 0 )
-        local LDD2D_leap_year  = LunarDate2Date(y .. string.format("%02d", m) .. string.format("%02d", d), 1 )
-        -- if (Date2LunarDate~=nil) then
-        if (LDD2D~=nil) then
+        local ok_d1, LDD2D = pcall(LunarDate2Date, y .. string.format("%02d", m) .. string.format("%02d", d), 0 )
+        local ok_d2, LDD2D_leap_year = pcall(LunarDate2Date, y .. string.format("%02d", m) .. string.format("%02d", d), 1 )
+        if ok_d1 and ok_d2 and LDD2D~=nil then
           yield_c( LDD2D, "〔農曆→西曆〕")
           yield_c( LDD2D_leap_year, "〔農曆(閏)→西曆〕")
         end

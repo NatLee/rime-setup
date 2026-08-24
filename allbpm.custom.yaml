@@ -1,0 +1,5 @@
+# allbpm.custom.yaml
+patch:
+  # 方案選單顯示名稱
+  "schema/name": "注音文"
+

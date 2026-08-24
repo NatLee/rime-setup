@@ -1,0 +1,5 @@
+# easy_en_lcomment.custom.yaml
+patch:
+  # 方案選單顯示名稱
+  "schema/name": "英文（附釋義）"
+

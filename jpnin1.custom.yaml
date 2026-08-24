@@ -1,0 +1,7 @@
+# jpnin1.custom.yaml
+patch:
+  # 方案選單顯示名稱
+  "schema/name": "日文"
+  # 自動補全：打一半羅馬字即顯示完整詞（原版關閉）
+  "translator/enable_completion": true
+

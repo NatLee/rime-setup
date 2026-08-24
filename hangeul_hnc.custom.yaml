@@ -1,0 +1,5 @@
+# hangeul_hnc.custom.yaml
+patch:
+  # 方案選單顯示名稱
+  "schema/name": "韓文"
+

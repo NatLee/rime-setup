@@ -498,7 +498,7 @@ specs["mdwc"] = {
 }
 
 --- mdwj：4 種日期形 × 4 種週尾（第 1 項為日本格式月日＋週）；
---- 第二組全形只包日期、第四組全形包整串（保持原輸出）
+--- 全形組一律包整串（2026-08-25 修正原版第二組只包日期的不一致）
 do
   local tails = {
     function() return fmt.wk()[3] end,
@@ -513,7 +513,7 @@ do
     mdwj[#mdwj + 1] = { function() return fmt.s0bd(os.date("%m月%d日")) .. t() end, "〔日本格式〕" }
   end
   for _, t in ipairs(tails) do
-    mdwj[#mdwj + 1] = { function() return fmt.fs(fmt.s0bd(os.date("%m月%d日"))) .. t() end, "〔日本格式〕" }
+    mdwj[#mdwj + 1] = { function() return fmt.fs(fmt.s0bd(os.date("%m月%d日")) .. t()) end, "〔日本格式〕" }
   end
   for _, t in ipairs(tails) do
     mdwj[#mdwj + 1] = { function() return os.date("%m月%d日") .. t() end, "〔日本格式〕" }
@@ -542,15 +542,15 @@ specs["ym"] = {
   { function() return fmt.rq1(12) end, "〔中數〕 ~z" },
   { function() return fmt.s0nd("民國" .. fmt.mg() .. "年" .. os.date("%m") .. "月") end, "〔民國〕 ~h" },
   { function() return "民國" .. fmt.pc(fmt.mg()) .. "年" .. fmt.rq1(2) end, "〔民國中數〕 ~g" },
-  { function() local jpymd, jp_y = fmt.jp() return jp_y .. fmt.s0nd(os.date("%m") .. "月") end, "〔日本元号〕 ~j" },
+  { function() local jpymd, jp_y = fmt.jp() return fmt.s0nd(jp_y .. os.date("%m") .. "月") end, "〔日本元号〕 ~j" },  -- 包整串去零，修正「令和8年08月」
   { function() return fmt.eng1_m(os.date("%m")) .. ", " .. os.date("%Y") end, "〔月年〕 ~a" },
   { function() return fmt.eng1_m(os.date("%m")) .. " " .. os.date("%Y") end, "〔月年〕 ~e" },
   { function() local a, b, ly_1, ly_2, lm = fmt.lunar() return ly_1 .. lm end, "〔農曆〕 ~l" },
 }
 
 specs["ymj"] = {
-  { function() local jpymd, jp_y = fmt.jp() return jp_y .. fmt.s0nd(os.date("%m") .. "月") end, "〔日本元号〕" },
-  { function() local jpymd, jp_y = fmt.jp() return fmt.fs(jp_y .. fmt.s0nd(os.date("%m") .. "月")) end, "〔日本元号〕" },
+  { function() local jpymd, jp_y = fmt.jp() return fmt.s0nd(jp_y .. os.date("%m") .. "月") end, "〔日本元号〕" },  -- 包整串去零，修正「令和8年08月」
+  { function() local jpymd, jp_y = fmt.jp() return fmt.fs(fmt.s0nd(jp_y .. os.date("%m") .. "月")) end, "〔日本元号〕" },
   { function() local jpymd, jp_y = fmt.jp() return jp_y .. os.date("%m") .. "月" end, "〔日本元号〕" },
   { function() local jpymd, jp_y = fmt.jp() return fmt.fs(jp_y .. os.date("%m") .. "月") end, "〔日本元号〕" },
 }
