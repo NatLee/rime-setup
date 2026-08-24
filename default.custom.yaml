@@ -49,14 +49,12 @@ patch:
     - {accept: "Shift+space", toggle: ascii_mode, when: always}
     - {accept: "Control+comma", toggle: ascii_mode, when: always}
     # ── 一鍵切換語言方案（長文用原生體驗；短句用 3/4/6/7 前綴即可）──
-    - {accept: "Control+Shift+7", select: easy_en_lower, when: always}
-    - {accept: "Control+Shift+ampersand", select: easy_en_lower, when: always}
-    - {accept: "Control+Shift+8", select: jpnin1, when: always}
-    - {accept: "Control+Shift+asterisk", select: jpnin1, when: always}
-    - {accept: "Control+Shift+9", select: hangeul_hnc, when: always}
-    - {accept: "Control+Shift+parenleft", select: hangeul_hnc, when: always}
-    - {accept: "Control+Shift+0", select: bopomo_onionplus, when: always}
-    - {accept: "Control+Shift+parenright", select: bopomo_onionplus, when: always}
+    # 注意：Ctrl+Shift+6~0 已被洋蔥方案的開關佔用（element_bopomo），故用 Ctrl+Alt+字母
+    # E=English, J=Japanese, K=Korean, B=Bopomofo（切換僅作用於當前視窗的輸入 session）
+    - {accept: "Control+Alt+e", select: easy_en_lower, when: always}
+    - {accept: "Control+Alt+j", select: jpnin1, when: always}
+    - {accept: "Control+Alt+k", select: hangeul_hnc, when: always}
+    - {accept: "Control+Alt+b", select: bopomo_onionplus, when: always}
     - {accept: "Control+period", toggle: full_shape, when: always}
     - {accept: "Control+semicolon", toggle: simplification, when: always}
     - {accept: "Control+slash", toggle: ascii_punct, when: always}
