@@ -1,5 +1,8 @@
 # bopomo_onionplus.custom.yaml
 patch:
+  # ── 方案顯示名稱（取代原版的「☆注音(洋蔥plus版)☆」）──
+  "schema/name": "Nat注音"
+
   # ── 八股文語言模型（octagram）：提升整句連打準確度 ──
   # 模型檔：zh-hant-t-essay-bgw.gram（置於使用者資料夾）
   grammar:
