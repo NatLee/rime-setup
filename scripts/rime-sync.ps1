@@ -13,11 +13,21 @@ if (-not $weaselRoot) { $weaselRoot = (Get-ItemProperty 'HKLM:\SOFTWARE\Rime\Wea
 $deployer = Join-Path $weaselRoot 'WeaselDeployer.exe'
 
 Write-Host '[1/3] git pull...' -ForegroundColor Cyan
+$before = git rev-parse HEAD
 git pull --rebase origin main
+$luaChanged = (git diff --name-only $before HEAD | Select-String '\.lua$|^rime\.lua')
 
 Write-Host '[2/3] 重新部署（套用遠端設定）...' -ForegroundColor Cyan
 & $deployer /deploy
 Start-Sleep -Seconds 20
+
+# lua 只在 WeaselServer 啟動時載入一次，部署不會重讀——有 lua 變更就重啟
+if ($luaChanged) {
+    Write-Host '      偵測到 lua 變更，重啟 WeaselServer...' -ForegroundColor Yellow
+    Stop-Process -Name WeaselServer -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Start-Process (Join-Path $weaselRoot 'WeaselServer.exe')
+}
 
 Write-Host '[3/3] git commit / push...' -ForegroundColor Cyan
 git add -A
