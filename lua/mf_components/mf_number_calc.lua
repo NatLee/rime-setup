@@ -344,4 +344,11 @@ local function calc(input, seg, env, ctx)
   return false
 end
 
-return { calc = calc }
+----------------------------------------------------------------------------------------
+--- 向 registry 註冊（pattern 型分支，matcher 保序：原 if 鏈最末）
+
+local function register(reg)
+  reg.register_matcher(calc)
+end
+
+return { calc = calc, register = register }

@@ -212,4 +212,11 @@ local function custom(input, seg, env, ctx)
   return false
 end
 
-return { custom = custom }
+----------------------------------------------------------------------------------------
+--- 向 registry 註冊（pattern 型分支，matcher 保序：位於 unicode 內碼之後、計算機之前）
+
+local function register(reg)
+  reg.register_matcher(custom)
+end
+
+return { custom = custom, register = register }

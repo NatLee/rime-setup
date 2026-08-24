@@ -26,35 +26,19 @@ local english_braille_u_l = f_e_s.english_braille_u_l
 local english_braille_u_ul = f_e_s.english_braille_u_ul
 
 ----------------------------------------------------------------------------------------
---- 字母轉換前導提示（原 translate() 內容純搬移）
+--- 字母轉換前導提示（/ ; ' 單獨），改為精確代碼 handler
 
-local function tips(input, seg, env, ctx)
-  local yield_c = ctx.yield_c
-    if (input == env.prefix .. "/") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [a-z]+〔小寫字母〕")
-      cand2.preedit = input .. "\t【小寫字母】▶"
-      yield(cand2)
-      return true
-    end
-
-    if (input == env.prefix .. ";") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [a-z]+〔大寫字母〕")
-      cand2.preedit = input .. "\t【大寫字母】▶"
-      yield(cand2)
-      return true
-    end
-
-    if (input == env.prefix .. "\'") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [a-z]+〔開頭大寫字母〕")
-      cand2.preedit = input .. "\t【開頭大寫字母】▶"
-      yield(cand2)
-      return true
-    end
-  return false
+local function tip(comment, label)
+  return function(input, seg, env, ctx)
+    local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", comment)
+    cand2.preedit = input .. "\t" .. label
+    yield(cand2)
+    return true
+  end
 end
 
 -------------------------------------------------------------------------------------------------------------
---- 字母大小寫各種轉換分支（原 translate() 內容純搬移）
+--- 字母大小寫各種轉換分支（原 translate() 內容純搬移，matcher 保序）
 
 local function convert(input, seg, env, ctx)
   local yield_c = ctx.yield_c
@@ -120,4 +104,14 @@ local function convert(input, seg, env, ctx)
   return false
 end
 
-return { tips = tips, convert = convert }
+----------------------------------------------------------------------------------------
+--- 向 registry 註冊
+
+local function register(reg)
+  reg.register_exact("/",  tip("  ~ [a-z]+〔小寫字母〕", "【小寫字母】▶"))
+  reg.register_exact(";",  tip("  ~ [a-z]+〔大寫字母〕", "【大寫字母】▶"))
+  reg.register_exact("\'", tip("  ~ [a-z]+〔開頭大寫字母〕", "【開頭大寫字母】▶"))
+  reg.register_matcher(convert)
+end
+
+return { register = register }

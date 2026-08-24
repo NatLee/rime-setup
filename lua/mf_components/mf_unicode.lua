@@ -10,49 +10,19 @@ local url_encode = require("f_components/f_url_encode")
 local url_decode = require("f_components/f_url_decode")
 
 ----------------------------------------------------------------------------------------
---- 內碼／URL encode 前導提示（原 translate() 內容純搬移）
+--- 內碼／URL encode 前導提示（x u c o i 單獨），改為精確代碼 handler
 
-local function tips(input, seg, env, ctx)
-  local yield_c = ctx.yield_c
-    if (input == env.prefix .. "x") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [0-9a-f]+〔內碼十六進制 Hex〕(Unicode)")
-      cand2.preedit = input .. "\t【內碼十六進制】▶"
-      yield(cand2)
-      return true
-    end
-
-    if (input == env.prefix .. "u") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [0-9a-f]+〔內碼十六進制 Hex〕(Unicode)")
-      cand2.preedit = input .. "\t【內碼十六進制】▶"
-      yield(cand2)
-      return true
-    end
-
-    if (input == env.prefix .. "c") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [0-9]+〔內碼十進制 Dec〕")
-      cand2.preedit = input .. "\t【內碼十進制】▶"
-      yield(cand2)
-      return true
-    end
-
-    if (input == env.prefix .. "o") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [0-7]+〔內碼八進制 Oct〕")
-      cand2.preedit = input .. "\t【內碼八進制】▶"
-      yield(cand2)
-      return true
-    end
-
-    if (input == env.prefix .. "i") then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "  ~ [0-9a-f]+〔Percent/URL encoding〕")
-      cand2.preedit = input .. "\t【Percent/URL encoding】▶"
-      yield(cand2)
-      return true
-    end
-  return false
+local function tip(comment, label)
+  return function(input, seg, env, ctx)
+    local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", comment)
+    cand2.preedit = input .. "\t" .. label
+    yield(cand2)
+    return true
+  end
 end
 
 ----------------------------------------------------------------------------------------
---- u/x/c/o 內碼與 i URL encode/decode 分支（原 translate() 內容純搬移）
+--- u/x/c/o 內碼與 i URL encode/decode 分支（原 translate() 內容純搬移，matcher 保序）
 
 local function codes(input, seg, env, ctx)
   local yield_c = ctx.yield_c
@@ -208,4 +178,16 @@ local function codes(input, seg, env, ctx)
   return false
 end
 
-return { tips = tips, codes = codes }
+----------------------------------------------------------------------------------------
+--- 向 registry 註冊
+
+local function register(reg)
+  reg.register_exact("x", tip("  ~ [0-9a-f]+〔內碼十六進制 Hex〕(Unicode)", "【內碼十六進制】▶"))
+  reg.register_exact("u", tip("  ~ [0-9a-f]+〔內碼十六進制 Hex〕(Unicode)", "【內碼十六進制】▶"))
+  reg.register_exact("c", tip("  ~ [0-9]+〔內碼十進制 Dec〕", "【內碼十進制】▶"))
+  reg.register_exact("o", tip("  ~ [0-7]+〔內碼八進制 Oct〕", "【內碼八進制】▶"))
+  reg.register_exact("i", tip("  ~ [0-9a-f]+〔Percent/URL encoding〕", "【Percent/URL encoding】▶"))
+  reg.register_matcher(codes)
+end
+
+return { register = register }

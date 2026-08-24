@@ -1,17 +1,34 @@
 ----------------------------------------------------------------------------------------
 --- 多功能翻譯器主檔（薄調度器）
---- 各分支已拆分至 lua/mf_components/ 子模組（純搬移，行為不變）：
----   mf_datetime.lua     日期時間分支（含 ○y○m○d）
----   mf_number_calc.lua  數字與計算機分支
----   mf_letters.lua      字母大小寫轉換分支（/ ; '）
----   mf_unicode.lua      u/x/c/o 內碼與 i URL encode/decode 分支
----   mf_open_menu.lua    j 快捷開啟、k* 鍵位表、v/g/gc 版本記憶體、'/ 功能總覽選單
+--- 架構：資料與邏輯分離（詳見 lua/mf_components/README.md）
+---   mf_components/core/registry.lua  精確代碼查表＋matcher 鏈調度
+---   mf_components/core/render.lua    規格表渲染器
+---   mf_components/core/fmt.lua       格式化原語庫（per-dispatch 記憶化）
+---   mf_components/dt_specs_*.lua     日期時間純資料規格表
+---   mf_components/mf_*.lua           邏輯型模組（向 registry 註冊）
 
-local mf_datetime = require("mf_components/mf_datetime")
-local mf_number_calc = require("mf_components/mf_number_calc")
+local registry = require("mf_components/core/registry")
+
+local mf_open_menu = require("mf_components/mf_open_menu")
 local mf_letters = require("mf_components/mf_letters")
 local mf_unicode = require("mf_components/mf_unicode")
-local mf_open_menu = require("mf_components/mf_open_menu")
+local mf_datetime_custom = require("mf_components/mf_datetime_custom")
+local mf_number_calc = require("mf_components/mf_number_calc")
+
+----------------------------------------------------------------------------------------
+--- 註冊（依原始 if/elseif 鏈順序）
+--- matcher 鏈順序＝原鏈順序：j[a-z]+ → 日期時間 → 字母轉換 → 內碼 → ○y○m○d → 計算機。
+--- 精確代碼查表先行：原鏈中精確代碼之前的 matcher 只有 j[a-z]+（j 開頭後接字母），
+--- 與任何精確代碼無交集，故語義等價（以回歸測試逐條驗證）。
+
+mf_open_menu.register(registry)         -- ''、k*、j、v/g/gc（exact）＋ j[a-z]+（matcher）
+registry.register_specs(require("mf_components/dt_specs_misc"))  -- p/z/l/s（exact 規格表）
+registry.register_specs(require("mf_components/dt_specs_time"))  -- t*/n*（exact 規格表）
+registry.register_specs(require("mf_components/dt_specs_date"))  -- f/y/m/d/w 組合（exact 規格表）
+mf_letters.register(registry)           -- / ; ' 前導提示（exact）＋大小寫轉換（matcher）
+mf_unicode.register(registry)           -- x u c o i 前導提示（exact）＋內碼轉換（matcher）
+mf_datetime_custom.register(registry)   -- ○y○m○d 指定日期（matcher）
+mf_number_calc.register(registry)       -- 數字與計算機（matcher）
 
 ----------------------------------------------------------------------------------------
 --- 快捷開啟
@@ -128,19 +145,7 @@ local function translate(input, seg, env)
     -- local aptime1, aptime2, aptime3, aptime4, aptime5, aptime6, aptime7, aptime8, aptime0_1, aptime0_2, aptime0_3, aptime0_4, aptime00_1, aptime00_2,  aptime00_3, aptime00_4 = time_out1()
     -- local aptime_c1, aptime_c2, aptime_c3, aptime_c4, ap_5 = time_out2()
 
-    --- 依原始 if/elseif 檔內順序依序調度各子模組；
-    --- 子模組函數有處理到（原程式碼該處為 return）就回 true，主檔即結束。
-    local ctx = { yield_c = yield_c, caret_pos = caret_pos }
-
-    if mf_open_menu.main_menu(input, seg, env, ctx) then return end   -- '/ 功能總覽選單
-    if mf_letters.tips(input, seg, env, ctx) then return end          -- / ; ' 前導提示
-    if mf_unicode.tips(input, seg, env, ctx) then return end          -- x u c o i 前導提示
-    if mf_open_menu.keys_run_ver(input, seg, env, ctx) then return end -- k* 鍵位表、j 快捷開啟、v/g/gc
-    if mf_datetime.now(input, seg, env, ctx) then return end          -- 即時日期時間各分支
-    if mf_letters.convert(input, seg, env, ctx) then return end       -- 字母大小寫轉換
-    if mf_unicode.codes(input, seg, env, ctx) then return end         -- u/x/c/o 內碼、i URL encode/decode
-    if mf_datetime.custom(input, seg, env, ctx) then return end       -- ○y○m○d 指定日期
-    if mf_number_calc.calc(input, seg, env, ctx) then return end      -- 數字與計算機
+    registry.dispatch(input, seg, env, { yield_c = yield_c, caret_pos = caret_pos })
 
   end
 end
