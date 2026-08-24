@@ -1,7 +1,7 @@
 # bopomo_onionplus.custom.yaml
 patch:
-  # ── 方案顯示名稱（取代原版的「☆注音(洋蔥plus版)☆」）──
-  "schema/name": "Nat注音"
+  # ── 方案顯示名稱──
+  "schema/name": "注音Na+"
 
   # ── 八股文語言模型（octagram）：提升整句連打準確度 ──
   # 模型檔：zh-hant-t-essay-bgw.gram（置於使用者資料夾）
@@ -19,6 +19,19 @@ patch:
   "european/enable_completion": true
   "gr2/enable_completion": true
   "cyr2/enable_completion": true
+
+  # ── 日文段落（前綴 6）候選釋義（JMdict 反查）──
+  "schema/dependencies/+":
+    - jpnin1_gloss
+  "engine/filters/+":
+    - reverse_lookup_filter@jp_gloss
+  jp_gloss:
+    tags: [ japan ]
+    overwrite_comment: true
+    dictionary: jpnin1_gloss
+    comment_format:
+      - xform/@@/　/
+      - xform/@/ /
 
   # ── Shift+數字 選字 ──
   # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.

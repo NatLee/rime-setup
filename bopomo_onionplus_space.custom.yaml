@@ -17,6 +17,19 @@ patch:
   "gr2/enable_completion": true
   "cyr2/enable_completion": true
 
+  # ── 日文段落（前綴 6）候選釋義（JMdict 反查）──
+  "schema/dependencies/+":
+    - jpnin1_gloss
+  "engine/filters/+":
+    - reverse_lookup_filter@jp_gloss
+  jp_gloss:
+    tags: [ japan ]
+    overwrite_comment: true
+    dictionary: jpnin1_gloss
+    comment_format:
+      - xform/@@/　/
+      - xform/@/ /
+
   # ── Shift+數字 選字 ──
   # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.
   "menu/alternative_select_keys": "!@#$%^"

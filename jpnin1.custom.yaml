@@ -5,3 +5,17 @@ patch:
   # 自動補全：打一半羅馬字即顯示完整詞（原版關閉）
   "translator/enable_completion": true
 
+  # ── 候選釋義（JMdict 日英詞典反查，機制同「英文（附釋義）」）──
+  # jpnin1_gloss 掛入 dependencies 使其詞典隨本方案編譯
+  "schema/dependencies/+":
+    - jpnin1_gloss
+  "engine/filters/+":
+    - reverse_lookup_filter@jp_gloss
+  jp_gloss:
+    tags: [ abc ]
+    overwrite_comment: true
+    dictionary: jpnin1_gloss
+    comment_format:
+      - xform/@@/　/
+      - xform/@/ /
+
