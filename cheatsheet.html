@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>洋蔥注音速查表</title>
+<style>
+  :root {
+    --bg: #F7F2E5; --card: #FDFAF1; --ink: #23221D; --muted: #6E6A58;
+    --tea: #065E6E; --tea-soft: #E3EDE6; --line: #D9CFB6; --accent: #79740E;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+    line-height: 1.65; padding: 2rem 1.2rem 4rem;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { color: var(--tea); font-size: 1.7rem; margin-bottom: .2rem; }
+  .sub { color: var(--muted); font-size: .9rem; margin-bottom: 1.6rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 1rem 1.1rem; break-inside: avoid;
+  }
+  .card h2 {
+    color: var(--tea); font-size: 1.05rem; margin-bottom: .6rem;
+    padding-bottom: .35rem; border-bottom: 2px solid var(--tea-soft);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  td { padding: .28rem .3rem; vertical-align: top; border-bottom: 1px dashed #EAE3CF; }
+  tr:last-child td { border-bottom: none; }
+  td.k { white-space: nowrap; width: 45%; }
+  kbd {
+    display: inline-block; background: #F1EAD6; border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 5px; padding: 0 .42em;
+    font: .85em/1.7 Consolas, "Microsoft JhengHei", monospace; color: var(--tea);
+  }
+  code {
+    background: var(--tea-soft); border-radius: 4px; padding: .05em .35em;
+    font: .88em Consolas, "Microsoft JhengHei", monospace; color: var(--tea);
+  }
+  .note { font-size: .82rem; color: var(--muted); margin-top: .5rem; }
+  .banner {
+    background: var(--tea); color: #FFFDF4; border-radius: 12px;
+    padding: .7rem 1.1rem; margin-bottom: 1.2rem; font-size: .95rem;
+  }
+  .banner kbd { background: rgba(255,253,244,.15); border-color: rgba(255,253,244,.35); color: #FFFDF4; }
+  @media print { body { padding: 0; } .card { border-color: #bbb; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌱 洋蔥注音（plus）速查表</h1>
+  <p class="sub">開啟方式：輸入法內打 <code>'/jh</code>＋空格 ｜ Windows 全域快捷鍵 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> ｜ 內建說明：打 <code>'/</code> 看功能總覽、<code>'/kk</code> 快捷鍵、<code>'/ko</code> 操作鍵</p>
+
+  <div class="banner">
+    最常用：<kbd>Shift</kbd>／<kbd>Caps</kbd> 切中英 ・ <kbd>⇧Shift</kbd>+<kbd>1~6</kbd> 選字 ・ 空格＝選當前 ・ <kbd>Enter</kbd>＝上屏原始按鍵 ・ <kbd>Esc</kbd>＝清除
+  </div>
+
+  <div class="grid">
+
+  <div class="card">
+    <h2>⌨️ 切換與開關</h2>
+    <table>
+      <tr><td class="k"><kbd>Shift</kbd> 或 <kbd>Caps Lock</kbd></td><td>中 ⇄ 英</td></tr>
+      <tr><td class="k"><kbd>Shift</kbd>+<kbd>Space</kbd>、<kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>中 ⇄ 英（備用）</td></tr>
+      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>`</kbd> 或 <kbd>F4</kbd></td><td>方案選單＋所有開關（emoji、註釋、字集、簡繁…）</td></tr>
+      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd></td><td>切到下一個方案</td></tr>
+      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td>半形 ⇄ 全形</td></tr>
+      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>;</kbd></td><td>原體 ⇄ 简体</td></tr>
+      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td>。，⇄ ．，（標點樣式）</td></tr>
+    </table>
+    <p class="note">終端機類程式（cmd／Windows Terminal／MobaXterm）預設英文。</p>
+  </div>
+
+  <div class="card">
+    <h2>🎯 選字與翻頁</h2>
+    <table>
+      <tr><td class="k"><kbd>⇧Shift</kbd>+<kbd>1</kbd>~<kbd>6</kbd></td><td>選第 1~6 個候選（標籤 ⇧1.~⇧6.）</td></tr>
+      <tr><td class="k"><kbd>Space</kbd></td><td>確認當前高亮候選</td></tr>
+      <tr><td class="k"><kbd>↓</kbd> 進選單後 <kbd>←</kbd> <kbd>→</kbd></td><td>上一頁／下一頁</td></tr>
+      <tr><td class="k"><kbd>Tab</kbd>（選單中）</td><td>回到輸入列</td></tr>
+      <tr><td class="k"><kbd>Enter</kbd></td><td>原始按鍵直接上屏（打英文碼用）</td></tr>
+      <tr><td class="k"><kbd>Tab</kbd>／<kbd>Shift</kbd>+<kbd>Tab</kbd>（輸入列）</td><td>游標右移／左移一個字</td></tr>
+      <tr><td class="k"><kbd>↑</kbd>（輸入列）</td><td>游標左移一個注音</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🌍 外掛語言（前綴啟動、<code>'</code> 結束）</h2>
+    <table>
+      <tr><td class="k"><code>3</code>＋字母</td><td>英文 Easy（含補全；結尾 <code>;</code> 全大寫、<code>;;</code> 首字大寫）</td></tr>
+      <tr><td class="k"><code>6</code>＋羅馬字</td><td>日文（<code>66</code>＝俄文）</td></tr>
+      <tr><td class="k"><code>7</code>＋編碼</td><td>韓文（<code>77</code>＝希臘文）</td></tr>
+      <tr><td class="k"><code>4</code>＋編碼</td><td>拉丁／歐語字母</td></tr>
+      <tr><td class="k"><code>=</code>＋倉頡碼</td><td>倉頡反查注音</td></tr>
+      <tr><td class="k"><code>][</code>＋編碼</td><td>全形字元</td></tr>
+      <tr><td class="k"><code>';</code>＋注音鍵</td><td>ㄅㄆㄇ注音文</td></tr>
+      <tr><td class="k"><code>`</code>＋代碼</td><td>emoji／顏文字集</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🧮 計算機（<code>'/</code> 開頭）</h2>
+    <table>
+      <tr><td class="k"><code>'/123+45*2</code>＋空格</td><td>直接算，候選出結果</td></tr>
+      <tr><td class="k" colspan="2">運算符可用字母（注音鍵盤免按 Shift）：</td></tr>
+      <tr><td class="k"><code>a</code>＝＋ ・ <code>r</code>＝−</td><td><code>x</code>＝× ・ <code>v</code>＝÷</td></tr>
+      <tr><td class="k"><code>s</code>＝^（次方）</td><td><code>q</code>＝( ・ <code>w</code>＝)</td></tr>
+      <tr><td class="k"><code>'/3aq5r2wx4</code></td><td>＝ 3+(5−2)×4 ＝ 15</td></tr>
+    </table>
+    <p class="note">⚠️ 次方請用 <code>s</code>：<kbd>Shift</kbd>+<kbd>6</kbd>（^）現在是選字鍵。純數字 <code>'/2026.08</code> 也可直接上屏。</p>
+  </div>
+
+  <div class="card">
+    <h2>📅 日期時間（<code>'/</code> 開頭）</h2>
+    <table>
+      <tr><td class="k"><code>'/f</code></td><td>年月日（<code>ym</code> 年月、<code>md</code> 月日）</td></tr>
+      <tr><td class="k"><code>'/y</code> <code>'/m</code> <code>'/d</code> <code>'/w</code></td><td>年／月／日／星期</td></tr>
+      <tr><td class="k"><code>'/n</code>、<code>'/t</code></td><td>時:分、時:分:秒</td></tr>
+      <tr><td class="k"><code>'/fn</code>、<code>'/ft</code>、<code>'/fw</code></td><td>組合格式（日期+時間／+星期）</td></tr>
+      <tr><td class="k"><code>'/z</code> <code>'/s</code> <code>'/l</code></td><td>時區／節氣／月相</td></tr>
+      <tr><td class="k"><code>'/3y5m2d</code></td><td>任意日期：3年5月2日 各種格式</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🔧 其他多功能（<code>'/</code> 開頭）</h2>
+    <table>
+      <tr><td class="k"><code>'/</code>（單獨）</td><td>📖 功能總覽選單（內建說明書）</td></tr>
+      <tr><td class="k"><code>'/kk</code>、<code>'/ko</code></td><td>快捷鍵說明、操作鍵說明</td></tr>
+      <tr><td class="k"><code>'/kj</code> <code>'/kh</code>…</td><td>日／韓／拉丁／希／俄 編碼表</td></tr>
+      <tr><td class="k"><code>'/u4e2d</code>、<code>'/c20013</code></td><td>Unicode 查字（16／10 進位）</td></tr>
+      <tr><td class="k"><code>'//abc</code> <code>'/;abc</code> <code>'/'abc</code></td><td>小寫／大寫／首大寫 字母</td></tr>
+      <tr><td class="k"><code>'/jh</code>＋空格</td><td>📌 開啟本速查表</td></tr>
+      <tr><td class="k"><code>'/jc</code>＋空格</td><td>開啟自訂詞庫檔（編輯後要重新部署）</td></tr>
+      <tr><td class="k"><code>'/j</code>＋空格</td><td>快捷開啟選單（Rime／洋蔥官網等）</td></tr>
+      <tr><td class="k"><code>'/v</code></td><td>版本資訊</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>✍️ 自訂詞與直打</h2>
+    <table>
+      <tr><td class="k"><code>email</code>（連按五鍵）</td><td>出現我的信箱（候選標〔短語〕）</td></tr>
+      <tr><td class="k">直接打 <code>網址</code>／<code>信箱</code></td><td><code>https://…</code>、<code>xxx@…</code> 自動識別上屏</td></tr>
+      <tr><td class="k">新增自訂詞</td><td><code>'/jc</code> 開檔 → 加一行「文字 <kbd>Tab</kbd> 編碼」→ 重新部署</td></tr>
+    </table>
+    <p class="note">重新部署：小狼毫圖示右鍵 →「重新部署」；Mac 選單列 →「重新部署」。</p>
+  </div>
+
+  <div class="card">
+    <h2>🔄 設定同步（GitHub）</h2>
+    <table>
+      <tr><td class="k">Windows</td><td><code>pwsh scripts/rime-sync.ps1</code></td></tr>
+      <tr><td class="k">macOS</td><td><code>bash ~/Library/Rime/scripts/rime-sync.sh</code></td></tr>
+      <tr><td class="k">Repo</td><td>github.com/NatLee/rime-config（只同步設定，不同步打字紀錄）</td></tr>
+    </table>
+  </div>
+
+  </div>
+</div>
+</body>
+</html>

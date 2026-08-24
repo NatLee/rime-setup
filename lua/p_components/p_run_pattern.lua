@@ -11,11 +11,14 @@
 - 修改後需「重新部署」才可生效。
 --]]
 
+local user_dir = (rime_api and rime_api.get_user_data_dir()) or ""
+
 local run_pattern = {
   -- ["開啟碼"] = { s = "提示選單上的排序", name = "檔案/程式/網址：名稱", open= "檔案/程式/網址位：路徑和相關參數(如：指定開啟程式)" },
 --------------------------------------------------------------------------
 -- 通用：
 --------------------------------------------------------------------------
+  ["h"] = { s = 0, name = "📌 輸入法速查表 Cheatsheet", open = '"' .. user_dir .. '/cheatsheet.html"' },
   ["r"] = { s = 1, name = "Rime 官方 GitHub", open = "https://github.com/rime" },
   ["rw"] = { s = 2, name = "Rime 詳解", open = "https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md" },
   ["l"] = { s = 3, name = "librime-lua 官方 GitHub", open = "https://github.com/hchunhui/librime-lua" },

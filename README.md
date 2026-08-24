@@ -32,6 +32,9 @@ NatLee 的 RIME 輸入法設定，Windows（小狼毫）與 macOS（鼠鬚管）
 
 | 功能 | 操作 |
 |---|---|
+| **速查表** | 打 `'/jh`＋空格，或 Windows 按 `Ctrl+Alt+H`（[cheatsheet.html](cheatsheet.html)） |
+| 功能總覽／快捷鍵說明 | 打 `'/` 單獨、`'/kk`、`'/ko` |
+| 計算機 | `'/123+45*2`；運算符字母別名 `a`+ `r`− `x`× `v`÷ `s`^ `q`( `w`) |
 | 選字 | `Shift+1`～`Shift+6`（標籤 ⇧1.～⇧6.） |
 | 中英切換 | `Shift` 或 `Caps Lock` |
 | 打出 email | 連按 `email` 後選字 |
