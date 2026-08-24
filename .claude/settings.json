@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Bash(git *)",
+      "PowerShell(git *)",
+      "Bash(pwsh tools/rime-test.ps1 *)",
+      "PowerShell(pwsh tools\\rime-test.ps1 *)",
+      "PowerShell(& \"C:\\Program Files\\Rime\\weasel-0.17.4\\WeaselDeployer.exe\" *)",
+      "PowerShell(Stop-Process -Name WeaselServer *)",
+      "PowerShell(Start-Process 'C:\\Program Files\\Rime\\weasel-0.17.4\\WeaselServer.exe'*)",
+      "PowerShell(robocopy *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "PowerShell(git push --force*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "powershell",
+            "command": "pwsh -NoProfile -File .claude/hooks/lua-restart-reminder.ps1",
+            "timeout": 15,
+            "statusMessage": "檢查 lua 變更…"
+          }
+        ]
+      }
+    ]
+  }
+}
