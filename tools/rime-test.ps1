@@ -22,6 +22,7 @@ param(
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
+  [string[]]$Option = @(),            # 測試前開啟的開關，如 -Option en_sort,gloss_en
   [switch]$Sync,                      # 先把 C:\RIME 同步到沙盒
   [switch]$Rebuild,                   # 強制完整重編（改了 yaml 必用）
   [string]$RimeDir = 'C:\RIME',
@@ -135,6 +136,7 @@ if ($Rebuild -or $Sync) {
 Start-Sleep -Milliseconds 800
 $session = [RimeT]::RimeCreateSession()
 [RimeT]::RimeSelectSchema($session, $Schema) | Out-Null
+foreach ($o in $Option) { [RimeT]::RimeSetOption($session, $o, $true) | Out-Null }
 
 # ---------------------------------------------------------------- 輔助函式
 function Get-Commit([string]$seq) {

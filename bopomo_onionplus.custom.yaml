@@ -57,11 +57,50 @@ patch:
     - uniquifier
     - lua_filter@comment_filter_unicode
     - lua_filter@gloss_filter
-  # 釋義語言 radio 開關（reset: 0 = 預設 gloss_zh 中文）
-  "switches/+":
-    - options: [ gloss_zh, gloss_en, gloss_ja ]
-      states: [ 釋中, 釋英, 釋日 ]
+  # ── 開關清單整合：整列覆蓋，把原本看不懂的代號（🈚️／🄽／個排／完整）
+  #    改成自我說明的名稱，F4 選單一目了然。順序＝選單顯示順序。
+  #    （狀態記憶是依 option 名稱，改標籤不會遺失既有設定）
+  switches:
+    - name: ascii_mode
       reset: 0
+      states: [ 中文, 英文 ]
+    - name: full_shape
+      reset: 0
+      states: [ 半形, 全形 ]
+    - name: ascii_punct
+      reset: 0
+      states: [ 中文標點, 英文標點 ]
+    - name: simplification
+      reset: 0
+      states: [ 正體, 簡體 ]
+    - name: character_range_bhjm
+      reset: 1
+      states: [ 完整字集, 台灣常用字 ]
+    - name: emoji_segestion
+      reset: 1
+      states: [ 不附 emoji, 附 emoji ]
+    - name: back_mark
+      reset: 1
+      states: [ 不標註符號, 標註符號 ]
+    - name: punct_mark
+      reset: 1
+      states: [ 不標註標點, 標註標點 ]
+    - name: unicode_comment
+      reset: 0
+      states: [ 不顯編碼, 顯 Unicode 編碼 ]
+    - name: en_sort
+      reset: 0
+      states: [ 英文：預設排序, 英文：字母序 ]
+    - options: [ gloss_zh, gloss_en, gloss_ja ]
+      reset: 0
+      states: [ 釋義：中文, 釋義：英文, 釋義：日文 ]
+
+  # ── 補綁被 Windows 攔截的快捷鍵 ──
+  # Ctrl+Shift+0 被 Windows 註冊為「直接切換輸入法」系統熱鍵（登錄檔
+  # Control Panel\Input Method\Hot Keys 的 00000104），永遠傳不到輸入法，
+  # 故 en_sort 改用 F 區（F 區沒有被系統佔用）。
+  "key_binder/bindings/+":
+    - { accept: "Control+Shift+F5", toggle: en_sort, when: always }
 
   # ── Shift+數字 選字 ──
   # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.
