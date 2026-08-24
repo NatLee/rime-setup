@@ -13,7 +13,7 @@ sync/
 # ===== 備份與暫存 =====
 *.bak
 *.zip
-_cleanup*/
+_cleanup*
 trash/
 
 # ===== 系統雜物 =====
