@@ -18,7 +18,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('basic', 'gloss', 'cands', 'commit')]
+  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit')]
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
@@ -228,6 +228,20 @@ switch ($Mode) {
 
   'cands'  { Get-Cands $InputSeq | Format-Table -AutoSize }
   'commit' { "[{0}] => [{1}]" -f $InputSeq, (Get-Commit $InputSeq) }
+
+  'preedit' {
+    # 顯示編碼列（含段落提示標籤，如《英》▶／《日》▶）
+    [RimeT]::RimeClearComposition($session) | Out-Null
+    [RimeT]::RimeSimulateKeySequence($session, $InputSeq) | Out-Null
+    $c = New-Object RimeContextT
+    $c.data_size = [Runtime.InteropServices.Marshal]::SizeOf([type][RimeContextT]) - 4
+    if ([RimeT]::RimeGetContext($session, [ref]$c)) {
+      $pre = if ($c.composition.preedit -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::PtrToStringUTF8($c.composition.preedit) } else { '' }
+      "[{0}] preedit => [{1}]" -f $InputSeq, $pre
+      [RimeT]::RimeFreeContext([ref]$c) | Out-Null
+    }
+    [RimeT]::RimeClearComposition($session) | Out-Null
+  }
 }
 
 [RimeT]::RimeDestroySession($session) | Out-Null

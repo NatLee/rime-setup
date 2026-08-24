@@ -17,6 +17,15 @@ patch:
   "gr2/enable_completion": true
   "cyr2/enable_completion": true
 
+  # ── 英文段落提示標籤：《Easy》→《英》──
+  # 用 /+ 附加一條改寫規則，不必複製原本的 preedit_format 列表
+  "easy_en/tips": "《英》▶"
+  "easy_en/closing_tips": "◀《英》"
+  "easy_en/preedit_format/+":
+    - xform/《Easy》/《英》/
+  "easy_en_upper/preedit_format/+":
+    - xform/《Easy》/《英》/
+
   # ── 候選釋義（中／英／日 三語可切換，lua gloss_filter）──
   # 日文段落（前綴 6）查三語日文釋義詞典；easy_en 段落（前綴 3）查 easy_en_lcomment。
   # 三個釋義詞典掛入 dependencies 使其隨本方案編譯
