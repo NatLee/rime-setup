@@ -10,6 +10,13 @@ patch:
   "translator/max_homophones": 7
   "translator/max_homographs": 7
 
+  # ── 外掛語言體驗補強：打一半就顯示整個詞（自動補全）──
+  # 韓文（korea）維持關閉：音節制編碼開補全會產生大量雜訊（原生方案同樣關閉）
+  "japan/enable_completion": true
+  "european/enable_completion": true
+  "gr2/enable_completion": true
+  "cyr2/enable_completion": true
+
   # ── Shift+數字 選字 ──
   # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.
   "menu/alternative_select_keys": "!@#$%^"

@@ -48,6 +48,15 @@ patch:
     - {accept: "Control+Shift+asciicircum", toggle: extended_charset, when: always}
     - {accept: "Shift+space", toggle: ascii_mode, when: always}
     - {accept: "Control+comma", toggle: ascii_mode, when: always}
+    # ── 一鍵切換語言方案（長文用原生體驗；短句用 3/4/6/7 前綴即可）──
+    - {accept: "Control+Shift+7", select: easy_en_lower, when: always}
+    - {accept: "Control+Shift+ampersand", select: easy_en_lower, when: always}
+    - {accept: "Control+Shift+8", select: jpnin1, when: always}
+    - {accept: "Control+Shift+asterisk", select: jpnin1, when: always}
+    - {accept: "Control+Shift+9", select: hangeul_hnc, when: always}
+    - {accept: "Control+Shift+parenleft", select: hangeul_hnc, when: always}
+    - {accept: "Control+Shift+0", select: bopomo_onionplus, when: always}
+    - {accept: "Control+Shift+parenright", select: bopomo_onionplus, when: always}
     - {accept: "Control+period", toggle: full_shape, when: always}
     - {accept: "Control+semicolon", toggle: simplification, when: always}
     - {accept: "Control+slash", toggle: ascii_punct, when: always}
@@ -55,6 +64,7 @@ patch:
     - {schema: bopomo_onionplus}
     - {schema: bopomo_onionplus_space}
     - {schema: jpnin1}
+    - {schema: hangeul_hnc}
     - {schema: allbpm}
     - {schema: fullshape}
     - {schema: easy_en_lower}
