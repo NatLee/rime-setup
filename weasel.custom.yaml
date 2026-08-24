@@ -1,0 +1,117 @@
+# weasel.custom.yaml
+# 小狼毫 0.17.4（支援 corner_radius / shadow / color_scheme_dark / 字型 fallback 與字重）
+
+patch:
+  app_options:
+    cmd.exe:
+      ascii_mode: true
+    conhost.exe:
+      ascii_mode: true
+    openconsole.exe:
+      ascii_mode: true
+    windowsterminal.exe:
+      ascii_mode: true
+    mobaxterm.exe:
+      ascii_mode: true
+
+  style:
+    color_scheme: NatMatcha
+    color_scheme_dark: NatMatcha # Windows 深色模式也維持亮色；想跟隨系統可改成 NatLight_dark
+    horizontal: false # 直式排列
+    inline_preedit: false # FALSE 雙行顯示（編碼列在候選窗內）
+    preedit_type: composition
+    display_tray_icon: true
+    label_format: "%s."
+    font_face: "Microsoft JhengHei:bold, Segoe UI Emoji" # bold＝字重加粗；後者為 emoji fallback
+    font_point: 17
+    label_font_face: "Segoe UI Semibold, Segoe UI Symbol" # 後者確保 ⇧ 符號有字形
+    label_font_point: 13 # 標籤縮小，候選字更突出
+    comment_font_point: 13 # 註釋縮小，與標籤一致
+    layout:
+      margin_x: 12
+      margin_y: 10
+      border_width: 1 # 細邊框
+      spacing: 10
+      candidate_spacing: 8
+      hilite_spacing: 6
+      hilite_padding_x: 8
+      hilite_padding_y: 6
+      corner_radius: 10 # 視窗圓角
+      round_corner: 6 # 高亮光棒圓角
+      shadow_radius: 12 # 柔和陰影
+      shadow_offset_x: 0
+      shadow_offset_y: 2
+
+  preset_color_schemes:
+    # 顏色格式為 0xBBGGRR（含透明度時 0xAABBGGRR）
+    NatMatcha:
+      name: Nat Matcha
+      author: NatLee
+      back_color: 0xE5F2F7 # 底色：柔和象牙白 #F7F2E5（不是純白，不刺眼）
+      border_color: 0xB6CFD9 # 邊框：淡卡其 #D9CFB6
+      shadow_color: 0x30000000 # 陰影：19% 黑
+      text_color: 0x282E2F # 編碼列文字：深灰 #2F2E28
+      hilited_text_color: 0x786607 # 編碼列高亮段文字：茶湯青 #076678
+      hilited_back_color: 0xC8E3EB # 編碼列高亮段底色：深一階奶油 #EBE3C8
+      label_color: 0x687F87 # 候選標籤：灰褐 #877F68
+      candidate_text_color: 0x1D2223 # 候選字：近黑 #23221D（高對比）
+      comment_text_color: 0x786607 # 註釋：茶湯青 #076678
+      hilited_candidate_back_color: 0x6E5E06 # 高亮候選底色：深茶湯青光棒 #065E6E
+      hilited_candidate_text_color: 0xF4FDFF # 高亮候選文字：奶油白 #FFFDF4（高對比）
+      hilited_candidate_label_color: 0xE4E2C2 # 高亮候選標籤：淡青奶油 #C2E2E4
+      hilited_comment_text_color: 0xE4E2C2 # 高亮候選註釋：淡青奶油 #C2E2E4
+      hilited_mark_color: 0xF4FDFF # 高亮候選前的小標記：奶油白 #FFFDF4
+
+    NatLight:
+      name: Nat Light
+      author: NatLee
+      back_color: 0xFEFCFA # 底色：微暖白 #FAFCFE
+      border_color: 0xF0E9E4 # 邊框：淡灰藍 #E4E9F0
+      shadow_color: 0x28000000 # 陰影：16% 黑
+      text_color: 0x4F4137 # 編碼列文字：深灰 #37414F
+      hilited_text_color: 0xD6620F # 編碼列高亮段文字：藍 #0F62D6
+      hilited_back_color: 0xFEF1E9 # 編碼列高亮段底色：淡藍 #E9F1FE
+      label_color: 0xABA198 # 候選標籤：淺灰 #98A1AB
+      candidate_text_color: 0x3D3630 # 候選字：近黑 #30363D
+      comment_text_color: 0x81776E # 註釋：中灰 #6E7781
+      hilited_candidate_back_color: 0xFEF1E9 # 高亮候選底色：淡藍 #E9F1FE
+      hilited_candidate_text_color: 0xD6620F # 高亮候選文字：藍 #0F62D6
+      hilited_candidate_label_color: 0xE08D5B # 高亮候選標籤：淺藍 #5B8DE0
+      hilited_comment_text_color: 0xCF936A # 高亮候選註釋：灰藍 #6A93CF
+      hilited_mark_color: 0xD6620F # 高亮候選前的小標記：藍 #0F62D6
+
+    # 配套深色主題（想跟隨 Windows 深色模式時，把 color_scheme_dark 改成這個）
+    NatLight_dark:
+      name: Nat Light（Dark）
+      author: NatLee
+      back_color: 0x2B2320 # #20232B
+      border_color: 0x3D332D # #2D333D
+      shadow_color: 0x50000000
+      text_color: 0xD8CEC8 # #C8CED8
+      hilited_text_color: 0xF2A55C # #5CA5F2
+      hilited_back_color: 0x40332B # #2B3340
+      label_color: 0x8A7A6E # #6E7A8A
+      candidate_text_color: 0xE4DBD5 # #D5DBE4
+      comment_text_color: 0xA08D80 # #808DA0
+      hilited_candidate_back_color: 0x4A3A2E # #2E3A4A
+      hilited_candidate_text_color: 0xF5B075 # #75B0F5
+      hilited_candidate_label_color: 0xD98F62 # #628FD9
+      hilited_comment_text_color: 0xC08163 # #6381C0
+      hilited_mark_color: 0xF2A55C # #5CA5F2
+
+    # 原主題保留，隨時可把 color_scheme 改回 NatLee
+    NatLee:
+      name: Nat x Theme
+      author: NatLee
+      label_color: 0x36383c # 候選字顏色
+      comment_text_color: 0x786607 # 提示文字顏色
+      text_color: 0x454950 # 編碼行文字顏色
+      candidate_text_color: 0x36383c # 候選項文字顏色
+      back_color: 0xd7f5f9 # 底色
+      border_color: 0xd7f5f9 # 邊框顏色
+      hilited_text_color: 0x36383c # 高亮拼音
+      hilited_back_color: 0xc7f1fb # 高亮拼音底色
+      hilited_candidate_text_color: 0xc7f1fb # 高亮候選項文字
+      hilited_candidate_label_color: 0xc7f1fb # 第一候選項編號
+      hilited_comment_text_color: 0xc7f1fb # 第一候選項提示文字
+      hilited_candidate_back_color: 0x786607 # 第一候選項背景

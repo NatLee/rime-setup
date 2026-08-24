@@ -1,0 +1,30 @@
+patch:
+  us_keyboard_layout: true
+  style:
+    color_scheme: CoolGPT
+  preset_color_schemes:
+    CoolGPT:
+      name: CoolGPT
+      author: OpenAI
+      horizontal: true # candidates display horizontally
+      inline_preedit: true # pre-edit in one line
+      candidate_format: "%c\u2005%@" # controls the space between the number %c and the candidate word %@ using 1/6 em space U+2005
+      corner_radius: 5 # candidate bar corner radius
+      border_height: 5 # window border height, only effective when larger than corner radius
+      border_width: 5 # window border width, only effective when larger than corner radius
+      font_face: "Roboto" # font for candidates
+      font_point: 24 # size of candidate words
+      label_font_point: 22 # size of candidate numbers
+
+      text_color: 0x000000 # code row text color, 24-bit color value, hexadecimal, BGR sequence
+      back_color: 0xFFFFFF # candidate bar background color
+      border_color: 0xCCCCCC # candidate bar border color
+      label_color: 0x333333 # candidate bar number color
+      candidate_text_color: 0x333333 # candidate word text color
+      comment_text_color: 0x777777 # hint text color (e.g. pinyin)
+      hilited_text_color: 0x333333 # highlighted pre-edit pinyin (requires inline pre-editing enabled)
+      hilited_back_color: 0xEEEEEE # background color of highlighted pinyin (requires inline pre-editing enabled)
+      hilited_candidate_text_color: 0x0000FF # text color of highlighted candidate
+      hilited_candidate_label_color: 0x0000FF # number color of highlighted candidate
+      hilited_comment_text_color: 0x0000FF # hint text color of highlighted candidate
+      hilited_candidate_back_color: 0xDDDDDD # background color of highlighted candidate

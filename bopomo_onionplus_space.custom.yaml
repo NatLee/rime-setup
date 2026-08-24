@@ -1,0 +1,28 @@
+# bopomo_onionplus_space.custom.yaml
+patch:
+  # ── 八股文語言模型（octagram）：提升整句連打準確度 ──
+  # 模型檔：zh-hant-t-essay-bgw.gram（置於使用者資料夾）
+  grammar:
+    language: zh-hant-t-essay-bgw
+    collocation_max_length: 5
+    collocation_min_length: 2
+  "translator/contextual_suggestions": true
+  "translator/max_homophones": 7
+  "translator/max_homographs": 7
+
+  # ── Shift+數字 選字 ──
+  # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.
+  "menu/alternative_select_keys": "!@#$%^"
+  "menu/alternative_select_labels": [ "⇧1", "⇧2", "⇧3", "⇧4", "⇧5", "⇧6" ]
+  # selector 移到 punctuator 之前：選單開啟時 Shift+數字先被選字器處理；
+  # 無選單時 selector 不動作，Shift+1 照常輸出「！」
+  "engine/processors":
+    - lua_processor@mix_apc_ltk_pluss
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - selector
+    - punctuator
+    - navigator
+    - express_editor

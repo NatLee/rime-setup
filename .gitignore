@@ -1,0 +1,22 @@
+# ===== 機器專屬狀態（每台機器不同，勿同步）=====
+installation.yaml
+user.yaml
+
+# ===== 編譯輸出（部署時重新生成）=====
+build/
+
+# ===== 打字紀錄／詞頻資料庫（機器各自維護，不同步以免互相污染）=====
+*.userdb/
+*.userdb.old/
+sync/
+
+# ===== 備份與暫存 =====
+*.bak
+*.zip
+_cleanup*/
+trash/
+
+# ===== 系統雜物 =====
+.DS_Store
+Thumbs.db
+desktop.ini
