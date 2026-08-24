@@ -18,7 +18,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit')]
+  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'examples')]
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
@@ -226,6 +226,20 @@ switch ($Mode) {
       }
     }
     [RimeT]::RimeSetOption($session, 'gloss_zh', $true) | Out-Null
+  }
+
+  'examples' {
+    # 產生 cheatsheet.html 用的真實輸入→輸出範例（避免文件寫出憑空編造的例子）
+    $g = [char]0x60   # 反引號：PowerShell 單引號內無法跳脫，必須這樣組
+    $seqs = @(
+      'su3 ', "su3 fu5 ", '3hello ', '3app ', '6sakura ', '6arigatou ',
+      '4cafe ', '66privet ', '77alpha ', '=oiar ', "${g}1f ", "';su3 ",
+      '][a ', 'email ', "'/f ", "'/t ", "'/fn ", "'/w ", "'/s ", "'/l ",
+      "'/3y5m2d ", "'/123a45x2 ", "'/q1a2wx3 ", "'/1.5v0.5 ", "'/u4e2d ",
+      "'/c20013 ", "'/ie4bda0 ", "'//hello ", "'/;hello ", "'/'hello ",
+      "'/uuid ", "'/ts ", "'/pw ", "'/rgb1a73e8 ", "'/cshello.world ", "'/v "
+    )
+    foreach ($s in $seqs) { "{0,-18} => {1}" -f "[$s]", (Get-Commit $s) }
   }
 
   'cands'  { Get-Cands $InputSeq | Format-Table -AutoSize }

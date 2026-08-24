@@ -6,178 +6,483 @@
 <title>注音Na+ 速查表</title>
 <style>
   :root {
-    --bg: #F7F2E5; --card: #FDFAF1; --ink: #23221D; --muted: #6E6A58;
-    --tea: #065E6E; --tea-soft: #E3EDE6; --line: #D9CFB6; --accent: #79740E;
+    --bg:#F7F2E5; --card:#FDFAF1; --ink:#23221D; --muted:#6E6A58;
+    --tea:#065E6E; --tea2:#0A7C90; --soft:#EFE8D2; --line:#D9CFB6;
+    --in:#8A5A00; --out:#0A6B3D; --warnbg:#FBF0D8; --warnline:#D9A441;
+    --okbg:#E4F0E6; --shadow:0 1px 3px rgba(0,0,0,.06);
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#1D1F21; --card:#26292B; --ink:#E8E4D8; --muted:#A39D8A;
+      --tea:#5FC6D8; --tea2:#79D4E4; --soft:#32363A; --line:#3D4246;
+      --in:#E0B060; --out:#7FD1A0; --warnbg:#3A3222; --warnline:#8A6B2A;
+      --okbg:#26382C; --shadow:0 1px 3px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
   body {
-    background: var(--bg); color: var(--ink);
-    font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
-    line-height: 1.65; padding: 2rem 1.2rem 4rem;
+    background:var(--bg); color:var(--ink); line-height:1.6;
+    font-family:"Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
+    padding-bottom:3rem;
   }
-  .wrap { max-width: 1080px; margin: 0 auto; }
-  h1 { color: var(--tea); font-size: 1.7rem; margin-bottom: .2rem; }
-  .sub { color: var(--muted); font-size: .9rem; margin-bottom: 1.6rem; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+  .wrap { max-width:1200px; margin:0 auto; padding:0 1.1rem; }
+
+  /* ── 置頂列：標題＋搜尋 ── */
+  .topbar {
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    border-bottom:1px solid var(--line); padding:.7rem 0 .65rem; margin-bottom:1.1rem;
+  }
+  .topbar .row { display:flex; align-items:center; gap:.9rem; flex-wrap:wrap; }
+  h1 {
+    color:var(--tea); font-size:1.22rem; letter-spacing:.02em;
+    display:flex; align-items:center; gap:.45rem; white-space:nowrap;
+  }
+  #filter {
+    flex:1 1 260px; min-width:200px; padding:.45rem .8rem; font-size:.95rem;
+    border-radius:9px; border:1px solid var(--line); background:var(--card);
+    color:var(--ink); font-family:inherit;
+  }
+  #filter::placeholder { color:var(--muted); }
+  .legend { font-size:.8rem; color:var(--muted); white-space:nowrap; }
+  .legend i { font-style:normal; color:var(--in); font-family:Consolas,monospace; }
+  .legend b { color:var(--out); }
+
+  /* ── 單色圖示 ── */
+  .ico { width:1.05em; height:1.05em; stroke:currentColor; fill:none;
+         stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+  /* ── 測試區 ── */
+  .lab {
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:.9rem 1rem 1rem; margin-bottom:1.1rem; box-shadow:var(--shadow);
+  }
+  .lab h2 { color:var(--tea); font-size:1.02rem; display:flex; align-items:center;
+            gap:.4rem; margin-bottom:.55rem; }
+  .chips { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.6rem; }
+  .chip {
+    border:1px solid var(--line); background:var(--soft); color:var(--tea);
+    border-radius:20px; padding:.22rem .7rem; font-size:.83rem; cursor:pointer;
+    font-family:inherit;
+  }
+  .chip:hover { border-color:var(--tea2); }
+  .chip[aria-pressed="true"] { background:var(--tea); color:#FFFDF4; border-color:var(--tea); }
+  .task {
+    font-size:.87rem; color:var(--muted); margin-bottom:.5rem; min-height:1.5em;
+  }
+  .task code { font-size:1em; }
+  .task .ok { color:var(--out); font-weight:600; }
+  #pad {
+    width:100%; min-height:88px; resize:vertical; padding:.65rem .8rem;
+    font-size:1.15rem; line-height:1.7; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg); color:var(--ink);
+    font-family:"Microsoft JhengHei","PingFang TC",monospace;
+  }
+  #pad:focus { outline:2px solid var(--tea2); outline-offset:1px; }
+  .labfoot { display:flex; justify-content:space-between; align-items:center;
+             gap:.8rem; margin-top:.45rem; flex-wrap:wrap; }
+  .stat { font-size:.8rem; color:var(--muted); }
+  .btn {
+    border:1px solid var(--line); background:var(--soft); color:var(--ink);
+    border-radius:8px; padding:.25rem .7rem; font-size:.83rem; cursor:pointer;
+    font-family:inherit;
+  }
+  .btn:hover { border-color:var(--tea2); color:var(--tea); }
+  .cps {
+    margin-top:.5rem; font-size:.78rem; color:var(--muted);
+    font-family:Consolas,monospace; word-break:break-all; line-height:1.9;
+  }
+  .cps span {
+    display:inline-block; background:var(--soft); border-radius:5px;
+    padding:.05rem .4rem; margin:.1rem .18rem .1rem 0;
+  }
+  .cps b { color:var(--ink); font-weight:600; }
+
+  /* ── 參考卡片 ── */
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(390px,1fr));
+          gap:.95rem; align-items:start; }
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 1rem 1.1rem; break-inside: avoid;
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:.85rem 1rem .95rem; break-inside:avoid; box-shadow:var(--shadow);
   }
   .card h2 {
-    color: var(--tea); font-size: 1.05rem; margin-bottom: .6rem;
-    padding-bottom: .35rem; border-bottom: 2px solid var(--tea-soft);
+    color:var(--tea); font-size:1rem; margin-bottom:.5rem; padding-bottom:.35rem;
+    border-bottom:2px solid var(--soft); display:flex; align-items:center; gap:.45rem;
   }
-  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-  td { padding: .28rem .3rem; vertical-align: top; border-bottom: 1px dashed #EAE3CF; }
-  tr:last-child td { border-bottom: none; }
-  td.k { white-space: nowrap; width: 45%; }
+  table { width:100%; border-collapse:collapse; font-size:.895rem; }
+  tr { border-bottom:1px dashed var(--line); }
+  tr:last-child { border-bottom:none; }
+  td { padding:.32rem .25rem; vertical-align:top; }
+  td.k { white-space:nowrap; width:1%; padding-right:.7rem; }
+  .eg { display:block; color:var(--muted); font-size:.82rem; margin-top:.12rem; }
+  .eg i { font-style:normal; color:var(--in); font-family:Consolas,monospace; }
+  .eg b { font-weight:600; color:var(--out); }
+  .eg .arw { color:var(--muted); padding:0 .28em; }
+
   kbd {
-    display: inline-block; background: #F1EAD6; border: 1px solid var(--line);
-    border-bottom-width: 2px; border-radius: 5px; padding: 0 .42em;
-    font: .85em/1.7 Consolas, "Microsoft JhengHei", monospace; color: var(--tea);
+    display:inline-block; background:var(--soft); border:1px solid var(--line);
+    border-bottom-width:2px; border-radius:5px; padding:0 .4em; color:var(--tea);
+    font:.84em/1.75 Consolas,"Microsoft JhengHei",monospace; white-space:nowrap;
   }
   code {
-    background: var(--tea-soft); border-radius: 4px; padding: .05em .35em;
-    font: .88em Consolas, "Microsoft JhengHei", monospace; color: var(--tea);
+    background:var(--soft); border-radius:4px; padding:.05em .35em; color:var(--tea);
+    font:.87em Consolas,"Microsoft JhengHei",monospace;
   }
-  .note { font-size: .82rem; color: var(--muted); margin-top: .5rem; }
-  .banner {
-    background: var(--tea); color: #FFFDF4; border-radius: 12px;
-    padding: .7rem 1.1rem; margin-bottom: 1.2rem; font-size: .95rem;
+  .note { font-size:.81rem; color:var(--muted); margin-top:.5rem;
+          border-left:3px solid var(--line); padding-left:.6rem; }
+  .warn { background:var(--warnbg); border-left:3px solid var(--warnline);
+          padding:.45rem .7rem; border-radius:0 8px 8px 0; font-size:.84rem; margin-top:.5rem; }
+  .empty { display:none; color:var(--muted); padding:2rem; text-align:center; }
+  footer { margin-top:1.8rem; color:var(--muted); font-size:.79rem; text-align:center; }
+  footer a { color:var(--tea2); }
+  @media print {
+    body { background:#fff; }
+    .topbar { position:static; } #filter, .lab { display:none; }
+    .card { border-color:#bbb; box-shadow:none; }
   }
-  .banner kbd { background: rgba(255,253,244,.15); border-color: rgba(255,253,244,.35); color: #FFFDF4; }
-  @media print { body { padding: 0; } .card { border-color: #bbb; } }
 </style>
 </head>
 <body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8 0 5.5-4.8 10-10 10z"/><path d="M2 21c0-3 1.9-5.4 5.1-6C9.5 14.5 12 13 13 12"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+  <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h8"/></symbol>
+  <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9l-3.8 3.8z"/></symbol>
+  <symbol id="i-hash" viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-slide" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+  <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><line x1="8" y1="2" x2="16" y2="2"/><line x1="7" y1="15" x2="17" y2="15"/></symbol>
+</defs></svg>
+
+<div class="topbar"><div class="wrap"><div class="row">
+  <h1><svg class="ico"><use href="#i-leaf"/></svg>注音Na+ 速查表</h1>
+  <input id="filter" type="search" placeholder="輸入關鍵字即時篩選（日文、計算、emoji、密碼、同步…）" autocomplete="off">
+  <span class="legend"><i>打這個</i> → <b>得到這個</b></span>
+</div></div></div>
+
 <div class="wrap">
-  <h1>🌱 注音Na+ 速查表</h1>
-  <p class="sub">開啟方式：輸入法內打 <code>'/jh</code>＋空格 ｜ Windows 全域快捷鍵 <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>H</kbd> ｜ 內建說明：打 <code>'/</code> 看功能總覽、<code>'/kk</code> 快捷鍵、<code>'/ko</code> 操作鍵</p>
 
-  <div class="banner">
-    最常用：<kbd>Shift</kbd>／<kbd>Caps</kbd> 切中英 ・ <kbd>⇧Shift</kbd>+<kbd>1~6</kbd> 選字 ・ 空格＝選當前 ・ <kbd>Enter</kbd>＝上屏原始按鍵 ・ <kbd>Esc</kbd>＝清除
+<!-- ═══════════════ 測試區 ═══════════════ -->
+<section class="lab">
+  <h2><svg class="ico"><use href="#i-flask"/></svg>試打區　<span style="font-weight:400;font-size:.85rem;color:var(--muted)">點一個任務，然後在下面的框裡實際打打看</span></h2>
+  <div class="chips" id="chips"></div>
+  <p class="task" id="task">選一個任務，或直接在下面自由試打。</p>
+  <textarea id="pad" placeholder="游標放這裡，用輸入法打字試試看…"></textarea>
+  <div class="labfoot">
+    <span class="stat" id="stat">0 個字元</span>
+    <span>
+      <button class="btn" id="btn-cp">顯示字元碼</button>
+      <button class="btn" id="btn-clear">清除</button>
+    </span>
   </div>
+  <div class="cps" id="cps"></div>
+</section>
 
-  <div class="grid">
+<div class="grid" id="grid">
 
-  <div class="card">
-    <h2>⌨️ 切換與開關</h2>
-    <table>
-      <tr><td class="k"><kbd>Shift</kbd> 或 <kbd>Caps Lock</kbd></td><td>中 ⇄ 英</td></tr>
-      <tr><td class="k"><kbd>Shift</kbd>+<kbd>Space</kbd>、<kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>中 ⇄ 英（備用）</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>`</kbd> 或 <kbd>F4</kbd></td><td>方案選單＋所有開關（emoji、註釋、字集、簡繁…）</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>1</kbd></td><td>切到下一個方案</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F1</kbd>~<kbd>F4</kbd></td><td>直達方案：注音／日文／韓文／英文（編號＝F4 選單順序，作用於當前視窗）</td></tr>
-      <tr><td class="k"><kbd>F4</kbd> → 數字</td><td>全域切換方案（跨視窗持久）</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>6</kbd>/<kbd>7</kbd>/<kbd>8</kbd>/<kbd>9</kbd></td><td>字集／emoji／符號標註／Unicode 編碼</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F5</kbd></td><td>英文排序切換（原 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd> 被 Windows 佔用）</td></tr>
-      <tr><td class="k"><kbd>F4</kbd> 選單</td><td>所有開關都在這裡，名稱已改為看得懂的中文</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td>半形 ⇄ 全形</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>;</kbd></td><td>原體 ⇄ 简体</td></tr>
-      <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>/</kbd></td><td>。，⇄ ．，（標點樣式）</td></tr>
-    </table>
-    <p class="note">終端機類程式（cmd／Windows Terminal／MobaXterm）預設英文。</p>
-  </div>
-
-  <div class="card">
-    <h2>🎯 選字與翻頁</h2>
-    <table>
-      <tr><td class="k"><kbd>⇧Shift</kbd>+<kbd>1</kbd>~<kbd>6</kbd></td><td>選第 1~6 個候選（標籤 ⇧1.~⇧6.）</td></tr>
-      <tr><td class="k"><kbd>Space</kbd></td><td>確認當前高亮候選</td></tr>
-      <tr><td class="k"><kbd>↓</kbd> 進選單後 <kbd>←</kbd> <kbd>→</kbd></td><td>上一頁／下一頁</td></tr>
-      <tr><td class="k"><kbd>Tab</kbd>（選單中）</td><td>回到輸入列</td></tr>
-      <tr><td class="k"><kbd>Enter</kbd></td><td>原始按鍵直接上屏（打英文碼用）</td></tr>
-      <tr><td class="k"><kbd>Tab</kbd>／<kbd>Shift</kbd>+<kbd>Tab</kbd>（輸入列）</td><td>游標右移／左移一個字</td></tr>
-      <tr><td class="k"><kbd>↑</kbd>（輸入列）</td><td>游標左移一個注音</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🌍 外掛語言（前綴啟動、<code>'</code> 結束）</h2>
-    <table>
-      <tr><td class="k"><code>3</code>＋字母</td><td>英文 Easy（含補全；結尾 <code>;</code> 全大寫、<code>;;</code> 首字大寫）</td></tr>
-      <tr><td class="k"><code>6</code>＋羅馬字</td><td>日文・候選附釋義（中／英／日可切，<code>66</code>＝俄文）</td></tr>
-      <tr><td class="k"><code>7</code>＋編碼</td><td>韓文（<code>77</code>＝希臘文）</td></tr>
-      <tr><td class="k"><code>4</code>＋編碼</td><td>拉丁／歐語字母</td></tr>
-      <tr><td class="k"><code>=</code>＋倉頡碼</td><td>倉頡反查注音</td></tr>
-      <tr><td class="k"><code>][</code>＋編碼</td><td>全形字元</td></tr>
-      <tr><td class="k"><code>';</code>＋注音鍵</td><td>ㄅㄆㄇ注音文</td></tr>
-      <tr><td class="k"><code>`</code>＋代碼</td><td>emoji／顏文字集</td></tr>
-    </table>
-    <p class="note">日／拉／希／俄已開自動補全：打一半就會出現整個詞。長文建議 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F2</kbd> 進日文直出（原生標點＋數字選字），<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F1</kbd> 回注音；或 <kbd>F4</kbd>→數字 全域切換。</p>
-  </div>
-
-  <div class="card">
-    <h2>🧮 計算機（<code>'/</code> 開頭）</h2>
-    <table>
-      <tr><td class="k"><code>'/123+45*2</code>＋空格</td><td>直接算，候選出結果</td></tr>
-      <tr><td class="k" colspan="2">運算符可用字母（注音鍵盤免按 Shift）：</td></tr>
-      <tr><td class="k"><code>a</code>＝＋ ・ <code>r</code>＝−</td><td><code>x</code>＝× ・ <code>v</code>＝÷</td></tr>
-      <tr><td class="k"><code>s</code>＝^（次方）</td><td><code>q</code>＝( ・ <code>w</code>＝)</td></tr>
-      <tr><td class="k"><code>'/3aq5r2wx4</code></td><td>＝ 3+(5−2)×4 ＝ 15</td></tr>
-    </table>
-    <p class="note">⚠️ 次方請用 <code>s</code>：<kbd>Shift</kbd>+<kbd>6</kbd>（^）現在是選字鍵。純數字 <code>'/2026.08</code> 也可直接上屏。</p>
-  </div>
-
-  <div class="card">
-    <h2>📅 日期時間（<code>'/</code> 開頭）</h2>
-    <table>
-      <tr><td class="k"><code>'/f</code></td><td>年月日（<code>ym</code> 年月、<code>md</code> 月日）</td></tr>
-      <tr><td class="k"><code>'/y</code> <code>'/m</code> <code>'/d</code> <code>'/w</code></td><td>年／月／日／星期</td></tr>
-      <tr><td class="k"><code>'/n</code>、<code>'/t</code></td><td>時:分、時:分:秒</td></tr>
-      <tr><td class="k"><code>'/fn</code>、<code>'/ft</code>、<code>'/fw</code></td><td>組合格式（日期+時間／+星期）</td></tr>
-      <tr><td class="k"><code>'/z</code> <code>'/s</code> <code>'/l</code></td><td>時區／節氣／月相</td></tr>
-      <tr><td class="k"><code>'/3y5m2d</code></td><td>任意日期：3年5月2日 各種格式</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🔧 其他多功能（<code>'/</code> 開頭）</h2>
-    <table>
-      <tr><td class="k"><code>'/</code>（單獨）</td><td>📖 功能總覽選單（內建說明書）</td></tr>
-      <tr><td class="k"><code>'/kk</code>、<code>'/ko</code></td><td>快捷鍵說明、操作鍵說明</td></tr>
-      <tr><td class="k"><code>'/kj</code> <code>'/kh</code>…</td><td>日／韓／拉丁／希／俄 編碼表</td></tr>
-      <tr><td class="k"><code>'/u4e2d</code>、<code>'/c20013</code></td><td>Unicode 查字（16／10 進位）</td></tr>
-      <tr><td class="k"><code>'//abc</code> <code>'/;abc</code> <code>'/'abc</code></td><td>小寫／大寫／首大寫 字母</td></tr>
-      <tr><td class="k"><code>'/jh</code>＋空格</td><td>📌 開啟本速查表</td></tr>
-      <tr><td class="k"><code>'/jc</code>＋空格</td><td>開啟自訂詞庫檔（每次開新視窗；編輯後要重新部署）</td></tr>
-      <tr><td class="k"><code>'/j</code>＋空格</td><td>快捷開啟選單（Rime／上游專案等）</td></tr>
-      <tr><td class="k"><code>'/v</code></td><td>版本資訊</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>🛠️ 開發者工具（<code>'/</code> 開頭）</h2>
-    <table>
-      <tr><td class="k"><code>'/ts</code></td><td>現在的 Unix 時間戳（秒／毫秒）</td></tr>
-      <tr><td class="k"><code>'/ts1724500000</code></td><td>時間戳轉日期（支援 10／13 位，本地＋UTC）</td></tr>
-      <tr><td class="k"><code>'/uuid</code></td><td>UUID v4（小寫／大寫）</td></tr>
-      <tr><td class="k"><code>'/pw</code>、<code>'/pw24</code></td><td>隨機密碼（預設 16 碼，含大小寫數字符號）</td></tr>
-      <tr><td class="k"><code>'/rgb1a73e8</code></td><td>色碼三格式：#HEX ／ rgb() ／ RIME 用 BGR</td></tr>
-      <tr><td class="k"><code>'/cshello.world</code></td><td>命名風格：camelCase／PascalCase／snake／kebab／SCREAMING（單字用 <code>.</code> 或 <code>-</code> 分隔）</td></tr>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>✍️ 自訂詞與直打</h2>
-    <table>
-      <tr><td class="k"><code>email</code>（連按五鍵）</td><td>出現我的信箱（候選標〔短語〕）</td></tr>
-      <tr><td class="k">直接打 <code>網址</code>／<code>信箱</code></td><td><code>https://…</code>、<code>xxx@…</code> 自動識別上屏</td></tr>
-      <tr><td class="k">新增自訂詞</td><td><code>'/jc</code> 開檔 → 加一行「文字 <kbd>Tab</kbd> 編碼」→ 重新部署</td></tr>
-    </table>
-    <p class="note">重新部署：小狼毫圖示右鍵 →「重新部署」；Mac 選單列 →「重新部署」。</p>
-  </div>
-
-  <div class="card">
-    <h2>🔄 設定同步（GitHub）</h2>
-    <table>
-      <tr><td class="k">Windows</td><td><code>pwsh scripts/rime-sync.ps1</code></td></tr>
-      <tr><td class="k">macOS</td><td><code>bash ~/Library/Rime/scripts/rime-sync.sh</code></td></tr>
-      <tr><td class="k">Repo</td><td>github.com/NatLee/rime-config（只同步設定，不同步打字紀錄）</td></tr>
-    </table>
-  </div>
-
-  </div>
+<!-- ───────── 打字與選字 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-key"/></svg>打字與選字</h2>
+  <table>
+    <tr><td class="k"><kbd>⇧1</kbd>～<kbd>⇧6</kbd></td><td>選第 1～6 個候選（即 <kbd>Shift</kbd>+數字，候選旁標示 ⇧1.）</td></tr>
+    <tr><td class="k"><kbd>空白</kbd></td><td>上屏目前反白的候選
+      <span class="eg"><i>su3</i><span class="arw">→</span><b>你</b>（ㄋㄧˇ）</span></td></tr>
+    <tr><td class="k"><kbd>Enter</kbd></td><td>上屏（打英數編碼時用它，見下方提醒）</td></tr>
+    <tr><td class="k"><kbd>↓</kbd></td><td>展開候選選單</td></tr>
+    <tr><td class="k"><kbd>←</kbd> <kbd>→</kbd></td><td>選單展開後翻頁</td></tr>
+    <tr><td class="k"><kbd>Tab</kbd></td><td>從選單回到輸入列</td></tr>
+    <tr><td class="k"><kbd>↑</kbd></td><td>游標左移一個注音（改前面打錯的音）</td></tr>
+    <tr><td class="k"><kbd>Esc</kbd></td><td>清除目前輸入</td></tr>
+  </table>
+  <div class="warn"><b>空白鍵在本方案同時是「一聲」的編碼</b>，所以打英數編碼（例如自訂詞 <code>email</code>）時按空白不會上屏，請改按 <kbd>⇧1</kbd> 或 <kbd>Enter</kbd>。</div>
 </div>
+
+<!-- ───────── 中英與方案 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-swap"/></svg>中英切換與方案</h2>
+  <table>
+    <tr><td class="k"><kbd>Shift</kbd> / <kbd>Caps</kbd></td><td>中文 ⇄ 英文</td></tr>
+    <tr><td class="k"><kbd>Shift</kbd>+<kbd>空白</kbd></td><td>中英切換（備用）</td></tr>
+    <tr><td class="k"><kbd>F4</kbd></td><td><b>總選單</b>：切方案＋所有開關（最常用的入口）</td></tr>
+    <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>`</kbd></td><td>同 <kbd>F4</kbd></td></tr>
+    <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F1</kbd></td><td>直達「注音Na+」</td></tr>
+    <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F2</kbd></td><td>直達「日文」（打長篇日文用）</td></tr>
+    <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F3</kbd></td><td>直達「韓文」</td></tr>
+    <tr><td class="k"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F4</kbd></td><td>直達「英文」</td></tr>
+  </table>
+  <p class="note">短句用下面的「前綴」就好；打整段外文才值得切方案（有該語言的標點與數字選字）。</p>
+</div>
+
+<!-- ───────── 外語前綴 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-globe"/></svg>其他語言（前綴，免切方案）</h2>
+  <table>
+    <tr><td class="k"><code>3</code>＋英文</td><td>英文（附中文釋義、自動補全）
+      <span class="eg"><i>3hello</i><span class="arw">→</span><b>hello</b>　候選旁顯示音標與詞義</span></td></tr>
+    <tr><td class="k"><code>6</code>＋羅馬字</td><td>日文（附釋義、自動補全）
+      <span class="eg"><i>6sakura</i><span class="arw">→</span><b>さくら／桜</b>　<i>6arigatou</i><span class="arw">→</span><b>ありがとう</b></span></td></tr>
+    <tr><td class="k"><code>7</code>＋編碼</td><td>韓文</td></tr>
+    <tr><td class="k"><code>4</code>＋字母</td><td>拉丁／歐語字母
+      <span class="eg"><i>4cafe</i><span class="arw">→</span><b>cafe</b>（可續接變音符號）</span></td></tr>
+    <tr><td class="k"><code>66</code>＋字母</td><td>俄文（一鍵一字母對應，非拼寫）
+      <span class="eg"><i>66privet</i><span class="arw">→</span><b>рпюцет</b></span></td></tr>
+    <tr><td class="k"><code>77</code>＋字母</td><td>希臘（同上，字母對應）
+      <span class="eg"><i>77alpha</i><span class="arw">→</span><b>αλρηα</b></span></td></tr>
+    <tr><td class="k"><code>=</code>＋倉頡碼</td><td>倉頡反查漢字
+      <span class="eg"><i>=oiar</i><span class="arw">→</span><b>倉</b></span></td></tr>
+    <tr><td class="k"><code>][</code>＋字元</td><td>全形字元
+      <span class="eg"><i>][a</i><span class="arw">→</span><b>ａ</b></span></td></tr>
+    <tr><td class="k"><code>';</code>＋注音鍵</td><td>注音文（直接輸出符號）
+      <span class="eg"><i>';su3</i><span class="arw">→</span><b>ㄋㄧˇ</b></span></td></tr>
+  </table>
+  <p class="note">釋義語言在 <kbd>F4</kbd> 切「釋義：中文／英文／日文」，預設中文，查不到會自動遞補。</p>
+</div>
+
+<!-- ───────── emoji 與符號 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-smile"/></svg>emoji 與符號</h2>
+  <table>
+    <tr><td class="k"><code>`</code>＋代碼</td><td>emoji 集
+      <span class="eg"><i>`1f</i><span class="arw">→</span><b>表情系列（笑臉、大笑…）</b></span></td></tr>
+    <tr><td class="k"><code>``</code>＋代碼</td><td>顏文字系列
+      <span class="eg"><i>``1</i><span class="arw">→</span><b>^_^</b></span></td></tr>
+    <tr><td class="k"><code>=</code>＋符號碼</td><td>標點符號集
+      <span class="eg"><i>=1</i><span class="arw">→</span><b>! ！ ﹗ ¡ ‼ ⁉</b></span></td></tr>
+    <tr><td class="k">直接打標點</td><td>中文標點自動對應（<kbd>F4</kbd> 可切中／英文標點）</td></tr>
+  </table>
+  <p class="note">emoji 段落打完按 <kbd>空白</kbd> 或 <kbd>Enter</kbd> 上屏；若該代碼字典裡沒有，會原樣送出編碼。</p>
+</div>
+
+<!-- ───────── 日期時間 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-cal"/></svg>日期與時間（<code>'/</code> 開頭）</h2>
+  <table>
+    <tr><td class="k"><code>'/f</code></td><td>今天日期
+      <span class="eg"><i>'/f</i><span class="arw">→</span><b>20260825</b>　（候選另有 2026-08-25、2026年8月25日…）</span></td></tr>
+    <tr><td class="k"><code>'/t</code></td><td>現在時間
+      <span class="eg"><i>'/t</i><span class="arw">→</span><b>5:23:39</b></span></td></tr>
+    <tr><td class="k"><code>'/fn</code></td><td>日期＋時間
+      <span class="eg"><i>'/fn</i><span class="arw">→</span><b>20260825 05:23</b></span></td></tr>
+    <tr><td class="k"><code>'/w</code></td><td>星期
+      <span class="eg"><i>'/w</i><span class="arw">→</span><b>星期二</b></span></td></tr>
+    <tr><td class="k"><code>'/y</code> <code>'/m</code> <code>'/d</code></td><td>年／月／日（單項）</td></tr>
+    <tr><td class="k"><code>'/ym</code> <code>'/md</code></td><td>年月／月日</td></tr>
+    <tr><td class="k"><code>'/s</code></td><td>節氣<span class="eg"><i>'/s</i><span class="arw">→</span><b>處暑</b></span></td></tr>
+    <tr><td class="k"><code>'/l</code></td><td>月相（輸出月相符號）</td></tr>
+    <tr><td class="k"><code>'/z</code></td><td>時區</td></tr>
+    <tr><td class="k"><code>'/</code>○y○m○d</td><td>指定日期（含農曆、民國、日本元号、英式美式）
+      <span class="eg"><i>'/3y5m2d</i><span class="arw">→</span><b>3年5月2日</b>　<i>'/2026y8m24d</i><span class="arw">→</span><b>2026年8月24日</b></span></td></tr>
+  </table>
+  <p class="note">每個代碼都有多種格式候選（數字、中文、全形、民國、元号、農曆干支…），按 <kbd>↓</kbd> 展開挑。</p>
+</div>
+
+<!-- ───────── 計算機 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-calc"/></svg>計算機（<code>'/</code> 開頭）</h2>
+  <table>
+    <tr><td class="k"><code>'/</code>＋算式</td><td>直接運算，候選出結果
+      <span class="eg"><i>'/1.5v0.5</i><span class="arw">→</span><b>3</b></span></td></tr>
+    <tr><td class="k" colspan="2"><b>運算符用字母代替</b>（注音鍵盤免按 Shift）</td></tr>
+    <tr><td class="k"><code>a</code>＝＋　<code>r</code>＝−</td><td><code>x</code>＝×　<code>v</code>＝÷　<code>s</code>＝次方</td></tr>
+    <tr><td class="k"><code>q</code>＝（　<code>w</code>＝）</td><td>
+      <span class="eg"><i>'/123a45x2</i><span class="arw">→</span><b>213</b>　（123＋45×2）</span>
+      <span class="eg"><i>'/q1a2wx3</i><span class="arw">→</span><b>9</b>　（(1＋2)×3）</span></td></tr>
+  </table>
+  <div class="warn">次方請用 <code>s</code> 而不是 <code>^</code>——<kbd>Shift</kbd>+<kbd>6</kbd> 現在是選字鍵。</div>
+</div>
+
+<!-- ───────── 開發者工具 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-tool"/></svg>開發者工具（<code>'/</code> 開頭）</h2>
+  <table>
+    <tr><td class="k"><code>'/uuid</code></td><td>產生 UUID v4
+      <span class="eg"><i>'/uuid</i><span class="arw">→</span><b>53e62aa3-68bf-4c2f-8708-14b57fa8e8c0</b></span></td></tr>
+    <tr><td class="k"><code>'/ts</code></td><td>現在的 Unix 時間戳（秒／毫秒）
+      <span class="eg"><i>'/ts</i><span class="arw">→</span><b>1787606619</b></span></td></tr>
+    <tr><td class="k"><code>'/ts</code>＋數字</td><td>時間戳轉日期（10 或 13 位，本地＋UTC）</td></tr>
+    <tr><td class="k"><code>'/pw</code></td><td>隨機密碼（預設 16 碼，一次給 3 組）
+      <span class="eg"><i>'/pw</i><span class="arw">→</span><b>Z-3?LNzT539qox$B</b>　<i>'/pw24</i> 可指定長度</span></td></tr>
+    <tr><td class="k"><code>'/rgb</code>＋色碼</td><td>色碼三格式互轉
+      <span class="eg"><i>'/rgb1a73e8</i><span class="arw">→</span><b>#1A73E8</b>／<b>rgb(26,115,232)</b>／<b>0xE8731A</b>（RIME 設定用）</span></td></tr>
+    <tr><td class="k"><code>'/cs</code>＋字.串</td><td>命名風格轉換（<code>.</code> 或 <code>-</code> 分隔單字）
+      <span class="eg"><i>'/cshello.world</i><span class="arw">→</span><b>helloWorld</b>／<b>HelloWorld</b>／<b>hello_world</b>／<b>hello-world</b>／<b>HELLO_WORLD</b></span></td></tr>
+  </table>
+</div>
+
+<!-- ───────── Unicode ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-hash"/></svg>Unicode 與字母（<code>'/</code> 開頭）</h2>
+  <table>
+    <tr><td class="k"><code>'/u</code> <code>'/x</code>＋十六進位</td><td>用內碼查字
+      <span class="eg"><i>'/u4e2d</i><span class="arw">→</span><b>中</b></span></td></tr>
+    <tr><td class="k"><code>'/c</code>＋十進位</td><td>同上
+      <span class="eg"><i>'/c20013</i><span class="arw">→</span><b>中</b></span></td></tr>
+    <tr><td class="k"><code>'/o</code>＋八進位</td><td>同上</td></tr>
+    <tr><td class="k"><code>'/i</code>＋編碼</td><td>URL／Percent 解碼
+      <span class="eg"><i>'/ie4bda0</i><span class="arw">→</span><b>你</b></span></td></tr>
+    <tr><td class="k"><code>'//</code>＋字母</td><td>小寫字母直出
+      <span class="eg"><i>'//hello</i><span class="arw">→</span><b>hello</b></span></td></tr>
+    <tr><td class="k"><code>'/;</code>＋字母</td><td>全大寫
+      <span class="eg"><i>'/;hello</i><span class="arw">→</span><b>HELLO</b></span></td></tr>
+    <tr><td class="k"><code>'/'</code>＋字母</td><td>首字母大寫
+      <span class="eg"><i>'/'hello</i><span class="arw">→</span><b>Hello</b></span></td></tr>
+  </table>
+</div>
+
+<!-- ───────── 說明與捷徑 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-book"/></svg>內建說明與快捷開啟</h2>
+  <table>
+    <tr><td class="k"><code>'/</code>（單獨）</td><td><b>功能總覽選單</b>——所有 <code>'/</code> 功能的目錄，忘記代碼看這個</td></tr>
+    <tr><td class="k"><code>'/kk</code> <code>'/ko</code></td><td>快捷鍵說明／操作鍵說明</td></tr>
+    <tr><td class="k"><code>'/kj</code> <code>'/kh</code>…</td><td>日／韓／拉丁／希臘／俄 編碼對照表</td></tr>
+    <tr><td class="k"><code>'/jh</code></td><td>開啟<b>本速查表</b></td></tr>
+    <tr><td class="k"><code>'/jc</code></td><td>開啟自訂詞庫檔（每次開新視窗）</td></tr>
+    <tr><td class="k"><code>'/j</code></td><td>快捷開啟選單（Rime 官網、上游專案…）</td></tr>
+    <tr><td class="k"><code>'/v</code></td><td>版本資訊
+      <span class="eg"><i>'/v</i><span class="arw">→</span><b>Weasel 0.17.4（小狼毫）</b></span></td></tr>
+  </table>
+</div>
+
+<!-- ───────── 開關 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-slide"/></svg>開關（都在 <kbd>F4</kbd> 選單裡）</h2>
+  <table>
+    <tr><td class="k">中文／英文</td><td>同 <kbd>Shift</kbd>；或 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>2</kbd></td></tr>
+    <tr><td class="k">半形／全形</td><td><kbd>Ctrl</kbd>+<kbd>.</kbd> 或 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>3</kbd></td></tr>
+    <tr><td class="k">中文／英文標點</td><td><kbd>Ctrl</kbd>+<kbd>/</kbd> 或 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>4</kbd></td></tr>
+    <tr><td class="k">正體／簡體</td><td><kbd>Ctrl</kbd>+<kbd>;</kbd> 或 <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>5</kbd></td></tr>
+    <tr><td class="k">完整字集／台灣常用字</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>6</kbd>（精簡後少見異體字不出現）</td></tr>
+    <tr><td class="k">附 emoji</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>7</kbd>（打字時順帶推薦相關 emoji）</td></tr>
+    <tr><td class="k">標註符號</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>8</kbd>（符號候選旁顯示名稱）</td></tr>
+    <tr><td class="k">顯 Unicode 編碼</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>9</kbd>（單字候選旁顯示 U+xxxx）</td></tr>
+    <tr><td class="k">英文排序</td><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F5</kbd>：預設排序 ⇄ 字母序</td></tr>
+    <tr><td class="k">釋義：中／英／日</td><td>只能在 <kbd>F4</kbd> 選單切（三選一）</td></tr>
+  </table>
+  <p class="note"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>0</kbd> 被 Windows 註冊為系統熱鍵、傳不到輸入法，所以英文排序改用 <kbd>F5</kbd>。</p>
+</div>
+
+<!-- ───────── 自訂與維護 ───────── -->
+<div class="card">
+  <h2><svg class="ico"><use href="#i-edit"/></svg>自訂詞與維護</h2>
+  <table>
+    <tr><td class="k">用自訂詞</td><td>打編碼後按 <kbd>⇧1</kbd> 或 <kbd>Enter</kbd>
+      <span class="eg"><i>email</i> + <kbd>⇧1</kbd><span class="arw">→</span><b>信箱地址</b></span></td></tr>
+    <tr><td class="k">加自訂詞</td><td>打 <code>'/jc</code> 開檔 → 加一行「文字 <kbd>Tab</kbd> 編碼 <kbd>Tab</kbd> 權重」→ 重新部署</td></tr>
+    <tr><td class="k">網址／信箱</td><td>直接打會自動辨識
+      <span class="eg"><i>https://…</i>、<i>xxx@yyy.com</i> 原樣上屏</span></td></tr>
+    <tr><td class="k">重新部署</td><td>小狼毫圖示右鍵 →「重新部署」（改詞庫／設定後）</td></tr>
+    <tr><td class="k">改了 lua</td><td>必須<b>重啟 WeaselServer</b>，只部署不會生效</td></tr>
+    <tr><td class="k">雙機同步</td><td><code>pwsh scripts\rime-sync.ps1</code>
+      <span class="eg">設定走 GitHub；打字紀錄各機獨立，不同步</span></td></tr>
+  </table>
+</div>
+
+</div>
+<p class="empty" id="empty">沒有符合的項目</p>
+
+<footer>
+  注音Na+ · 基於 <a href="https://github.com/oniondelta/Onion_Rime_Files">Onion Rime Files</a> 二次開發
+  · 設定同步於 <a href="https://github.com/NatLee/rime-config">NatLee/rime-config</a>
+</footer>
+</div>
+
+<script>
+/* ── 即時篩選 ── */
+const box = document.getElementById('filter');
+const cards = [...document.querySelectorAll('.grid .card')];
+const empty = document.getElementById('empty');
+box.addEventListener('input', () => {
+  const q = box.value.trim().toLowerCase();
+  let shown = 0;
+  cards.forEach(card => {
+    const rows = [...card.querySelectorAll('tr')];
+    if (!q) { rows.forEach(r => r.style.display = ''); card.style.display = ''; shown++; return; }
+    const inTitle = card.querySelector('h2').textContent.toLowerCase().includes(q);
+    let hit = 0;
+    rows.forEach(r => {
+      const m = inTitle || r.textContent.toLowerCase().includes(q);
+      r.style.display = m ? '' : 'none';
+      if (m) hit++;
+    });
+    card.style.display = hit ? '' : 'none';
+    if (hit) shown++;
+  });
+  empty.style.display = shown ? 'none' : 'block';
+});
+
+/* ── 試打區 ── */
+const TASKS = [
+  { name:'注音', code:'su3', hint:'再按空白', want:/你/, desc:'打 <code>su3</code>（ㄋㄧˇ）再按空白' },
+  { name:'日文', code:'6sakura', hint:'再按空白', want:/[さくらサク桜櫻]/, desc:'打 <code>6sakura</code> 再按空白，注意候選旁的釋義' },
+  { name:'英文', code:'3hello', hint:'再按空白', want:/hello/i, desc:'打 <code>3hello</code> 再按空白，看候選旁的音標與詞義' },
+  { name:'日期', code:"'/f", hint:'再按空白', want:/\d{4}[-/年]?\d{2}/, desc:"打 <code>'/f</code> 再按空白" },
+  { name:'計算機', code:"'/123a45x2", hint:'再按空白', want:/213/, desc:"打 <code>'/123a45x2</code>（123＋45×2）再按空白" },
+  { name:'UUID', code:"'/uuid", hint:'再按空白', want:/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, desc:"打 <code>'/uuid</code> 再按空白" },
+  { name:'密碼', code:"'/pw", hint:'再按空白', want:/.{16}/, desc:"打 <code>'/pw</code> 再按空白（會給 3 組挑）" },
+  { name:'色碼', code:"'/rgb1a73e8", hint:'再按空白', want:/#1A73E8|rgb\(|0xE8731A/i, desc:"打 <code>'/rgb1a73e8</code> 再按空白" },
+  { name:'emoji', code:'`1f', hint:'再按空白', want:/\p{Extended_Pictographic}/u, desc:'打 <code>`1f</code>（反引號＋1f）再按空白' },
+  { name:'全形', code:'][a', hint:'再按空白', want:/ａ/, desc:'打 <code>][a</code> 再按空白' },
+  { name:'倉頡反查', code:'=oiar', hint:'再按空白', want:/倉/, desc:'打 <code>=oiar</code> 再按空白' },
+  { name:'自訂詞', code:'email', hint:'按 ⇧1', want:/@/, desc:'打 <code>email</code> 後按 <kbd>⇧1</kbd>（此處空白鍵無效）' },
+];
+const chips = document.getElementById('chips');
+const task  = document.getElementById('task');
+const pad   = document.getElementById('pad');
+const stat  = document.getElementById('stat');
+const cps   = document.getElementById('cps');
+let active = null;
+
+TASKS.forEach((t, i) => {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.textContent = t.name; b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    [...chips.children].forEach(c => c.setAttribute('aria-pressed', 'false'));
+    if (active === i) { active = null; task.innerHTML = '選一個任務，或直接在下面自由試打。'; }
+    else {
+      active = i; b.setAttribute('aria-pressed', 'true');
+      task.innerHTML = '試試看：' + t.desc;
+      pad.focus();
+    }
+    check();
+  });
+  chips.appendChild(b);
+});
+
+function check() {
+  const v = pad.value;
+  stat.textContent = [...v].length + ' 個字元';
+  if (active !== null && v) {
+    const t = TASKS[active];
+    if (t.want.test(v)) task.innerHTML = '試試看：' + t.desc + ' <span class="ok">✓ 成功！</span>';
+    else task.innerHTML = '試試看：' + t.desc;
+  }
+  if (cps.dataset.on === '1') showCps();
+}
+function showCps() {
+  const v = pad.value;
+  cps.innerHTML = [...v].slice(-40).map(ch => {
+    const cp = ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+    const shown = ch === ' ' ? '␠' : ch === '\n' ? '⏎' : ch;
+    return `<span><b>${shown}</b> U+${cp}</span>`;
+  }).join('');
+}
+pad.addEventListener('input', check);
+document.getElementById('btn-clear').addEventListener('click', () => {
+  pad.value = ''; cps.innerHTML = ''; check(); pad.focus();
+});
+document.getElementById('btn-cp').addEventListener('click', e => {
+  const on = cps.dataset.on === '1';
+  cps.dataset.on = on ? '0' : '1';
+  e.target.textContent = on ? '顯示字元碼' : '隱藏字元碼';
+  cps.innerHTML = '';
+  if (!on) showCps();
+});
+</script>
 </body>
 </html>
