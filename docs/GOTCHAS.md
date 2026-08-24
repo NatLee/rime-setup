@@ -27,8 +27,21 @@ Stop-Process -Name WeaselServer -Force; Start-Process 'C:\Program Files\Rime\wea
 小狼毫**不會**把 `Ctrl+Alt+X` 轉送給輸入法（等同 AltGr）。引擎層測試會通過、實機永遠無效。
 → 方案切換改用 **`Ctrl+Shift+F1~F4`**（見 `default.custom.yaml`）。
 
-### `Ctrl+Shift+6~0` 不能用 → 已被方案內建開關佔用
-`element_bopomo.yaml` 的 key_binder 綁了字集／emoji／註釋／Unicode／英排序開關，方案層綁定優先。
+### `Ctrl+Shift+6~9` 已被方案內建開關佔用
+`element_bopomo.yaml` 的 key_binder 綁了字集／emoji／符號標註／Unicode 開關，方案層綁定優先。
+
+### `Ctrl+Shift+0` 完全沒反應 → Windows 系統熱鍵吃掉了
+登錄檔 `HKCU:\Control Panel\Input Method\Hot Keys` 的 **`00000104`**（修飾鍵 `0x06`＝Ctrl+Shift、虛擬鍵 `0x30`＝`0`）把它註冊成「直接切換輸入法」，按鍵永遠傳不到小狼毫。
+同一份登錄檔的 `00000200~0203` 佔用 **Ctrl+Alt+G/K/L/V**。查法：
+```powershell
+Get-ChildItem 'HKCU:\Control Panel\Input Method\Hot Keys' | ForEach-Object {
+  $v = Get-ItemProperty $_.PSPath
+  '{0} mod={1:X2} vk={2:X2}' -f $_.PSChildName, $v.'Key Modifiers'[0], $v.'Virtual Key'[0] }
+```
+→ `en_sort` 已改綁 `Ctrl+Shift+F5`（F 區未被系統佔用）。
+
+### `Ctrl+Shift+<數字>` 的「數字形式」綁定是死的
+按住 Shift 時系統送出的是**符號**（`)` `!` `@` `#`…），所以 `{accept: "Control+Shift+0"}` 永遠不match，只有 `{accept: "Control+Shift+parenright"}` 會。上游把兩種都寫了，前者純屬冗餘。
 
 ### `{accept: Shift, ...}` 是無效綁定
 不是合法鍵名，日誌會噴 `unrecognized key 'Shift'`。中英切換由 `ascii_composer/switch_key` 的 `Shift_L`/`Shift_R` 處理。
