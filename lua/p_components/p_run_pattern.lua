@@ -82,4 +82,16 @@ local run_pattern = {
 -- print(run_pattern['wr'].no_item)    -->nil
 -- print(run_pattern[nil])             -->nil
 
+--------------------------------------------------------------------------
+-- Windows：覆蓋內建「c」（編輯 custom 短語）。
+-- 原因：預設用系統關聯開啟，Notepad++ 這類單一實例編輯器第二次起只會在
+-- 「既有視窗」加分頁，背景程序（輸入法）無權把它拉到前景，看起來像沒反應。
+-- -multiInst 每次開新程序＝新視窗，可正常跳到前景。
+--------------------------------------------------------------------------
+local get_os_name = require("f_components/f_get_os_name")
+if get_os_name() == "Windows" then
+  run_pattern["c"] = { s = 8, name = "編輯 custom 短語（開新視窗）",
+    open = [["C:\Program Files\Notepad++\notepad++.exe" -multiInst ]] .. '"' .. user_dir .. '/bopomo_onionplus_phrase.txt"' }
+end
+
 return run_pattern

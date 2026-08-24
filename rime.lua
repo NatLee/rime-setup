@@ -371,6 +371,11 @@ instruction_ocm = require("translator_instruction_ocm")
 mf_translator = require("translator_multifunction_translator")
 
 
+--- devkit_translator （bopomo_onionplus 系列）
+-- 開發者小工具：'/ts 時間戳、'/uuid、'/pw 密碼、'/rgb 色碼、'/cs 命名風格（掛於 mf_translator 段落）
+devkit_translator = require("translator_devkit")
+
+
 --- lua_custom_phrase
 -- 取代原先 table_translator@custom_phrase。
 -- 可多行，用\n\r。

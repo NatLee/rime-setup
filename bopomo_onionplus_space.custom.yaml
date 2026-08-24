@@ -14,6 +14,28 @@ patch:
   # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.
   "menu/alternative_select_keys": "!@#$%^"
   "menu/alternative_select_labels": [ "⇧1", "⇧2", "⇧3", "⇧4", "⇧5", "⇧6" ]
+  # ── 開發者小工具（'/ts 時間戳、'/uuid、'/pw 密碼、'/rgb 色碼、'/cs 命名風格）──
+  # devkit_translator 掛在 mf_translator 之後，共用「'/」段落
+  "engine/translators":
+    - punct_translator
+    - lua_translator@lua_custom_phrase
+    - table_translator@emoji_series
+    - script_translator@reverse2_lookup
+    - table_translator@easy_en
+    - table_translator@easy_en_upper
+    - script_translator@european
+    - script_translator@japan
+    - script_translator@korea
+    - script_translator@fs2
+    - script_translator@gr2
+    - script_translator@cyr2
+    - script_translator@all_bpm
+    - lua_translator@mf_translator
+    - lua_translator@devkit_translator
+    - lua_translator@email_url_translator
+    - lua_translator@instruction_grave_bpmf
+    - script_translator
+
   # selector 移到 punctuator 之前：選單開啟時 Shift+數字先被選字器處理；
   # 無選單時 selector 不動作，Shift+1 照常輸出「！」
   "engine/processors":
