@@ -5,17 +5,20 @@ patch:
   # 自動補全：打一半羅馬字即顯示完整詞（原版關閉）
   "translator/enable_completion": true
 
-  # ── 候選釋義（JMdict 日英詞典反查，機制同「英文（附釋義）」）──
-  # jpnin1_gloss 掛入 dependencies 使其詞典隨本方案編譯
+  # ── 候選釋義（中／英／日 三語可切換，lua gloss_filter）──
+  # 三個釋義詞典掛入 dependencies 使其隨本方案編譯
   "schema/dependencies/+":
     - jpnin1_gloss
-  "engine/filters/+":
-    - reverse_lookup_filter@jp_gloss
-  jp_gloss:
-    tags: [ abc ]
-    overwrite_comment: true
-    dictionary: jpnin1_gloss
-    comment_format:
-      - xform/@@/　/
-      - xform/@/ /
+    - jpnin1_gloss_zh
+    - jpnin1_gloss_ja
+  # 原生 filters 只有 convert_japan_filter；gloss_filter 置於其後，
+  # 使假名/羅馬字轉換候選（simp_jp）也能被釋義
+  "engine/filters":
+    - lua_filter@convert_japan_filter
+    - lua_filter@gloss_filter
+  # 釋義語言 radio 開關（reset: 0 = 預設 gloss_zh 中文）
+  "switches/+":
+    - options: [ gloss_zh, gloss_en, gloss_ja ]
+      states: [ 釋中, 釋英, 釋日 ]
+      reset: 0
 

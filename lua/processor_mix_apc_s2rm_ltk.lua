@@ -30,6 +30,7 @@ local function init(env)
   env.gr_prefix = config:get_string("gr2/prefix") or ""
   env.fs_prefix = config:get_string("fs2/prefix") or ""
   env.rl_prefix = config:get_string("reverse2_lookup/prefix") or ""
+  env.emoji_prefix = config:get_string("emoji_series/prefix") or ""
   env.eu_prefix = config:get_string("european/prefix") or ""
   env.kr_prefix = config:get_string("korea/prefix") or ""
   -- env.kp_pattern = {
@@ -231,7 +232,9 @@ local function processor(key, env)
     --   return 2
 
     --- 以下掛接上屏 bug 修正
-    elseif seg:has_tag("easy_en") or seg:has_tag("japan") or seg:has_tag("cyr2") or seg:has_tag("gr2") or seg:has_tag("fs2") or seg:has_tag("reverse2_lookup") or seg:has_tag("european") or seg:has_tag("korea") then
+    -- 2026-08-25 補列 emoji_series：游標移到編碼中間時，比照 japan/easy_en 等
+    -- 掛接段落，上屏已選候選並把未選編碼補回前綴重新輸入（原本會 kNoop、按 space 無反應）。
+    elseif seg:has_tag("easy_en") or seg:has_tag("japan") or seg:has_tag("cyr2") or seg:has_tag("gr2") or seg:has_tag("fs2") or seg:has_tag("reverse2_lookup") or seg:has_tag("european") or seg:has_tag("korea") or seg:has_tag("emoji_series") then
     -- elseif seg:has_tag("japan") or seg:has_tag("cyr2") or seg:has_tag("gr2") or seg:has_tag("fs2") or seg:has_tag("reverse2_lookup") or seg:has_tag("european") or seg:has_tag("korea") then
     -- elseif not seg:has_tag("punct") and not seg:has_tag("mf_translator") and not not seg:has_tag("email_url_translator") then
       local prefix_key = seg:has_tag("japan") and env.jp_prefix
@@ -242,6 +245,7 @@ local function processor(key, env)
                       or seg:has_tag("european") and env.eu_prefix
                       or seg:has_tag("korea") and env.kr_prefix
                       or seg:has_tag("easy_en") and env.en_prefix
+                      or seg:has_tag("emoji_series") and env.emoji_prefix
                       or ""
 
       -- if seg:has_tag("paging") and #c_input == caret_pos then

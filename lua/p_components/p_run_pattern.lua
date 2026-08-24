@@ -23,8 +23,8 @@ local run_pattern = {
   ["rw"] = { s = 2, name = "Rime 詳解", open = "https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md" },
   ["l"] = { s = 3, name = "librime-lua 官方 GitHub", open = "https://github.com/hchunhui/librime-lua" },
   ["lw"] = { s = 4, name = "librime-lua 腳本開發指南", open = "https://github.com/hchunhui/librime-lua/wiki/Scripting" },
-  ["o"] = { s = 5, name = "Onion 洋蔥 GitHub", open = "https://github.com/oniondelta/Onion_Rime_Files" },
-  ["ow"] = { s = 6, name = "Onion 洋蔥 GitHub Wiki", open = "https://github.com/oniondelta/Onion_Rime_Files/wiki" },
+  ["o"] = { s = 5, name = "上游方案 GitHub", open = "https://github.com/oniondelta/Onion_Rime_Files" },
+  ["ow"] = { s = 6, name = "上游方案 GitHub Wiki", open = "https://github.com/oniondelta/Onion_Rime_Files/wiki" },
 --------------------------------------------------------------------------
 -- Mac：
 --------------------------------------------------------------------------

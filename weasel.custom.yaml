@@ -34,6 +34,10 @@ patch:
       spacing: 10
       candidate_spacing: 8
       hilite_spacing: 6
+      # 註解排版：候選字大、右側小字註解，過長自動折行成第二行
+      max_width: 520 # 超過此寬度自動折行（0 = 不限制）
+      min_width: 200
+      align_type: top # 候選字與多行註解頂端對齊
       hilite_padding_x: 8
       hilite_padding_y: 6
       corner_radius: 10 # 視窗圓角

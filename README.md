@@ -1,7 +1,7 @@
 # rime-config
 
 NatLee 的 RIME 輸入法設定，Windows（小狼毫）與 macOS（鼠鬚管）共用。
-主方案：洋蔥注音 plus（bopomo_onionplus），含八股文語言模型、Shift+數字選字、NatMatcha 主題。
+主方案：注音Na+（bopomo_onionplus，基於 [Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files) 二次開發），含八股文語言模型、Shift+數字選字、三語候選釋義、NatMatcha 主題。
 
 ## 同步架構
 

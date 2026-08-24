@@ -233,6 +233,12 @@ convert_japan_filter = require("filter_convert_japan_filter")
 convert_english_filter = require("filter_convert_english_filter")
 
 
+--- gloss_filter （jpnin1、bopomo_onionplus 系列）
+-- 三語可切換候選釋義（中/英/日 radio 開關 gloss_zh/gloss_en/gloss_ja，預設中文）。
+-- 取代 reverse_lookup_filter@jp_gloss 與 @e_reverse_lookup，統一兩行小字排版。
+gloss_filter = require("filter_gloss")
+
+
 -- --- halfwidth_katakana_filter (jpnin1)
 -- -- 片假名後附加半形片假名。
 -- -- 選單顯示太雜亂，故不用。

@@ -20,18 +20,39 @@ patch:
   "gr2/enable_completion": true
   "cyr2/enable_completion": true
 
-  # ── 日文段落（前綴 6）候選釋義（JMdict 反查）──
+  # ── 候選釋義（中／英／日 三語可切換，lua gloss_filter）──
+  # 日文段落（前綴 6）查三語日文釋義詞典；easy_en 段落（前綴 3）查 easy_en_lcomment。
+  # 三個釋義詞典掛入 dependencies 使其隨本方案編譯
   "schema/dependencies/+":
     - jpnin1_gloss
-  "engine/filters/+":
-    - reverse_lookup_filter@jp_gloss
-  jp_gloss:
-    tags: [ japan ]
-    overwrite_comment: true
-    dictionary: jpnin1_gloss
-    comment_format:
-      - xform/@@/　/
-      - xform/@/ /
+    - jpnin1_gloss_zh
+    - jpnin1_gloss_ja
+  # 整列覆蓋原生 engine/filters：
+  #  ‧ 移除 reverse_lookup_filter@e_reverse_lookup（職責併入 gloss_filter）
+  #  ‧ gloss_filter 置於列尾（原 jp_gloss 附加位置）：
+  #    － 在 en_sort_filter 之後（其 revise_comment_by_os 於 Windows 會去除
+  #      comment 換行，先跑會破壞兩行排版）
+  #    － 在 convert_english/japan_filter 之後（保留 simp_en 標籤、
+  #      使 simp_jp 假名轉換候選也能被釋義）
+  "engine/filters":
+    - simplifier@character_range_bhjm
+    - lua_filter@mix_cf2_miss_filter
+    - lua_filter@en_sort_filter
+    - lua_filter@convert_english_filter
+    - lua_filter@convert_japan_filter
+    - simplifier@emoji_switch
+    - simplifier@zh_cn
+    - simplifier@back_mark
+    - simplifier@punct_mark
+    - reverse_lookup_filter@bpm_reverse_lookup
+    - uniquifier
+    - lua_filter@comment_filter_unicode
+    - lua_filter@gloss_filter
+  # 釋義語言 radio 開關（reset: 0 = 預設 gloss_zh 中文）
+  "switches/+":
+    - options: [ gloss_zh, gloss_en, gloss_ja ]
+      states: [ 釋中, 釋英, 釋日 ]
+      reset: 0
 
   # ── Shift+數字 選字 ──
   # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.

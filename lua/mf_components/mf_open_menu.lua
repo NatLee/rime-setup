@@ -67,12 +67,12 @@ local k_keys_table = {
   , { "  ~o 〔操作鍵 說明〕", "⓶" }
   , { "  ~j 〔日文 羅馬字 編碼〕", "⓷" }
   , { "  ~h 〔韓文 HNC 編碼〕(注音系列)", "⓸" }
-  , { "  ~s 〔韓文 洋蔥形碼 編碼〕(形碼系列)", "⓹" }
-  , { "  ~i 〔拉丁 洋蔥形碼 IPA國際音標 編碼〕", "⓺" }
-  , { "  ~p 〔拉丁 洋蔥形碼 KK/DJ/IPA音標 編碼〕", "⓻" }
-  , { "  ~y 〔拉丁 洋蔥形碼 中文拼音 編碼〕", "⓼" }
-  , { "  ~g 〔希臘 洋蔥形碼 編碼〕", "⓽" }
-  , { "  ~c 〔西里爾 洋蔥形碼 編碼〕", "⓾" }
+  , { "  ~s 〔韓文 形碼 編碼〕(形碼系列)", "⓹" }
+  , { "  ~i 〔拉丁 形碼 IPA國際音標 編碼〕", "⓺" }
+  , { "  ~p 〔拉丁 形碼 KK/DJ/IPA音標 編碼〕", "⓻" }
+  , { "  ~y 〔拉丁 形碼 中文拼音 編碼〕", "⓼" }
+  , { "  ~g 〔希臘 形碼 編碼〕", "⓽" }
+  , { "  ~c 〔西里爾 形碼 編碼〕", "⓾" }
   , { "　═══  結束  ═══  ", "" }
   -- , { "===========  結束  ===========    ", "⓼" }
   }
@@ -80,7 +80,7 @@ local k_keys_table = {
     -- if (input == env.prefix .. "kk") then
     --   local keys_table = {
     --       { "  h〔韓文 HNC 鍵位〕", "⁰" }
-    --     , { "  s〔韓文 洋蔥形碼 鍵位〕", "¹" }
+    --     , { "  s〔韓文 形碼 鍵位〕", "¹" }
     --     }
     --   for k, v in ipairs(keys_table) do
     --     local cand = Candidate("simp_mf_tips", seg.start, seg._end, v[2], " " .. v[1])
@@ -220,13 +220,13 @@ local function register(reg)
   reg.register_exact("ko", menu_handler(function(env) return hotkeys(env.schema_id)[1] end, "【操作鍵 說明】"))
   reg.register_exact("kk", menu_handler(function(env) return hotkeys(env.schema_id)[2] end, "【快捷鍵 說明】"))
   reg.register_exact("kh", menu_handler(function() return kh_table end, "【韓文 HNC 編碼】"))
-  reg.register_exact("ks", menu_handler(function() return ks_table end, "【韓文 洋蔥形碼 編碼】"))
+  reg.register_exact("ks", menu_handler(function() return ks_table end, "【韓文 形碼 編碼】"))
   reg.register_exact("kj", menu_handler(function() return kj_table end, "【日文 羅馬字 編碼】"))
-  reg.register_exact("ki", menu_handler(function() return ki_table end, "【拉丁 洋蔥形碼 IPA國際音標 編碼】"))
-  reg.register_exact("kp", menu_handler(function() return kp_table end, "【拉丁 洋蔥形碼 KK/DJ/IPA音標 編碼】"))
-  reg.register_exact("ky", menu_handler(function() return ky_table end, "【拉丁 洋蔥形碼 中文拼音 編碼】"))
-  reg.register_exact("kg", menu_handler(function() return kg_table end, "【希臘 洋蔥形碼 編碼】"))
-  reg.register_exact("kc", menu_handler(function() return kc_table end, "【西里爾 洋蔥形碼 編碼】"))
+  reg.register_exact("ki", menu_handler(function() return ki_table end, "【拉丁 形碼 IPA國際音標 編碼】"))
+  reg.register_exact("kp", menu_handler(function() return kp_table end, "【拉丁 形碼 KK/DJ/IPA音標 編碼】"))
+  reg.register_exact("ky", menu_handler(function() return ky_table end, "【拉丁 形碼 中文拼音 編碼】"))
+  reg.register_exact("kg", menu_handler(function() return kg_table end, "【希臘 形碼 編碼】"))
+  reg.register_exact("kc", menu_handler(function() return kc_table end, "【西里爾 形碼 編碼】"))
   reg.register_exact("j",  menu_handler(function(env) return env.run_menu_table end, "【快捷開啟】▶"))  -- init 引入
   reg.register_matcher(j_run)                                                          -- j[a-z]+ 快捷開啟
   reg.register_exact("v", ver)
