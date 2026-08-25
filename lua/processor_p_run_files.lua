@@ -31,6 +31,8 @@ local function init(env)
   env.textdict = config:get_string(namespace2 .. "/user_dict") or ""
   env.custom_phrase = path .. "/" .. env.textdict .. ".txt" or ""
   env.run_pattern = path .. "/lua/p_components/p_run_pattern.lua" or ""
+  -- 選字鍵（本方案是 Shift+1~6 → "!@#$%^"）。從設定讀，不寫死，改了選字鍵這裡自動跟上。
+  env.alt_select = config:get_string("menu/alternative_select_keys") or ""
   -- log.info("lua_custom_phrase: \'" .. env.textdict .. ".txt\' Initilized!")  -- 日誌中提示已經載入 txt 短語
 end
 
@@ -60,6 +62,43 @@ local function processor(key, env)
 
 -----------------------------------------------------------------------------
 
+  ----------------------------------------------------------------------
+  -- 分層選單（'/、'/dt、'/ca）：選中一列就進到那個功能或直接執行。
+  -- 接受兩種選法 —— 空白／Enter 選目前高亮那列，或 Shift+1~6 直接選第 N 列。
+  -- 這段必須放在下面「只收空白/Enter」的過濾之前，選字鍵才進得來；
+  -- 也必須排在 engine/processors 的 selector 之前，否則選字鍵會先被拿去上屏。
+  -- 選單表與 translator 共用 mf_menu_data，候選順序即列序，不另外維護對照表。
+  ----------------------------------------------------------------------
+  elseif seg:has_tag("mf_translator")
+     and #c_input == caret_pos
+     and menu_data.menus[string.match(c_input, "^" .. env.prefix .. "(.*)$")] then
+
+    local menu = menu_data.menus[string.match(c_input, "^" .. env.prefix .. "(.*)$")]
+    local repr = key:repr()
+    local n
+
+    if repr == "space" or repr == "Return" or repr == "KP_Enter" then
+      n = (seg.selected_index or 0) + 1
+    else
+      -- 把可列印的 ASCII 鍵還原成字元，再看它是不是選字鍵的第幾個
+      local kc = key.keycode
+      local ch = (kc and kc >= 0x20 and kc < 0x7f) and string.char(kc) or nil
+      n = ch and string.find(env.alt_select, ch, 1, true)  -- plain find，$ ^ 等不當正規符號
+    end
+
+    if not n then return 2 end   -- 其他鍵（含繼續打字）交還給後面的 processor
+
+    local row = menu.rows[n]
+    context:clear()
+    if row and row.run and run_pattern[row.run] then
+      generic_open(run_pattern[row.run].open)     -- 直接執行（開速查表、跑更新腳本…）
+    elseif row and row.key then
+      context:push_input(env.prefix .. row.key)   -- 進到該功能／子選單
+    end
+    return 1
+
+-----------------------------------------------------------------------------
+
   --- pass not space Return KP_Enter key_num
   elseif key:repr() ~= "space" and key:repr() ~= "Return" and key:repr() ~= "KP_Enter" then
     return 2
@@ -67,26 +106,6 @@ local function processor(key, env)
 -----------------------------------------------------------------------------
 
   elseif seg:has_tag("mf_translator") then  -- 開頭
-
-    ----------------------------------------------------------------------
-    -- 分層選單跳轉：在 '/、'/dt、'/ca 這些選單畫面按空白，
-    -- 依「目前高亮的那一列」跳到對應代碼（go）或直接執行（run）。
-    -- 舊版選單的候選文字是 ①②③，選下去只會上屏一個圈圈數字 —— 等於沒反應。
-    -- 選單表與 translator 共用 mf_menu_data，索引即列序，不另外維護對照。
-    ----------------------------------------------------------------------
-    local menu_code = string.match(c_input, "^" .. env.prefix .. "(.*)$")
-    local menu = menu_code and menu_data.menus[menu_code]
-    if menu and #c_input == caret_pos then
-      local row = menu.rows[(seg.selected_index or 0) + 1]
-      context:clear()
-      if row and row.run and run_pattern[row.run] then
-        generic_open(run_pattern[row.run].open)
-      elseif row and row.go then
-        context:push_input(env.prefix .. row.go)
-      end
-      -- 純說明列（沒有 go/run）：收起選單就好
-      return 1
-    end
 
     -- 一般開啟碼要打「前綴 j 開啟碼」；'/git 是唯一的直達碼（少打一個 j，
     -- 因為這個功能會常用）。直達碼只認完全相符的 "git"，不會攔到其他輸入。

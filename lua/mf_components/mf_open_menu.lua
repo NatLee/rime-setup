@@ -61,8 +61,9 @@ end
 --- 分層選單（'/ 主選單、'/dt 日期時間、'/ca 計算機）
 --- 資料在 mf_components/mf_menu_data.lua，與 processor_p_run_files.lua 共用同一份表：
 --- 這裡只負責「顯示」，按下空白後的「跳轉/執行」由該 processor 依 selected_index 處理。
---- 候選 text 一律留空 —— 舊版把 ①②③ 當候選文字，選下去會在文件裡上屏一個圈圈數字，
---- 看起來就像「按了沒反應」。
+--- 候選文字放「該列的代碼」（'/dt、'/f…）：一來看得到代碼、下次可以直接打，
+--- 二來每列文字不同，才不會被 engine/filters 末端的 uniquifier 合併掉
+--- （舊版把 ①②③ 當文字就是為了這個；試過留空，六列會被併成一列）。
 
 local menu_data = require("mf_components/mf_menu_data")
 
@@ -71,7 +72,8 @@ local function hier_menu(code)
     local menu = menu_data.menus[code]
     if not menu then return false end
     for _, row in ipairs(menu.rows) do
-      local cand = Candidate("simp_mf_tips", seg.start, seg._end, "", " " .. row.label)
+      local text = env.prefix .. (row.key or "")
+      local cand = Candidate("simp_mf_tips", seg.start, seg._end, text, "  " .. row.label)
       cand.preedit = input .. "\t" .. menu.tag
       yield(cand)
     end

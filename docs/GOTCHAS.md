@@ -21,6 +21,30 @@ Stop-Process -Name WeaselServer -Force; Start-Process 'C:\Program Files\Rime\wea
 2. 被某個啟用中的方案 `schema/dependencies` 引用（或列入 `schema_list`）。
 否則 `reverse_lookup_filter` 會找不到 `.reverse.bin`。
 
+### lua 檔存在 ≠ 有掛載 → 「畫得出選單、按下去沒反應」
+`lua/processor_p_run_files.lua` 一直躺在 repo 裡，但 `bopomo_onionplus.custom.yaml` 的
+`engine/processors` **從來沒有列它**。結果是：translator 照樣把 `'/j` 的選單畫出來，
+但按空白鍵什麼也不會發生 —— 因為執行動作的那半邊根本沒被載入。
+`'/jh` 打不開速查表、`'/git` 不跳終端機、選單 Enter 進不去，全是同一個原因。
+
+librime **不會**因為 `lua/` 底下多了一個檔就自動掛載，元件一定要出現在
+`engine/processors`／`engine/filters`／`engine/translators` 裡。
+一分鐘診斷法 —— 直接看部署後的合併結果：
+
+```bash
+python3 -c "import yaml;print(yaml.safe_load(open('build/bopomo_onionplus.schema.yaml'))['engine']['processors'])"
+```
+
+順序也有講究：要攔空白鍵就得排在 `express_editor` 之前，要攔選字鍵（`!@#$%^`）
+就得排在 `selector` 之前。本專案放在 `key_binder` 之後。
+
+### 選單只顯示第一列 → uniquifier 把候選文字相同的列合併了
+`engine/filters` 末端掛著 `uniquifier`，它**以候選文字去重**。
+選單類候選若把文字留空（想讓選中時不上屏任何東西），六列會被併成一列。
+上游把 ①②③ 塞進候選文字就是為了閃這個，不是為了好看。
+→ 本專案改成把「該列的代碼」（`'/dt`、`'/f`…）當候選文字：天然唯一，
+而且看得到代碼、下次可以直接打。
+
 ### 詞典有、schema 沒有 → 乾淨環境部署直接壞
 `cangjie5.dict.yaml` 曾經只有詞典、沒有 `cangjie5.schema.yaml`，但五個方案的
 `schema/dependencies` 都列了它、並用 `dictionary: cangjie5` 做倉頡反查（前綴 `=`）。
@@ -63,6 +87,17 @@ python3 -c "import yaml;print(yaml.safe_dump(yaml.safe_load(open('build/squirrel
 → 改用路徑鍵逐鍵覆寫：`"style/font_point": 17`、`"preset_color_schemes/NatMatcha": {...}`。
 `squirrel.custom.yaml` 已改寫完成。⚠ `weasel.custom.yaml` 目前仍是巢狀寫法，
 Windows 端能動是因為小狼毫的 fallback 剛好可接受，但同樣在默默丟棄內建預設值。
+
+### ⚠ 未解：鼠鬚管 1.1.2 不吃 `menu/alternative_select_labels`
+Windows 端候選標籤顯示 `⇧1.`～`⇧6.`，macOS 端實測顯示的是**選字鍵本身** `!. @. #. $. %. ^.`。
+已排除的可能：
+- `build/bopomo_onionplus.schema.yaml` 裡 `alternative_select_labels: [⇧1…⇧6]` 確實有編進去
+- `build/squirrel.yaml` 裡 `candidate_format: '[label]. [candidate] [comment]'` 也有
+- Squirrel 1.1.2 是目前最新版，不是版本太舊
+
+也就是說 librime 那邊標籤是好的，鼠鬚管前端沒拿去用（或拿的是 `select_keys`）。
+未實測的驗證法：把 labels 暫時改成 `[壹,貳,參,肆,伍,陸]` 重新部署，
+若畫面沒變即可確認是前端忽略，可以去 rime/squirrel 開 issue。
 
 ### 鼠鬚管沒有 `style/label_format`
 那是小狼毫的鍵。鼠鬚管用 `style/candidate_format`，佔位符是

@@ -135,6 +135,11 @@ patch:
     - ascii_composer
     - recognizer
     - key_binder
+    # ↓ '/ 系列的「按空白鍵執行動作」全靠這個 processor：快捷開啟（'/j*）、
+    #   '/git 更新設定、分層選單的選中跳轉。少了它，選單畫得出來但按下去毫無反應
+    #   —— 這正是先前「'/jh 打了沒事、'/git 不跳視窗、選單 Enter 進不去」的原因。
+    #   位置要在 speller／selector／express_editor 之前，才能搶在空白鍵上屏前處理。
+    - lua_processor@p_run_files
     - speller
     - selector
     - punctuator
