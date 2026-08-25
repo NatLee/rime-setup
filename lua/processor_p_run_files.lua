@@ -66,7 +66,12 @@ local function processor(key, env)
 -----------------------------------------------------------------------------
 
   elseif seg:has_tag("mf_translator") then  -- 開頭
-    local op_code = #c_input == caret_pos and string.match(c_input, "^" .. env.prefix .. "j([a-z]+)$")
+    -- 一般開啟碼要打「前綴 j 開啟碼」；'/git 是唯一的直達碼（少打一個 j，
+    -- 因為這個功能會常用）。直達碼只認完全相符的 "git"，不會攔到其他輸入。
+    local op_code = #c_input == caret_pos and (
+         string.match(c_input, "^" .. env.prefix .. "j([a-z]+)$")
+      or string.match(c_input, "^" .. env.prefix .. "(git)$")
+    )
     local run_in = run_pattern[ op_code ] -- 此處不能「.open」，如 op_code 不符合會報錯！
     if op_code then
       if op_code == "t" then

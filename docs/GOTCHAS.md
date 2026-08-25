@@ -39,6 +39,36 @@ macOS 預設 F1~F4 是亮度／調度中心／Spotlight，**即使按住 Ctrl+Sh
 或改用已備援的 `Ctrl+` `` ` ``（方案選單）與 `Ctrl+Opt+1~4`（直接切方案）。
 `Ctrl+Opt` 在 Windows 等同 AltGr、小狼毫本來就不轉送，兩邊綁在同一個檔案不會打架。
 
+### 候選標籤顯示成 `!@#$%^` 而不是 `⇧1~⇧6` → patch 把整個 style 節點取代掉了
+**RIME 的 `patch` 是「整個節點取代」，不是逐鍵合併。** 寫成巢狀區塊：
+
+```yaml
+patch:
+  style:            # ← 這樣寫會把前端內建 squirrel.yaml 的整個 style 節點蓋掉
+    font_point: 17
+```
+
+你沒寫的預設值會一起消失，其中包含 `candidate_format: '[label]. [candidate] [comment]'`。
+鼠鬚管拿不到 `candidate_format` 就退回內建 fallback，標籤直接印選字鍵，
+於是 `menu/alternative_select_labels` 設的 `⇧1~⇧6` 全被無視。
+
+診斷方法（這招對任何「patch 好像沒生效」都管用）——直接看編譯後的合併結果：
+
+```bash
+python3 -c "import yaml;print(yaml.safe_dump(yaml.safe_load(open('build/squirrel.yaml'))['style'],allow_unicode=True))"
+```
+
+若輸出的鍵**剛好等於你 custom 裡寫的那些**、前端預設值一個都不在，就是踩到這個坑。
+
+→ 改用路徑鍵逐鍵覆寫：`"style/font_point": 17`、`"preset_color_schemes/NatMatcha": {...}`。
+`squirrel.custom.yaml` 已改寫完成。⚠ `weasel.custom.yaml` 目前仍是巢狀寫法，
+Windows 端能動是因為小狼毫的 fallback 剛好可接受，但同樣在默默丟棄內建預設值。
+
+### 鼠鬚管沒有 `style/label_format`
+那是小狼毫的鍵。鼠鬚管用 `style/candidate_format`，佔位符是
+`[label]` `[candidate]` `[comment]`（也支援舊式 `%c` `%@`）。兩邊**不可互抄**。
+查某個鍵前端到底認不認得：`strings -a Squirrel.app/Contents/MacOS/Squirrel | grep '^style/'`。
+
 ### shell 腳本在 Mac 噴 `XXX?: unbound variable` → macOS 的 bash 是 3.2
 macOS 內建 `/bin/bash` 停在 **3.2**（2007 年，因 GPLv3 授權問題不再更新）。
 在 3.2 底下，`$VAR` 後面若**緊接中文字**，多位元組字元會被吃進變數名：

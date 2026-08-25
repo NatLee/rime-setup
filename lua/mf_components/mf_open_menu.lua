@@ -172,6 +172,28 @@ local function j_run(input, seg, env, ctx)
 end
 
 ----------------------------------------------------------------------------------------
+--- '/git 直達碼：更新設定並重新部署
+--- 動作本身由 processor_p_run_files.lua 攔截空白鍵執行，這裡只負責顯示提示候選，
+--- 免得按下去不知道會發生什麼事。與 '/jgit 走同一個 run_pattern 條目。
+
+local function git_update(input, seg, env, ctx)
+  local caret_pos = ctx.caret_pos
+  local run_in = run_pattern["git"]
+  local tip
+  if caret_pos - #input ~= 0 then
+    tip = "〔非起始輸入〕"
+  elseif run_in == nil then
+    tip = "〔本平台未提供〕"
+  else
+    tip = "〘 " .. run_in.name .. " 〙"
+  end
+  local cand = Candidate("simp_mf_tips", seg.start, seg._end, "", tip)
+  cand.preedit = env.prefix .. "git" .. "\t【快捷開啟】"
+  yield(cand)
+  return true
+end
+
+----------------------------------------------------------------------------------------
 --- v/g/gc 版本資訊與記憶體（原 keys_run_ver() 內容，改為精確代碼 handler）
 
 -- 版本資訊
@@ -229,6 +251,7 @@ local function register(reg)
   reg.register_exact("kc", menu_handler(function() return kc_table end, "【西里爾 形碼 編碼】"))
   reg.register_exact("j",  menu_handler(function(env) return env.run_menu_table end, "【快捷開啟】▶"))  -- init 引入
   reg.register_matcher(j_run)                                                          -- j[a-z]+ 快捷開啟
+  reg.register_exact("git", git_update)                                                -- '/git 更新設定並重新部署
   reg.register_exact("v", ver)
   reg.register_exact("g", garbage)
   reg.register_exact("gc", garbage_collect)

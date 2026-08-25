@@ -19,6 +19,9 @@ NatLee 的 RIME 輸入法設定，Windows（小狼毫）與 macOS（鼠鬚管）
 - **Windows**：`pwsh scripts/rime-sync.ps1`
 - **macOS**：`bash ~/Library/Rime/scripts/rime-sync.sh`
 
+只想「把另一台改好的設定拉下來套用」（不推送本機變更）時，不必開終端機 ——
+直接在輸入法裡打 `'/git`＋空格即可（`scripts/rime-update.command` / `rime-update.ps1`）。
+
 腳本流程：`git pull` → 重新部署 → `git commit + push`（只提交設定變更）。
 兩台機器輪流執行即可；同時改到同一個設定檔時 git 會提示衝突，手動解掉再 push。
 
@@ -38,6 +41,7 @@ NatLee 的 RIME 輸入法設定，Windows（小狼毫）與 macOS（鼠鬚管）
 
 | 功能 | 操作 |
 |---|---|
+| **更新設定** | 打 `'/git`＋空格 —— 拉取遠端設定 → 部署 → 重啟，開終端機視窗顯示過程 |
 | **速查表** | 打 `'/jh`＋空格，或 Windows 按 `Ctrl+Alt+H`（[cheatsheet.html](cheatsheet.html)） |
 | 功能總覽／快捷鍵說明 | 打 `'/` 單獨、`'/kk`、`'/ko` |
 | 計算機 | `'/123+45*2`；運算符字母別名 `a`+ `r`− `x`× `v`÷ `s`^ `q`( `w`) |
