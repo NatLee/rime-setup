@@ -48,6 +48,9 @@ lua/
 ├─ translator_devkit.lua           '/ts '/uuid '/pw '/rgb '/cs
 ├─ filter_gloss.lua                候選釋義（中／英／日可切換）
 ├─ processor_mix_apc_s2rm_ltk.lua  主方案處理器（標點轉換、上屏修正、快捷開啟）
+├─ processor_p_run_files.lua       '/ 選單的「選中即執行」（⚠ 須排在 processor 鏈首）
+├─ processor_p_select_keys.lua     ⇧1~6 選字（⚠ 取代 menu/alternative_select_keys，
+│                                   否則 macOS 標籤會變 !@#$%^；排 recognizer 之後）
 ├─ f_components/                   格式化元件（日期樣式、中文數字、農曆…）
 ├─ filter_cand/                    候選操作小工具（改註解、去重…）
 └─ p_components/p_run_pattern.lua  '/j 快捷開啟清單（可自訂）

@@ -36,7 +36,11 @@ python3 -c "import yaml;print(yaml.safe_load(open('build/bopomo_onionplus.schema
 ```
 
 順序也有講究：要攔空白鍵就得排在 `express_editor` 之前，要攔選字鍵（`!@#$%^`）
-就得排在 `selector` 之前。本專案放在 `key_binder` 之後。
+就得排在 `p_select_keys`／`selector` 之前。`p_run_files` 放在**鏈首**（連
+`mix_apc_s2rm_ltk` 都要排在它後面）；⇧1~6 選字本身則是另一個元件 `p_select_keys`
+（排在 `recognizer` 之後、`speller` 之前，理由見本文後面兩條選字鍵的段落）。
+
+⚠ 補列進 yaml 之後**仍然沒生效**，是因為還缺 `rime.lua` 那半邊 —— 見下一條。
 
 ### 選字鍵給的是「當頁第幾個」，不是絕對序號
 `seg.selected_index` 是**絕對**索引（第 8 列就是 7），但使用者按 `⇧1`～`⇧6`
@@ -53,6 +57,77 @@ n = ps * math.floor((seg.selected_index or 0) / ps) + n
 上游把 ①②③ 塞進候選文字就是為了閃這個，不是為了好看。
 → 本專案改成把「該列的代碼」（`'/dt`、`'/f`…）當候選文字：天然唯一，
 而且看得到代碼、下次可以直接打。
+
+### 掛在 `engine/processors` ≠ 會被載入 → `rime.lua` 還要 bind 元件名
+`lua_processor@p_run_files` 這個名字，librime-lua 是去 **Lua 全域表**找 `p_run_files`，
+而那個全域變數只在 `rime.lua` 建立。`rime.lua` 裡那行一直是註解掉的：
+
+```lua
+-- p_run_files = require("processor_p_run_files")   -- ← 這樣等於 yaml 那行沒寫
+```
+
+結果：元件建不出來，**不會報錯、不會少任何候選**，只是整段 `'/` 動作邏輯從未執行。
+症狀是「選單畫得出來，選中卻把候選文字本身上屏」（打 `'/` 按 ⇧1 → 文件裡出現 `'/dt`）。
+`docs/GOTCHAS.md` 先前那條「lua 檔存在 ≠ 有掛載」只講了 yaml 那一半，**兩邊都要對**。
+
+診斷：yaml 掛了某個 `lua_*@name`，就到 `rime.lua` 搜 `name =`，確認不是註解。
+
+### `'/` 選單按空白沒反應／吐字面代碼 → 被 `mix_apc_s2rm_ltk` 搶先
+`mix_apc_s2rm_ltk` 對 `#input == caret_pos` 的空白／Enter 一律
+`context:confirm_current_selection()`。它排在 `p_run_files` 前面時，選單的空白鍵
+永遠到不了 `p_run_files`，於是「選中」變成「把候選文字上屏」。
+→ `p_run_files` 必須排在 **processor 鏈的最前面**（在 `mix_apc_s2rm_ltk`、
+`selector`、`speller`、`express_editor` 全部之前）。
+⚠ 排到鏈首後，第一個按鍵時 `composition` 可能是空的，`comp:back()` 要先用
+`not comp:empty() and comp:back() or nil` 擋掉。
+
+### `register_exact` 是「後註冊覆蓋前註冊」→ `'/c` 指令選單被靜默吃掉
+`mf_components/core/registry.lua` 就是 `exact[code] = handler`，沒有衝突檢查。
+`translator_multifunction_translator.lua` 的註冊順序是
+`mf_open_menu`(24) → … → `mf_unicode`(29)，所以 `mf_unicode` 的
+`register_exact("c", 內碼十進制)` 會**蓋掉** `mf_open_menu` 的 `register_exact("c", 指令選單)`。
+畫面上 `'/c` 顯示的是【內碼十進制】▶，指令選單根本進不去，而且**沒有任何錯誤訊息**。
+
+→ 指令命名空間固定用 **`j`**（上游沿用的字母，`'/` 底下沒有任何以 j 開頭的代碼）。
+曾經改成 `c`（command，比較好記）造成三重撞碼，已改回：
+
+| 代碼 | 原本就有的用途 | 命名空間用 `c` 時的衝突 |
+|---|---|---|
+| `'/c` | Unicode 十進制內碼（`'/c20013`→中） | 指令選單被覆蓋，永遠打不開 |
+| `'/cs…` | devkit 命名風格轉換（`'/cshello.world`） | 與「指令 `c` ＋開啟碼 `s`」同形 |
+| `'/ca` | `c`＋hex 字元 `a`，被內碼 matcher 吃掉 | 計算機子選單被迫改名 `'/num` |
+| `'/cc` | — | 「命名空間 c ＋開啟碼 c（編輯自訂短語）」疊字 |
+
+新增 `'/` 代碼前，先確認它不在 `mf_open_menu`／`mf_letters`／`mf_unicode`／
+`dt_specs_*`／`translator_devkit` 已註冊的集合裡。
+
+### 新增 `'/` 代碼前先查 `docs/KEYMAP.md`
+`tools/keymap-dump.ps1` 會從**部署後的 `build/`** 與 lua 原始碼倒出「哪個鍵、哪個代碼
+現在是誰在用」。這份表存在的目的就是省掉重複調查 —— 改完快捷鍵或代碼記得重跑：
+
+```powershell
+pwsh tools\keymap-dump.ps1     # 讀 build\，所以要先部署
+```
+
+### `'/j<字首>` 前綴搜尋：完整代碼一定要回 nil
+`mf_menu_data.lookup` 對 `'/jg` 這種「打不完整」的碼回傳過濾後的選單，
+但對剛好等於某一列的完整碼（`'/jt`、`'/jh`…）**必須回 nil**。
+否則選中那一列會 `push_input` 回同一串輸入 → 畫面沒變、看起來像當掉。
+「完整＝直接執行、不完整＝列出候選」正好就是 slash command 的語義。
+
+### 沙盒回歸測試不能寫死候選字
+沙盒的 `*.userdb` 不隨 `-Sync` 覆蓋（robocopy 有排除），會**跨次累積學習**：
+每上屏一次就把那個字往前推，候選順序跟著漂移。
+於是「⇧2 應該選到妳」這種斷言會時綠時紅，浪費一整輪調查。
+→ `rime-test.ps1` 用 `(cand:N)` 標記，在**上屏之前**當場問引擎第 N 個候選是什麼再比。
+⚠ 換算一定要在 `Get-Commit` 之前做：上屏本身就會改變順序，事後再問已經來不及。
+
+### 指令選單的每一列「選中即執行」——測試不要按下去
+`'/j` 那一頁選中會真的開檔案／開瀏覽器，主選單 ⇧2 會真的跑
+`scripts/rime-update.ps1`（git pull → 部署 → 重啟服務）。
+測試期間誤觸過兩次（`git pull --ff-only` 因本機有未提交變更而失敗，沒造成損害）。
+→ 選單相關的回歸一律用 `Get-Preedit` 驗編碼列，只有 `'/dt`、`'/num` 這種
+純跳轉的列才可以用 `Get-Commit`。
 
 ### 詞典有、schema 沒有 → 乾淨環境部署直接壞
 `cangjie5.dict.yaml` 曾經只有詞典、沒有 `cangjie5.schema.yaml`，但五個方案的
@@ -97,16 +172,70 @@ python3 -c "import yaml;print(yaml.safe_dump(yaml.safe_load(open('build/squirrel
 `squirrel.custom.yaml` 已改寫完成。⚠ `weasel.custom.yaml` 目前仍是巢狀寫法，
 Windows 端能動是因為小狼毫的 fallback 剛好可接受，但同樣在默默丟棄內建預設值。
 
-### ⚠ 未解：鼠鬚管 1.1.2 不吃 `menu/alternative_select_labels`
-Windows 端候選標籤顯示 `⇧1.`～`⇧6.`，macOS 端實測顯示的是**選字鍵本身** `!. @. #. $. %. ^.`。
-已排除的可能：
-- `build/bopomo_onionplus.schema.yaml` 裡 `alternative_select_labels: [⇧1…⇧6]` 確實有編進去
-- `build/squirrel.yaml` 裡 `candidate_format: '[label]. [candidate] [comment]'` 也有
-- Squirrel 1.1.2 是目前最新版，不是版本太舊
+### 【已解】macOS 標籤顯示 `!@#$%^` 而不是 `⇧1~⇧6` → 兩邊前端的取用優先序是反的
+症狀：Windows 顯示 `⇧1.`～`⇧6.`，macOS 顯示**選字鍵本身** `!. @. #. $. %. ^.`，
+改 `menu/alternative_select_labels` 完全沒反應（曾被記為「鼠鬚管的 bug、未解」）。
 
-也就是說 librime 那邊標籤是好的，鼠鬚管前端沒拿去用（或拿的是 `select_keys`）。
-未實測的驗證法：把 labels 暫時改成 `[壹,貳,參,肆,伍,陸]` 重新部署，
-若畫面沒變即可確認是前端忽略，可以去 rime/squirrel 開 issue。
+真正原因在 librime 與兩個前端的分工。`RimeGetContext` 會**同時**交出兩份資料
+（`src/rime_api_impl.h`）：
+
+```cpp
+const string& select_keys(schema->select_keys());          // menu/alternative_select_keys
+if (!select_keys.empty()) context->menu.select_keys = ...;
+an<ConfigList> select_labels = config->GetList("menu/alternative_select_labels");
+if (select_labels && (size_t)page_size <= select_labels->size())   // ← 數量要 ≥ page_size
+  context->select_labels = ...;
+```
+
+而兩個前端挑哪一份用，順序剛好相反：
+
+| 前端 | 程式碼 | 優先序 |
+|---|---|---|
+| 小狼毫 | `RimeWithWeasel.cpp` | `select_labels` → 沒有才 `select_keys` |
+| 鼠鬚管 | `sources/SquirrelInputController.swift` | **`select_keys`** → 沒有才 `select_labels` |
+
+```swift
+if let select_keys = ctx.menu.select_keys {          // ← 有值就到此為止
+  labels = String(cString: select_keys).map { String($0) }
+} else if let select_labels = ctx.select_labels { ... }
+```
+
+所以只要 `menu/alternative_select_keys` 有值，macOS 就永遠看不到 labels。
+而且它是**一個字元一個標籤**，塞不進 `⇧1` 這種兩字元的標籤。
+
+→ 解法：**`menu/alternative_select_keys` 一律不設**（欄位為 NULL，兩邊都只剩 labels
+可用），選字改由 `lua_processor@p_select_keys` 自己比對按鍵、呼叫 `context:select()`。
+選字鍵字串放在 `p_select_keys/keys`（`p_run_files` 的 `'/` 選單共用同一個設定）。
+
+驗證方式（Windows 上就能驗 macOS 的顯示，因為讀的是同兩個欄位）：
+
+```powershell
+pwsh tools\rime-test.ps1 -Mode labels -InputSeq su3
+#   menu.select_keys = [(null)]              ← 必須是 null
+#   select_labels    = [⇧1 ⇧2 ⇧3 ⇧4 ⇧5 ⇧6]
+```
+
+試過但**行不通**的作法，別再走一遍：
+- `key_binder` 把 `Shift+exclam…` 轉 `KP_1~KP_6` 丟給 selector（selector 對小鍵盤數字
+  有獨立分支，keycode ≥ 0x7f 不比對 select_keys）—— 看似漂亮，但 `mix_apc_s2rm_ltk`
+  會在 `'/` 計算機／純數字模式把 `KP_n` 當成「用小鍵盤打數字」塞進輸入：
+  `'/12345` 按 ⇧2 變成 `'/123452`，選不到「12,345」。回歸測試 T28 就是釘這件事。
+- 只改 `style/candidate_format`：標籤內容不是前端算的，改格式救不了。
+
+### 選字鍵會被 `recognizer` 搶走 → ⇧2 在注音輸入時選不到字
+`recognizer` 排在 selection 之前，**只要「目前輸入＋這個鍵」還符合某條 pattern，
+它就把鍵吃下去接進輸入**。於是有兩個選字鍵在特定情境是死的（改用 p_select_keys
+之前就如此，不是本專案改出來的）：
+
+| 鍵 | 吃掉它的 pattern | 死在哪 |
+|---|---|---|
+| `@`（⇧2） | `email_url_translator: ^[a-z][-_.0-9a-z]*@.*$` | 輸入以英文字母開頭時 —— 注音 `su3` 按 ⇧2 → 輸入變 `su3@` |
+| `^`（⇧6） | `mf_translator: '/[-+*^/.,'();0-9a-z]*$` | `'/` 算式裡 —— `'/12345` 按 ⇧6 → 輸入變 `'/12345^` |
+
+其餘情境都正常：`6sakura`（日文，開頭是數字）、`3app`（英文，開頭是 `3`）、
+`'/u4e2d`、`'/` 分層選單（由 p_run_files 在鏈首接走）按 ⇧2 都選得到。
+要讓 ⇧2 在注音也能選字，只能把 `p_select_keys` 移到 `recognizer` **之前**，
+代價是不能再用 `@` 直接打 email（`abc@def.com` 那條路）—— 取捨題，目前選擇保留 email。
 
 ### 鼠鬚管沒有 `style/label_format`
 那是小狼毫的鍵。鼠鬚管用 `style/candidate_format`，佔位符是

@@ -33,15 +33,16 @@
 | 配色、字型（macOS） | `squirrel.custom.yaml`（**格式與 Weasel 不同，勿互抄**） |
 | 全域快捷鍵、方案清單 | `default.custom.yaml` |
 | 主方案行為（選字鍵、開關、filter/translator 掛載） | `bopomo_onionplus.custom.yaml` |
+| ⇧1~6 選字的按鍵與標籤 | 鍵：`p_select_keys/keys` ＋ `lua/processor_p_select_keys.lua`；標籤：`menu/alternative_select_labels`（**別設** `alternative_select_keys`，macOS 標籤會壞） |
 | 方案顯示名稱 | 各 `*.custom.yaml` 的 `"schema/name"` |
 | 自訂詞（打 `email` 出信箱那種） | `bopomo_onionplus_phrase.txt`（改完要**部署**） |
 | `'/` 開頭的多功能（日期／計算機／Unicode…） | `lua/mf_components/` → 見 [架構文件](docs/ARCHITECTURE.md) |
 | `'/ts`、`'/uuid`、`'/pw`、`'/rgb`、`'/cs` | `lua/translator_devkit.lua` |
 | 日文候選釋義（中／英／日） | `lua/filter_gloss.lua` ＋ `jpnin1_gloss*.dict.yaml` |
-| 使用者速查表 | `cheatsheet.html`（`'/ch`＋空格開啟） |
-| `'/c` 指令清單、`'/cgit` 更新指令 | `lua/p_components/p_run_pattern.lua`（清單算繪在 `p_run_menu.lua`，動作攔截在 `processor_p_run_files.lua`） |
-| `'/` 分層選單內容 | `lua/mf_components/mf_menu_data.lua` |
-| `'/cgit` 實際跑的內容 | `scripts/rime-update.command`（Mac）／`scripts/rime-update.ps1`（Win） |
+| 使用者速查表 | `cheatsheet.html`（`'/jh`＋空格開啟） |
+| `'/j` 指令清單、`'/jgit` 更新指令 | `lua/p_components/p_run_pattern.lua`（清單算繪在 `p_run_menu.lua`，動作攔截在 `processor_p_run_files.lua`） |
+| `'/` 分層選單內容（含 `'/dev`、`'/code` 子選單） | `lua/mf_components/mf_menu_data.lua`（新增子選單記得在 `mf_open_menu.lua` `register_exact`） |
+| `'/jgit` 實際跑的內容 | `scripts/rime-update.command`（Mac）／`scripts/rime-update.ps1`（Win） |
 
 ---
 
@@ -84,6 +85,8 @@ ls -t /tmp/rime.squirrel.* | head; tail -50 "$(ls -t /tmp/rime.squirrel.ERROR* |
 
 ## 📚 延伸文件（需要時再讀，別預先全載）
 
+- [docs/KEYMAP.md](docs/KEYMAP.md) — **鍵位與代碼總表（自動產生）**。「這個鍵／這個 `'/` 代碼現在是誰在用？」先查這裡，別再從頭調查。
+  過期就重跑 `pwsh tools/keymap-dump.ps1`（讀 `build/`，所以要先部署）。
 - [docs/GOTCHAS.md](docs/GOTCHAS.md) — **踩過的坑與反直覺事實**。遇到「明明改了卻沒效果」「按鍵沒反應」先查這裡，能省下大量重複調查。
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — lua 模組圖、資料流、如何新增一個代碼／日期格式。
 - [docs/HISTORY.md](docs/HISTORY.md) — 已完成的重大變更與**已知未修的原版瑕疵**（避免把「已知現象」當成新 bug 重查）。
