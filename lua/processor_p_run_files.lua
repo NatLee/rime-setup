@@ -6,6 +6,7 @@
 ----------------------------------------------------------------------------------------
 local generic_open = require("p_components/p_generic_open")
 local run_pattern = require("p_components/p_run_pattern")
+local menu_data = require("mf_components/mf_menu_data")
 ----------------------------------------------------------------------------------------
 
 -- local function generic_open(dest)
@@ -66,6 +67,27 @@ local function processor(key, env)
 -----------------------------------------------------------------------------
 
   elseif seg:has_tag("mf_translator") then  -- 開頭
+
+    ----------------------------------------------------------------------
+    -- 分層選單跳轉：在 '/、'/dt、'/ca 這些選單畫面按空白，
+    -- 依「目前高亮的那一列」跳到對應代碼（go）或直接執行（run）。
+    -- 舊版選單的候選文字是 ①②③，選下去只會上屏一個圈圈數字 —— 等於沒反應。
+    -- 選單表與 translator 共用 mf_menu_data，索引即列序，不另外維護對照。
+    ----------------------------------------------------------------------
+    local menu_code = string.match(c_input, "^" .. env.prefix .. "(.*)$")
+    local menu = menu_code and menu_data.menus[menu_code]
+    if menu and #c_input == caret_pos then
+      local row = menu.rows[(seg.selected_index or 0) + 1]
+      context:clear()
+      if row and row.run and run_pattern[row.run] then
+        generic_open(run_pattern[row.run].open)
+      elseif row and row.go then
+        context:push_input(env.prefix .. row.go)
+      end
+      -- 純說明列（沒有 go/run）：收起選單就好
+      return 1
+    end
+
     -- 一般開啟碼要打「前綴 j 開啟碼」；'/git 是唯一的直達碼（少打一個 j，
     -- 因為這個功能會常用）。直達碼只認完全相符的 "git"，不會攔到其他輸入。
     local op_code = #c_input == caret_pos and (

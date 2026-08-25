@@ -33,9 +33,9 @@ patch:
 
   # ── 字型 ──
   "style/font_face": "PingFangTC-Semibold" # 蘋方繁中・半粗（對應 Windows 端的正黑粗體）
-  "style/font_point": 19 # 候選字；Windows 端是 17，Mac 這邊放大一級
-  "style/label_font_point": 14 # 標籤／註釋維持比候選字小一截的比例
-  "style/comment_font_point": 14
+  "style/font_point": 21 # 候選字；Windows 端是 17，Mac 這邊放大兩級
+  "style/label_font_point": 15 # 標籤／註釋維持比候選字小一截的比例
+  "style/comment_font_point": 15
 
   # ── 配色 ──
   # 同樣用路徑鍵逐項加入，才不會蓋掉鼠鬚管內建的 native/solarized 等配色。

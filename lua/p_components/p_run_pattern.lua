@@ -98,15 +98,17 @@ end
 -- git：拉取遠端設定 → 部署 → 重啟服務。
 -- 打 '/git（或 '/jgit）＋空白鍵觸發，會開一個終端機視窗顯示過程。
 -- 兩邊的啟動方式不同：
---   macOS  open -a Terminal <.command>   → 終端機開新視窗跑腳本
+--   macOS   open <.command>              → .command 預設關聯到「終端機」，
+--                                          會自己開新視窗跑（檔案需有 +x，git 已記錄 755）。
+--                                          不寫 `-a Terminal` 是為了少一個會出錯的環節。
 --   Windows start "" pwsh -NoExit -File  → 開新主控台視窗，跑完不自動關
 -- 直達碼 '/git 的攔截寫在 processor_p_run_files.lua。
 --------------------------------------------------------------------------
 if get_os_name() == "Mac" then
-  run_pattern["git"] = { s = 7, name = "🔄 更新設定並重新部署",
-    open = [[-a Terminal "]] .. user_dir .. [[/scripts/rime-update.command"]] }
+  run_pattern["git"] = { s = 7, name = "更新設定並重新部署",
+    open = '"' .. user_dir .. '/scripts/rime-update.command"' }
 elseif get_os_name() == "Windows" then
-  run_pattern["git"] = { s = 7, name = "🔄 更新設定並重新部署",
+  run_pattern["git"] = { s = 7, name = "更新設定並重新部署",
     open = [[pwsh -NoExit -ExecutionPolicy Bypass -File "]] .. user_dir .. [[/scripts/rime-update.ps1"]] }
 end
 

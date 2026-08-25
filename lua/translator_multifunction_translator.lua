@@ -54,6 +54,8 @@ local function init(env)
   -- local namespace = "mf_translator"
   env.prefix = config:get_string(env.name_space .. "/prefix") or "'/"  -- 防 schema 未設 prefix 時 nil 串接報錯
   env.schema_id = config:get_string("schema/schema_id")
+  -- '/ 總覽選單已改為分層選單，資料移到 mf_components/mf_menu_data.lua
+  -- （原本這裡是 47 列的平面清單，page_size 只有 6，要翻 8 頁；舊表完整保留在該檔末尾的註解）
   env.menu_table = {
         -- { "〔半角〕", "`" }
         { "【日期和時間】", "⓪" }

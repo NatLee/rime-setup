@@ -57,7 +57,27 @@ end
       -- -- yield_c( "┃ ○○○〔數字〕" , "")
 
 -- cand.preedit = input .. "\t《時間日期數字字母》▶"
-local main_menu = menu_handler(function(env) return env.menu_table end, "《特殊功能集》▶")
+----------------------------------------------------------------------------------------
+--- 分層選單（'/ 主選單、'/dt 日期時間、'/ca 計算機）
+--- 資料在 mf_components/mf_menu_data.lua，與 processor_p_run_files.lua 共用同一份表：
+--- 這裡只負責「顯示」，按下空白後的「跳轉/執行」由該 processor 依 selected_index 處理。
+--- 候選 text 一律留空 —— 舊版把 ①②③ 當候選文字，選下去會在文件裡上屏一個圈圈數字，
+--- 看起來就像「按了沒反應」。
+
+local menu_data = require("mf_components/mf_menu_data")
+
+local function hier_menu(code)
+  return function(input, seg, env, ctx)
+    local menu = menu_data.menus[code]
+    if not menu then return false end
+    for _, row in ipairs(menu.rows) do
+      local cand = Candidate("simp_mf_tips", seg.start, seg._end, "", " " .. row.label)
+      cand.preedit = input .. "\t" .. menu.tag
+      yield(cand)
+    end
+    return true
+  end
+end
 
 ----------------------------------------------------------------------------------------
 --- k 鍵位編碼說明子選單（原 keys_run_ver() 內容）
@@ -237,7 +257,9 @@ end
 --- 向 registry 註冊（精確代碼查表；j[a-z]+ 為 matcher，保持原 if 鏈順序）
 
 local function register(reg)
-  reg.register_exact("", main_menu)                                                    -- '/ 功能總覽選單
+  reg.register_exact("",   hier_menu(""))                                              -- '/ 功能總覽（分層選單）
+  reg.register_exact("dt", hier_menu("dt"))                                            -- '/dt 日期與時間
+  reg.register_exact("ca", hier_menu("ca"))                                            -- '/ca 計算機用法
   reg.register_exact("k",  menu_handler(function() return k_keys_table end, "【鍵位和編碼】▶"))
   reg.register_exact("ko", menu_handler(function(env) return hotkeys(env.schema_id)[1] end, "【操作鍵 說明】"))
   reg.register_exact("kk", menu_handler(function(env) return hotkeys(env.schema_id)[2] end, "【快捷鍵 說明】"))
