@@ -202,6 +202,44 @@ translator 的提示候選（`mf_open_menu.register_direct`）、processor 的�
 → `rime-test.ps1` 的 robocopy 已加 `/PURGE`（`*.userdb` 等 `/XD` 排除項不受影響）。
 刪檔之後務必 `-Sync` 重跑一次。
 
+### 部署會讓 IME「卡死」——那是服務還活著時在編譯
+`WeaselDeployer /deploy` 是**同步**的（實測單一方案重編 1.6 秒、大改動 10~13 秒，
+動到詞典更久）。服務還活著的時候，這段時間 IME 收得到按鍵卻回不了字 ——
+使用者體感就是卡死。
+→ 更新流程改成**先 `/quit` 停服務、再部署、最後啟動**：中斷期間是乾淨的
+「暫時沒有輸入法」，不是「有但沒反應」，也沒有人跟編譯搶 `build\` 檔案。
+
+### 停服務用 `WeaselServer.exe /quit`，不要 `Stop-Process -Force`
+強殺會讓正在連線的應用程式卡在具名管線上 —— 卡的正是使用者當下在打字的視窗。
+`/quit` 是官方開關，閒置時實測 100~200ms 就乾淨退出。
+⚠ 但服務**正在編譯或剛啟動還在初始化**時會不理 `/quit`（實測遇過逾時）。
+→ 重送幾次再考慮強殺，別一逾時就 `-Force`。`scripts/rime-update.ps1` 已這樣寫。
+
+其他可用開關（`strings` 撈出來的）：
+`WeaselServer.exe` → `/quit` `/deploy` `/dict` `/sync` `/userdir` `/weaseldir`
+`WeaselDeployer.exe` → `/deploy` `/dict` `/sync` `/install` `/help`
+
+### `deployer` 回傳 ≠ 編譯完成
+實測遇過 `WeaselDeployer /deploy` **0.0 秒就 exit 0**，真正的重編是之後啟動的
+WeaselServer 做的（`build\` 在那之後才變動）。所以不能拿它的回傳或 exit code
+當「做完了」的訊號。
+→ `rime-update.ps1` 啟動服務後會等 `build\` 的最新 mtime 連續數次不再變動才報完成。
+沒有這一步，腳本會在編譯還在跑的時候說「✓ 完成」，使用者一打字發現沒反應，
+又是一次「卡死」。
+
+### 更新流程：沒變更就別動輸入法
+以前不管 `git pull` 有沒有拉到東西，都照樣部署＋重啟 —— 光是「確認一下有沒有
+更新」就要付十幾秒的 IME 中斷。現在比對 pull 前後的 HEAD 分流：
+
+| 拉到的變更 | 動作 | 實測 |
+|---|---|---|
+| 無 / 只有 md、html、ps1… | 什麼都不做 | 2 秒，IME 完全不中斷 |
+| 只有 `.lua` | 只重啟（lua 只在服務啟動時載入） | 約 1 秒 |
+| 有 yaml／詞典／txt／gram／opencc | 停服務 → 部署 → 啟動 → 等 build 穩定 | 約 3 秒起 |
+
+macOS 版（`rime-update.command`）同樣的分流，但沒有「先停服務」那段：
+鼠鬚管沒有獨立部署器，`Squirrel --reload` 一個動作就同時重編與重載 lua。
+
 ### 詞典有、schema 沒有 → 乾淨環境部署直接壞
 `cangjie5.dict.yaml` 曾經只有詞典、沒有 `cangjie5.schema.yaml`，但五個方案的
 `schema/dependencies` 都列了它、並用 `dictionary: cangjie5` 做倉頡反查（前綴 `=`）。

@@ -49,11 +49,12 @@
 ## ⌨️ 常用指令
 
 ```powershell
-# 部署（改 yaml 後）
-& "C:\Program Files\Rime\weasel-0.17.4\WeaselDeployer.exe" /deploy
-
-# 重啟服務（改 lua 後，務必！）
-Stop-Process -Name WeaselServer -Force; Start-Process 'C:\Program Files\Rime\weasel-0.17.4\WeaselServer.exe'
+# 部署＋重啟（改 yaml 或 lua 後都用這個）
+#   會自己判斷要不要部署、用 /quit 優雅停服務、並等編譯真的跑完才回報完成。
+#   ⚠ 別再直接叫 WeaselDeployer /deploy —— 服務活著時部署，IME 收鍵不回字
+#     ＝使用者體感的「卡死」；而且 deployer 回傳不代表編譯完成。
+#     完整原委見 docs/GOTCHAS.md「部署會讓 IME 卡死」那幾條。
+pwsh scripts\rime-update.ps1 -Force
 
 # 回歸測試（改任何行為後）
 pwsh tools\rime-test.ps1 -Sync -Mode basic     # 23 條黃金樣本
