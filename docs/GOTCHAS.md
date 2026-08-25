@@ -21,6 +21,54 @@ Stop-Process -Name WeaselServer -Force; Start-Process 'C:\Program Files\Rime\wea
 2. 被某個啟用中的方案 `schema/dependencies` 引用（或列入 `schema_list`）。
 否則 `reverse_lookup_filter` 會找不到 `.reverse.bin`。
 
+### 詞典有、schema 沒有 → 乾淨環境部署直接壞
+`cangjie5.dict.yaml` 曾經只有詞典、沒有 `cangjie5.schema.yaml`，但五個方案的
+`schema/dependencies` 都列了它、並用 `dictionary: cangjie5` 做倉頡反查（前綴 `=`）。
+舊機器看起來正常，是因為 `build/` 裡還躺著陳年的 `cangjie5.*.bin`；
+**在乾淨環境（macOS 首次 clone）反查會直接查不到**。
+→ 已補上反查掛載用的 `cangjie5.schema.yaml`。
+⚠ 這種掛載 stub **不可**照抄 `jpnin1_gloss.schema.yaml` 的 `algebra: erase/^.+$/`——
+那會把 prism 清空，用倉頡碼反查就查不到了；只有「純粹為了編譯詞典」的掛載才能那樣寫。
+
+## macOS（鼠鬚管）專屬
+
+### F1~F4／F4 在 Mac 上按了沒反應 → 被系統當媒體鍵吃掉
+macOS 預設 F1~F4 是亮度／調度中心／Spotlight，**即使按住 Ctrl+Shift 也不會傳到輸入法**。
+所以 `switcher/hotkeys` 的 `F4` 和 `Ctrl+Shift+F1~F4` 在 Mac 預設狀態下全是死的。
+→ 兩個解法：系統設定 → 鍵盤開啟「將 F1、F2 等按鍵作為標準功能鍵」，
+或改用已備援的 `Ctrl+` `` ` ``（方案選單）與 `Ctrl+Opt+1~4`（直接切方案）。
+`Ctrl+Opt` 在 Windows 等同 AltGr、小狼毫本來就不轉送，兩邊綁在同一個檔案不會打架。
+
+### shell 腳本在 Mac 噴 `XXX?: unbound variable` → macOS 的 bash 是 3.2
+macOS 內建 `/bin/bash` 停在 **3.2**（2007 年，因 GPLv3 授權問題不再更新）。
+在 3.2 底下，`$VAR` 後面若**緊接中文字**，多位元組字元會被吃進變數名：
+
+```bash
+echo "備份保留在 $BACKUP，確認後可刪除"   # bash 3.2 → BACKUP，: unbound variable
+echo "備份保留在 ${BACKUP}，確認後可刪除" # 正確
+```
+
+現代 bash（5.x，含 Linux 與 Homebrew 版）**不會**重現這個錯誤，所以在 CI 或
+Linux 沙盒測過不代表 Mac 會過。→ 中文字串裡的變數一律加大括號。
+
+### Caps Lock 切不了中英 → 被 macOS 搶在前面
+系統設定 → 鍵盤 → 輸入方式的「使用大寫鎖定鍵切換輸入法」會攔截 Caps，
+`ascii_composer/switch_key` 永遠等不到事件。**必須手動關掉**，腳本改不到。
+
+### 重裝／重新 clone 會把打字詞頻歸零
+`*.userdb/` 與 `sync/` 被 `.gitignore` 排除（刻意的，避免兩台機器互相污染），
+所以 `git clone` 出來的是空的。`scripts/bootstrap-mac.sh` 已會從備份目錄把 `*.userdb` 搬回來，
+手動重裝時**別忘了這一步**，否則等於重新學一次你的用字習慣。
+
+### private repo 不能用 HTTPS clone
+腳本裡若寫 `https://github.com/NatLee/rime-config.git`，在非互動環境會卡在帳密輸入
+（症狀是 `could not read Username for 'https://github.com'`）。→ 一律走 SSH。
+
+### os.execute 在 Mac 的回傳值不能拿來判斷成敗
+`start` 在 macOS 不存在，但 Lua 5.1／LuaJIT 的 `os.execute` 回傳的是 **exit code**，
+127 在 Lua 裡是真值 → 「開啟失敗」會被當成成功，後面的 `open` 永遠輪不到。
+→ `p_generic_open.lua` 已改成先用 `f_get_os_name` 判斷系統再挑指令。
+
 ## 按鍵與快捷鍵
 
 ### `Ctrl+Alt+字母` 完全沒反應 → Windows AltGr 保留組合

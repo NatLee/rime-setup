@@ -55,6 +55,13 @@ patch:
     - {accept: "Control+Shift+F2", select: jpnin1, when: always}
     - {accept: "Control+Shift+F3", select: hangeul_hnc, when: always}
     - {accept: "Control+Shift+F4", select: easy_en_lower, when: always}
+    # macOS 備援：Mac 的 F1~F4 預設是亮度／調度中心等媒體鍵，即使按住修飾鍵也不會
+    # 傳到輸入法（除非在「系統設定 → 鍵盤」開啟標準功能鍵）。Ctrl+Opt 在 Windows
+    # 等同 AltGr、小狼毫本來就不轉送，兩邊並存不會互相干擾。
+    - {accept: "Control+Alt+1", select: bopomo_onionplus, when: always}
+    - {accept: "Control+Alt+2", select: jpnin1, when: always}
+    - {accept: "Control+Alt+3", select: hangeul_hnc, when: always}
+    - {accept: "Control+Alt+4", select: easy_en_lower, when: always}
     - {accept: "Control+period", toggle: full_shape, when: always}
     - {accept: "Control+semicolon", toggle: simplification, when: always}
     - {accept: "Control+slash", toggle: ascii_punct, when: always}

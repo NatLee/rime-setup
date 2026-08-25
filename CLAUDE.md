@@ -61,6 +61,22 @@ pwsh tools\rime-test.ps1 -Mode commit -InputSeq "'/uuid "    # 看上屏結果
 pwsh scripts\rime-sync.ps1
 ```
 
+macOS（鼠鬚管）對應指令：
+
+```bash
+# 部署（改 yaml 後）；鼠鬚管沒有獨立 Deployer，reload 會一併重載 lua
+"/Library/Input Methods/Squirrel.app/Contents/MacOS/Squirrel" --reload
+
+# 雙機同步
+bash ~/Library/Rime/scripts/rime-sync.sh
+
+# 部署日誌（部署失敗時看這裡，會指出是哪個 yaml 出錯）
+ls -t /tmp/rime.squirrel.* | head; tail -50 "$(ls -t /tmp/rime.squirrel.ERROR* | head -1)"
+```
+
+⚠ `tools/rime-test.ps1` 的沙盒回歸測試目前**只有 Windows 版**。在 Mac 上改了行為，
+要嘛推到 Windows 那台跑測試，要嘛在 Mac 上實機驗證後才算數——不要用「應該可以」結案。
+
 ---
 
 ## 📚 延伸文件（需要時再讀，別預先全載）

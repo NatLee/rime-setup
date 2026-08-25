@@ -1,0 +1,101 @@
+# Rime schema settings
+# encoding: utf-8
+# 《反查掛載專用 倉頡五代 設定頁》
+#
+# 為什麼需要這個檔？
+#   bopomo_onionplus / bopomo_onionplus_space / hangeul_hnc / jpnin1 / hangeul
+#   都在 schema/dependencies 列了 cangjie5，並用 `dictionary: cangjie5` 做倉頡反查（前綴 =）。
+#   但 RIME 只會編譯「有 schema 引用」的詞典 —— 光有 cangjie5.dict.yaml 不會產生
+#   cangjie5.{prism,table,reverse}.bin。舊機器之所以能用，是 build/ 裡還留著陳年產物；
+#   在乾淨環境（例如 macOS 首次 clone 部署）就會直接壞掉。
+#
+# 注意：
+#   - 本方案不列入 default.custom.yaml 的 schema_list，只作為反查掛載。
+#   - speller/alphabet 必須保留，否則 prism 為空、用倉頡碼反查會查不到。
+#     （不可套用 jpnin1_gloss 那種 `erase/^.+$/` 的縮 prism 寫法）
+#   - 上游原版還有一段用 luna_pinyin 的 reverse_lookup，本 repo 沒有 luna_pinyin 詞典，
+#     故移除，避免再引入一個編不出來的相依。
+
+schema:
+  schema_id: cangjie5
+  name: "倉頡五代"
+  version: "20260825"
+  author:
+    - 發明人 朱邦復先生
+  description: |
+    第五代倉頡輸入法
+    碼表源自倉頡之友發佈的《五倉世紀版》
+    www.chinesecj.com
+    本 repo 僅作反查掛載使用。
+
+switches:
+  - name: ascii_mode
+    reset: 0
+    states: [ 中文, 西文 ]
+  - name: full_shape
+    states: [ 半角, 全角 ]
+  - name: simplification
+    states: [ 漢字, 汉字 ]
+  - name: extended_charset
+    states: [ 常用, 增廣 ]
+  - name: ascii_punct
+    states: [ 。，, ．， ]
+
+engine:
+  processors:
+    - ascii_composer
+    - recognizer
+    - key_binder
+    - speller
+    - punctuator
+    - selector
+    - navigator
+    - express_editor
+  segmentors:
+    - ascii_segmentor
+    - matcher
+    - abc_segmentor
+    - punct_segmentor
+    - fallback_segmentor
+  translators:
+    - punct_translator
+    - table_translator
+  filters:
+    - simplifier
+    - uniquifier
+
+speller:
+  alphabet: 'zyxwvutsrqponmlkjihgfedcba'
+  delimiter: " ;"
+
+translator:
+  dictionary: cangjie5
+  prism: cangjie5
+  enable_charset_filter: true
+  enable_sentence: true
+  enable_encoder: true
+  encode_commit_history: true
+  max_phrase_length: 5
+  disable_user_dict_for_patterns:
+    - "^z.*$"
+    - "^yyy.*$"
+  comment_format:
+    - "xlit|abcdefghijklmnopqrstuvwxyz~|日月金木水火土竹戈十大中一弓人心手口尸廿山女田難卜符～|"
+  preedit_format:
+    - "xform/^([a-z]*)$/$1\\t（\\U$1\\E）/"
+    - "xlit|ABCDEFGHIJKLMNOPQRSTUVWXYZ|日月金木水火土竹戈十大中一弓人心手口尸廿山女田難卜符|"
+
+simplifier:
+  tips: all
+
+menu:
+  page_size: 5
+
+punctuator:
+  import_preset: default
+
+key_binder:
+  import_preset: default
+
+recognizer:
+  import_preset: default
