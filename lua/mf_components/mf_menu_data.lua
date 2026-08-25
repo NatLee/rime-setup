@@ -54,13 +54,18 @@ M.menus = {
   [""] = {
     tag = "《功能總覽》" .. HOW,
     rows = {
-      { key = "j",    label = "❖ 指令與快捷開啟　速查表、編輯短語、常用網站" },
+      -- 攤平：快捷開啟清單清到只剩速查表之後，'/j 那一層只是多按一次，
+      -- 直接把它擺在第一列（run 有值＝選中即執行）。'/jh、'/j 仍是可打的別名。
+      -- key 用 jh 不用 h：候選文字＝「可以直接打的代碼」是選單的約定，而 '/h
+      -- 沒有任何 handler（打了零候選）。run = "h" 讓選中仍然是直接開，不用兩段。
+      { key = "jh",   run = "h",
+                      label = "❖ 輸入法速查表　　全部功能與範例，開瀏覽器看" },
       -- run 有值＝選中就直接執行，不會再進一層（動作見 p_run_pattern 的 git 條目）
       { key = "git",  run = "git",
                       label = "⟳ 更新設定　　　　拉遠端設定 → 部署 → 重啟" },
       { key = "dt",   label = "◷ 日期與時間　　今天、現在、年月日週、節氣" },
       { key = "num",  label = "∑ 計算機　　　　打 '/12+34 直接算出來" },
-      { key = "dev",  label = "◈ 開發小工具　　uuid、時間戳、密碼、色碼、版本" },
+      { key = "dev",  label = "◈ 開發小工具　　uuid、時間戳、密碼、色碼、維護" },
       { key = "code", label = "▤ 編碼與字母　　Unicode、URL、大小寫、鍵位表" },
     },
   },
@@ -141,19 +146,28 @@ M.menus = {
       { key = "pw",            label = "隨機密碼　　　預設 16 碼（'/pw24 指定長度）" },
       { key = "rgb1a73e8",     label = "色碼轉換　　　HEX ↔ RGB／HSL" },
       { key = "cshello.world", label = "命名風格　　　camel／Pascal／snake／kebab" },
-      { key = "ver",           label = "▸ 版本與記憶體　版本資訊、Lua 記憶體、垃圾回收" },
+      { key = "set",           label = "▸ 設定與維護　　編輯短語／指令清單、版本、記憶體" },
     },
   },
 
   --------------------------------------------------------------------------
-  -- '/ver 版本與記憶體（以前只能背 '/v、'/g、'/gc，沒有任何入口找得到）
+  -- '/set 設定與維護
+  -- 收兩類東西：① 編輯方案內設檔（動作寫在 processor_p_run_files.lua，
+  -- 不在 p_run_pattern）② 版本／記憶體（以前只能背 '/v、'/g、'/gc）。
+  --
+  -- jc／jt 兩列同時給 key 與 run：
+  --   ‧ Windows 的 p_run_pattern 有 "c"（指定 Notepad++ 開新視窗）→ run 命中，選中即執行
+  --   ‧ Mac 沒有 "c"、兩邊都沒有 "t" → 退回 key，選中先變成 '/jc、'/jt，再按空白執行
+  -- 這是刻意的兩段式，不是漏做：那兩個動作的路徑存在 processor 的 env 裡。
   --------------------------------------------------------------------------
-  ["ver"] = {
-    tag = "【版本與記憶體】" .. HOW,
+  ["set"] = {
+    tag = "【設定與維護】" .. HOW,
     rows = {
-      { key = "v",  label = "版本資訊　　　　Weasel 0.17.4  (Weasel)" },
-      { key = "g",  label = "Lua 佔用記憶體　1824 KB（Garbage）" },
-      { key = "gc", label = "垃圾回收　　　　跑一次 collectgarbage" },
+      { key = "jc", run = "c", label = "編輯 自訂短語　打 email 出信箱那種" },
+      { key = "jt",            label = "編輯 指令清單　快捷開啟要加條目就改這裡" },
+      { key = "v",             label = "版本資訊　　　Weasel 0.17.4  (Weasel)" },
+      { key = "g",             label = "Lua 佔用記憶體　1824 KB（Garbage）" },
+      { key = "gc",            label = "垃圾回收　　　跑一次 collectgarbage" },
     },
   },
 

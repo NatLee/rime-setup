@@ -307,7 +307,7 @@ local function register(reg)
   -- 第三層：把以前只能背代碼才找得到的功能全部給一個入口
   reg.register_exact("dty",  hier_menu("dty"))                                         -- '/dty  日期：單項
   reg.register_exact("dts",  hier_menu("dts"))                                         -- '/dts  日期：其他
-  reg.register_exact("ver",  hier_menu("ver"))                                         -- '/ver  版本與記憶體（'/v '/g '/gc）
+  reg.register_exact("set",  hier_menu("set"))                                         -- '/set  設定與維護（編輯短語／指令清單、'/v '/g '/gc）
   reg.register_exact("case", hier_menu("case"))                                        -- '/case 字母大小寫（'// '/; '/'）
   reg.register_exact("k",  menu_handler(function() return k_keys_table end, "【鍵位和編碼】▶"))
   reg.register_exact("ko", menu_handler(function(env) return hotkeys(env.schema_id)[1] end, "【操作鍵 說明】"))

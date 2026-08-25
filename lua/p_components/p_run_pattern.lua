@@ -19,12 +19,6 @@ local run_pattern = {
 -- 通用：
 --------------------------------------------------------------------------
   ["h"] = { s = 0, direct = false, name = "輸入法速查表 Cheatsheet", open = '"' .. user_dir .. '/cheatsheet.html"' },
-  ["r"] = { s = 3, name = "Rime 官方 GitHub", open = "https://github.com/rime" },
-  ["rw"] = { s = 4, name = "Rime 詳解", open = "https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md" },
-  ["l"] = { s = 5, name = "librime-lua 官方 GitHub", open = "https://github.com/hchunhui/librime-lua" },
-  ["lw"] = { s = 6, name = "librime-lua 腳本開發指南", open = "https://github.com/hchunhui/librime-lua/wiki/Scripting" },
-  ["o"] = { s = 7, name = "上游方案 GitHub", open = "https://github.com/oniondelta/Onion_Rime_Files" },
-  ["ow"] = { s = 8, name = "上游方案 GitHub Wiki", open = "https://github.com/oniondelta/Onion_Rime_Files/wiki" },
 --------------------------------------------------------------------------
 -- Mac：
 --------------------------------------------------------------------------
