@@ -3,7 +3,7 @@
 > ⚠ **這份檔案由 `tools/keymap-dump.ps1` 產生，不要手改** —— 下次重跑會被覆蓋。
 > 要改行為請改對應的來源檔（每一節都標了來源），改完重新部署再跑一次這支腳本。
 >
-> 產生時間：2026-08-25 18:04　方案：`bopomo_onionplus`
+> 產生時間：2026-08-25 18:18　方案：`bopomo_onionplus`
 
 這份表要回答的問題：**「這個鍵／這個代碼，現在是誰在用？」**
 資料直接取自部署後的 `build/`（patch 與 `__include` 都已合併）與 lua 原始碼，
@@ -243,6 +243,10 @@
 | `'/num` | '/num 計算機用法 | `lua/mf_components/mf_open_menu.lua` |
 | `'/dev` | '/dev 開發小工具＋版本 | `lua/mf_components/mf_open_menu.lua` |
 | `'/code` | '/code 編碼與字母 | `lua/mf_components/mf_open_menu.lua` |
+| `'/dty` | '/dty  日期：單項 | `lua/mf_components/mf_open_menu.lua` |
+| `'/dts` | '/dts  日期：其他 | `lua/mf_components/mf_open_menu.lua` |
+| `'/ver` | '/ver  版本與記憶體（'/v '/g '/gc） | `lua/mf_components/mf_open_menu.lua` |
+| `'/case` | '/case 字母大小寫（'// '/; '/'） | `lua/mf_components/mf_open_menu.lua` |
 | `'/k` | 【鍵位和編碼】▶ | `lua/mf_components/mf_open_menu.lua` |
 | `'/ko` | 【操作鍵 說明】 | `lua/mf_components/mf_open_menu.lua` |
 | `'/kk` | 【快捷鍵 說明】 | `lua/mf_components/mf_open_menu.lua` |

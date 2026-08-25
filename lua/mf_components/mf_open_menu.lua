@@ -284,6 +284,11 @@ local function register(reg)
   --   精確表、再跑 matcher」，精確碼永遠贏；而且 mf_unicode 只註冊單字母 c，
   --   不會覆蓋 code 這一鍵。'/co、'/cod 中間狀態沒有候選是預期的。
   reg.register_exact("code", hier_menu("code"))                                        -- '/code 編碼與字母
+  -- 第三層：把以前只能背代碼才找得到的功能全部給一個入口
+  reg.register_exact("dty",  hier_menu("dty"))                                         -- '/dty  日期：單項
+  reg.register_exact("dts",  hier_menu("dts"))                                         -- '/dts  日期：其他
+  reg.register_exact("ver",  hier_menu("ver"))                                         -- '/ver  版本與記憶體（'/v '/g '/gc）
+  reg.register_exact("case", hier_menu("case"))                                        -- '/case 字母大小寫（'// '/; '/'）
   reg.register_exact("k",  menu_handler(function() return k_keys_table end, "【鍵位和編碼】▶"))
   reg.register_exact("ko", menu_handler(function(env) return hotkeys(env.schema_id)[1] end, "【操作鍵 說明】"))
   reg.register_exact("kk", menu_handler(function(env) return hotkeys(env.schema_id)[2] end, "【快捷鍵 說明】"))

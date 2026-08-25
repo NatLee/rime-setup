@@ -129,6 +129,20 @@ pwsh tools\keymap-dump.ps1     # 讀 build\，所以要先部署
 → 選單相關的回歸一律用 `Get-Preedit` 驗編碼列，只有 `'/dt`、`'/num` 這種
 純跳轉的列才可以用 `Get-Commit`。
 
+### 新增 `'/` 功能一定要給選單入口
+`'/g`（Lua 記憶體）、`'/gc`、`'/p`、`'/z`、`'/l` 曾經只能靠背代碼才找得到 ——
+選單裡沒有任何一列指向它們，使用者根本不知道有這些功能存在。
+→ 現在的規則：**每個功能都要能從 `'/` 一路按 ⇧鍵走到**。
+新增功能時同步改 `lua/mf_components/mf_menu_data.lua`，並在 `mf_open_menu.lua`
+`register_exact` 新子選單。驗收方式：`docs/KEYMAP.md` 第 5 節的每一個代碼，
+都要在選單樹裡找得到（或被某一列的說明文字提到，例如 `'/x`、`'/ym`、`'/mdw`）。
+
+### `'/` 選單為什麼每層都壓在 6 列以內
+`menu/page_size` 是 6，但 `'/` 段落裡**翻頁鍵大多是壞的**：
+`-` `,` `.` 都在 mf_translator 的 recognizer pattern（`'/[-+*^/.,'();0-9a-z]*$`）裡，
+會被當成輸入吃掉，只剩 `=` 與 ←／→ 還能翻頁 —— 使用者不會知道。
+→ 寧可多分一層子選單，也不要讓某一層超過 6 列。
+
 ### 詞典有、schema 沒有 → 乾淨環境部署直接壞
 `cangjie5.dict.yaml` 曾經只有詞典、沒有 `cangjie5.schema.yaml`，但五個方案的
 `schema/dependencies` 都列了它、並用 `dictionary: cangjie5` 做倉頡反查（前綴 `=`）。
