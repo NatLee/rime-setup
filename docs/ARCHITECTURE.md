@@ -6,7 +6,7 @@
 C:\RIME\  ← RIME 使用者資料夾 ＝ git repo
 │
 ├─ CLAUDE.md              AI 助手操作指南（每次載入）
-├─ cheatsheet.html        使用者速查表（'/jh 或 Ctrl+Alt+H）
+├─ cheatsheet.html        使用者速查表（'/h ＋空格）
 │
 ├─ *.custom.yaml          ★ 我們的所有設定改動都在這裡（patch 上游）
 ├─ *.schema.yaml          上游方案定義（盡量不改）
@@ -53,7 +53,7 @@ lua/
 │                                   否則 macOS 標籤會變 !@#$%^；排 recognizer 之後）
 ├─ f_components/                   格式化元件（日期樣式、中文數字、農曆…）
 ├─ filter_cand/                    候選操作小工具（改註解、去重…）
-└─ p_components/p_run_pattern.lua  '/j 快捷開啟清單（可自訂）
+└─ p_components/p_run_pattern.lua  一級指令清單（'/h '/git '/phrase '/cmd，可自訂）
 ```
 
 ## 一次按鍵的資料流

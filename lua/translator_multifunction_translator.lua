@@ -21,7 +21,7 @@ local mf_number_calc = require("mf_components/mf_number_calc")
 --- 精確代碼查表先行：原鏈中精確代碼之前的 matcher 只有 j[a-z]+（j 開頭後接字母），
 --- 與任何精確代碼無交集，故語義等價（以回歸測試逐條驗證）。
 
-mf_open_menu.register(registry)         -- ''、k*、j、v/g/gc（exact）＋ j[a-z]+（matcher）
+mf_open_menu.register(registry)         -- ''、k*、v/g/gc（exact）＋ 裸代碼前綴搜尋（matcher）
 registry.register_specs(require("mf_components/dt_specs_misc"))  -- p/z/l/s（exact 規格表）
 registry.register_specs(require("mf_components/dt_specs_time"))  -- t*/n*（exact 規格表）
 registry.register_specs(require("mf_components/dt_specs_date"))  -- f/y/m/d/w 組合（exact 規格表）
@@ -30,11 +30,11 @@ mf_unicode.register(registry)           -- x u c o i 前導提示（exact）＋�
 mf_datetime_custom.register(registry)   -- ○y○m○d 指定日期（matcher）
 mf_number_calc.register(registry)       -- 數字與計算機（matcher）
 
-----------------------------------------------------------------------------------------
---- 快捷開啟
+-- ⚠ 一定要最後註冊：registry 是「後註冊覆蓋先註冊」，擺最後才能用 has_exact
+-- 檢查指令代碼有沒有被既有功能佔用，撞到就跳過（讓路，不靜默弄壞人家）。
+mf_open_menu.register_direct(registry)  -- p_run_pattern 裡 direct = true 的一級指令
 
-local run_pattern = require("p_components/p_run_pattern")
-local run_menu = require("p_components/p_run_menu")
+----------------------------------------------------------------------------------------
 
 ----------------------------------------------------------------------------------------
 --- 置入方案範例
@@ -115,7 +115,6 @@ local function init(env)
       -- , { "===========  結束  ===========    ", "㉛" }
       -- , { "〔夜思‧李白〕", "床前明月光，疑是地上霜。\r舉頭望明月，低頭思故鄉。" }
       }
-  env.run_menu_table = run_menu(run_pattern)
   -- log.info("mf_translator Initilized!")
 end
 ----------------------------------------------------------------------------------------

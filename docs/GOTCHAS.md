@@ -174,6 +174,34 @@ devkit 的樣式要求後面至少一個字元。前綴搜尋也刻意不補這�
 新增選單列時自問：**這一列顯示的代碼，使用者照打會不會有東西？**
 驗收：`pwsh tools\rime-test.ps1 -Mode cands -InputSeq "'/<那個代碼>"` 要有候選。
 
+### 指令是「一級代碼」，靠 direct = true 資料驅動掛載
+`p_run_pattern.lua` 裡標了 `direct = true` 的條目，會自動得到三樣東西：
+translator 的提示候選（`mf_open_menu.register_direct`）、processor 的空白鍵動作
+（`processor_p_run_files`）、以及被前綴搜尋列出的資格。加一條就是加一個 `'/xxx`，
+不必再為它寫 handler —— `'/git` 以前就是寫死的一份，現在拿掉了。
+
+⚠ 代碼撞到既有功能時，**整條失效**（不是部分失效）：
+`register_direct` 會跳過已經被註冊的代碼（`registry.has_exact`）、只把真正掛上的
+登記到 `registry.claim_direct`；processor 端只認這份名單（`registry.is_direct`）。
+兩邊看同一份名單，所以不會出現「打得出提示卻不會執行」或反過來的半生不熟狀態。
+
+實測驗證過：在 `p_run_pattern` 塞一條鍵名為 `f` 的條目（撞到日期代碼 `'/f`），
+`'/f` 仍然正常出日期、完全不會變成開網頁。少了這道判斷就會被吃掉 ——
+這個 processor 排在鏈首，空白鍵是它先看到的。
+
+### `register_direct` 一定要最後註冊
+`translator_multifunction_translator.lua` 的註冊順序即優先序（後蓋前）。
+`register_direct` 擺在最後，`has_exact` 才看得到所有既有代碼，撞碼判斷才準。
+擺前面的話它反而會蓋掉日期／內碼那些代碼。
+
+### 沙盒同步要 `/PURGE`，否則測試會對著「已刪除的檔案」跑
+`robocopy /E` 只複製、**不刪除**目的地多出來的檔案。從 repo 刪掉一個 lua 之後，
+沙盒裡還留著舊的那份，測試照樣全綠 —— 正式環境一部署卻整個 lua 掛掉。
+實際踩過：`p_run_menu.lua` 已刪除，`translator_multifunction_translator.lua`
+卻還 `require` 它，53 條測試全 PASS。
+→ `rime-test.ps1` 的 robocopy 已加 `/PURGE`（`*.userdb` 等 `/XD` 排除項不受影響）。
+刪檔之後務必 `-Sync` 重跑一次。
+
 ### 詞典有、schema 沒有 → 乾淨環境部署直接壞
 `cangjie5.dict.yaml` 曾經只有詞典、沒有 `cangjie5.schema.yaml`，但五個方案的
 `schema/dependencies` 都列了它、並用 `dictionary: cangjie5` 做倉頡反查（前綴 `=`）。

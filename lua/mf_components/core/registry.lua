@@ -29,6 +29,19 @@ function M.has_exact(code)
   return exact[code] ~= nil
 end
 
+--- 一級指令代碼（p_run_pattern 裡 direct = true 且沒有撞到既有代碼的那些）。
+--- translator 註冊時登記，processor 執行前查 —— 兩邊靠同一份名單，
+--- 撞碼的條目就是整條失效，不會出現「打得出提示卻不會執行」這種半生不熟的狀態。
+local direct_codes = {}
+
+function M.claim_direct(code)
+  direct_codes[code] = true
+end
+
+function M.is_direct(code)
+  return direct_codes[code] == true
+end
+
 function M.register_matcher(handler)
   matchers[#matchers + 1] = handler
 end

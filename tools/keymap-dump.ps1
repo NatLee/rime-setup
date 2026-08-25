@@ -241,9 +241,10 @@ if (Test-Path $devkit) {
 W ''
 W '### 命名空間'
 W ''
-W "指令與快捷開啟固定用 ``'/j``（`lua/p_components/p_run_menu.lua` 的 ``NS``）。"
-W "⚠ **不要改成 ``c``** —— ``'/c`` 是十進制內碼、``'/cs`` 是 devkit 命名風格轉換，"
-W '改了會被靜默遮蔽（試過，見 `docs/GOTCHAS.md`）。'
+W '指令沒有命名空間：`p_run_pattern.lua` 裡 `direct = true` 的條目就是一級代碼'
+W "（``'/h`` ``'/git`` ``'/phrase`` ``'/cmd``），由 `mf_open_menu.register_direct` 掛載。"
+W '⚠ 代碼撞到上表任何一個既有代碼時，該條目會**整條失效**（讓路給既有功能）。'
+W '曾經有過 ``/j`` 命名空間與改用 ``c`` 的版本，都已移除，見 `docs/GOTCHAS.md`。'
 W ''
 
 # ── 6. recognizer ─────────────────────────────────────────────────

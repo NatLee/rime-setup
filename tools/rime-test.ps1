@@ -45,7 +45,10 @@ if ($Sync -or -not (Test-Path "$Sandbox\build")) {
   New-Item -ItemType Directory -Force $Sandbox | Out-Null
   # 排除使用者詞庫與 git，避免污染正式資料
   $xd = @('.git', 'sync', 'tools', '_cleanup*') + (Get-ChildItem $RimeDir -Directory -Filter '*.userdb*' | ForEach-Object { $_.Name })
-  robocopy $RimeDir $Sandbox /E /XD @xd /XF '*.zip' '*.bak' /NJH /NJS /NDL /NFL | Out-Null
+  # ⚠ 一定要 /PURGE：只有 /E 的話，來源已刪除的檔案會**留在沙盒**，測試對著幽靈檔跑。
+  #   踩過一次 —— p_run_menu.lua 已從 repo 刪掉、translator 卻還 require 它，
+  #   沙盒因為留著舊檔所以 53 條全綠，正式環境一部署就會整個 lua 掛掉。
+  robocopy $RimeDir $Sandbox /E /PURGE /XD @xd /XF '*.zip' '*.bak' /NJH /NJS /NDL /NFL | Out-Null
   if ($LASTEXITCODE -ge 8) { throw "robocopy 失敗 ($LASTEXITCODE)" }
   # ⚠ 沙盒自己的 *.userdb 一定要清掉，否則測試不可重現：每次 Get-Commit 上屏都會
   #   被詞庫學習，把剛選的字往前推（測過 su3 → 你 變成 妳，看起來像選字鍵壞了）。
@@ -277,17 +280,18 @@ switch ($Mode) {
     # 指令選單每一列選中都會真的執行動作，所以這幾條一律用 preedit 驗證。
     $pcases = [ordered]@{
       'P01 功能總覽'        = @("'/",     '*《功能總覽》*')
-      'P02 指令選單'        = @("'/j",    '*【指令與快捷開啟】*')
-      'P03 前綴搜尋 jg'     = @("'/jg",   "*【指令 '/jg*")
-      'P04 前綴搜尋 jgi'    = @("'/jgi",  "*【指令 '/jgi*")
-      # 完整碼、沒有更長的同字首碼 → 維持「直接執行提示」，不進選單
-      'P05 完整碼直接執行'  = @("'/jc",  '*【指令與快捷開啟】*')
-      'P12 唯一完整碼直執行' = @("'/jh",  '*【指令與快捷開啟】*')
-      # ⚠ 「完整碼同時是更長代碼的字首」（'/jo → 列出 '/jo ＋ '/jow）那一支
-      #   目前沒有資料可測：快捷開啟清單已清到只剩速查表，沒有同字首的成對代碼。
-      #   規則還在 mf_menu_data.lookup 裡；要驗證就在 p_run_pattern 補一組
-      #   同字首條目（例如 r 與 rw）再打 '/jr 看是否兩列都出現。
-      'P06 無此碼'          = @("'/jz",   '*【指令與快捷開啟】*')
+      # 一級指令代碼（'/j 命名空間已移除）：打得出提示＝掛上了
+      # preedit 的標籤是【指令】；提示文字（速查表／更新…）在候選的 comment，
+      # 這裡只驗「這個代碼有被掛上」，掛上與否才是會壞的地方。
+      'P02 速查表指令 /h'   = @("'/h",       '*【指令】*')
+      'P03 更新指令 /git'   = @("'/git",     '*【指令】*')
+      'P04 自訂短語 /phrase' = @("'/phrase",  '*【指令】*')
+      'P05 指令清單 /cmd'   = @("'/cmd",     '*【指令】*')
+      # 前綴補完：打一半就列出候選
+      'P06 gi → git 補完'   = @("'/gi",   "*【代碼 '/gi*")
+      'P12 ph → phrase 補完' = @("'/ph",  "*【代碼 '/ph*")
+      # '/j 已移除，不該再有任何反應（有的話代表殘留）
+      'P17 j 已移除'        = @("'/j",    "'/j")
       'P07 開發小工具'      = @("'/dev",  '*【開發小工具】*')
       'P08 編碼與字母'      = @("'/code", '*【編碼與字母】*')
       # 第三層：以前只能背代碼才找得到的功能，現在每個都有入口

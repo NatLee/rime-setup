@@ -67,7 +67,7 @@ end
 
 local menu_data = require("mf_components/mf_menu_data")
 
--- 選單列的算繪。hier_menu（固定選單）與 j_run（'/j 前綴搜尋）共用同一份，
+-- 選單列的算繪。hier_menu（固定選單）與 bare_prefix（前綴搜尋）共用同一份，
 -- 兩邊長相與候選文字規則才會完全一致。
 local function render_rows(rows, tag, input, seg, env)
   for _, row in ipairs(rows) do
@@ -141,80 +141,11 @@ local k_keys_table = {
       --   , { "", "⓯" }
       --   , { "", "⓰" }
       --   , { "", "⓱" }
-      --   , { "", "⓲" }
-      --   , { "", "⓳" }
-      --   , { "", "⓴" }
-      --   }
-      -- local keys_table = run_menu(run_pattern)  -- 不用 init 引入，直接引入
-
-local function j_run(input, seg, env, ctx)
-  local caret_pos = ctx.caret_pos
-    local op_check = string.match(input, env.prefix .. "j([a-z]+)$")
-    local first_check = caret_pos - #input
-    if op_check and first_check ~= 0 then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔非起始輸入〕")
-      cand2.preedit = input .. "\t【指令與快捷開啟】"
-      yield(cand2)
-      return true
-
-    ----------------------------------------------------------------------
-    -- 前綴搜尋（slash command 式）：'/jg 就列出所有 jg… 開頭的指令。
-    -- 只有「打不完整」時才會走這裡 —— menu_data.lookup 對剛好等於某一列的
-    -- 完整代碼（'/jh、'/jgit、'/jt…）回 nil，於是往下掉到原本的直接執行提示。
-    -- 選中的動作由 processor_p_run_files.lua 的選單分支處理，與其他選單同一條路。
-    ----------------------------------------------------------------------
-    elseif op_check and menu_data.lookup("j" .. op_check) then
-      local rows, tag = menu_data.lookup("j" .. op_check)
-      return render_rows(rows, tag, input, seg, env)
-
-    elseif op_check == "t" then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 編輯 快捷開啟 table 〙")  -- or〔錯誤〕
-      cand2.preedit = input .. "\t【指令與快捷開啟】"
-      yield(cand2)
-      return true
-    elseif op_check == "c" and env.prefix == "`" then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無短語功能〕")  -- or〔錯誤〕
-      cand2.preedit = input .. "\t【指令與快捷開啟】"
-      yield(cand2)
-      return true
-    elseif op_check == "c" then
-      local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 編輯 custom 短語 〙")  -- or〔錯誤〕
-      cand2.preedit = input .. "\t【指令與快捷開啟】"
-      yield(cand2)
-      return true
-    elseif op_check and first_check == 0 then
-      local run_in = run_pattern[ op_check ]
-      if run_in ~= nil then
-        local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 " .. run_in.name .. " 〙")  -- or〔錯誤〕
-        cand2.preedit = input .. "\t【指令與快捷開啟】"
-        yield(cand2)
-      return true
-      elseif run_in == nil then
-        local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無〕")  -- 〔無此開啟碼〕or〔錯誤〕
-        cand2.preedit = input .. "\t【指令與快捷開啟】"
-        yield(cand2)
-        return true
-      end
-    -- elseif op_check == "fc" then
-    --   local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無短語功能〕")  -- or〔錯誤〕
-    --   cand2.preedit = input .. "\t【指令與快捷開啟】"
-    --   yield(cand2)
-    --   return
-    -- elseif op_check and first_check == 0 then
-    -- -- if (input == env.prefix .. "opp" ) then
-    --   local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無此開啟碼〕")  -- or〔錯誤〕
-    --   cand2.preedit = input .. "\t【指令與快捷開啟】"
-    --   yield(cand2)
-    --   return
-    end
-  return false
-end
 
 ----------------------------------------------------------------------------------------
 --- 裸代碼前綴搜尋：'/gi → '/git、'/co → '/code、'/uu → '/uuid。
 --- 判斷規則全部在 mf_menu_data.lookup（三道護欄的理由寫在那裡），這裡只負責算繪。
---- 註冊位置：緊接在 j_run 之後、mf_letters／mf_unicode 之前。
----   ‧ 不能更早：沒有意義，j_run 只吃 j 開頭。
+--- 註冊位置：mf_letters／mf_unicode 之前。
 ---   ‧ 不能更晚：mf_unicode 的 codes() 對 '/ca 這種 [xuco]+hex 會 return true
 ---     （雖然一個候選都不吐），排在它後面就永遠輪不到，畫面空白但 p_run_files
 ---     那邊卻認得選單，兩邊會不一致。
@@ -231,25 +162,40 @@ local function bare_prefix(input, seg, env, ctx)
 end
 
 ----------------------------------------------------------------------------------------
---- '/git 直達碼：更新設定並重新部署
---- 動作本身由 processor_p_run_files.lua 攔截空白鍵執行，這裡只負責顯示提示候選，
---- 免得按下去不知道會發生什麼事。與 '/jgit 走同一個 run_pattern 條目。
-
-local function git_update(input, seg, env, ctx)
-  local caret_pos = ctx.caret_pos
-  local run_in = run_pattern["git"]
-  local tip
-  if caret_pos - #input ~= 0 then
-    tip = "〔非起始輸入〕"
-  elseif run_in == nil then
-    tip = "〔本平台未提供〕"
-  else
-    tip = "〘 " .. run_in.name .. " 〙"
+--- 一級指令代碼的提示候選（'/h、'/git、'/phrase、'/cmd…）。
+--- 資料驅動：p_run_pattern 裡每個 direct = true 的條目自動有一個，
+--- 不必再為每個指令寫一份 handler（'/git 以前就是寫死的一份）。
+--- 動作本身由 processor_p_run_files.lua 攔截空白鍵執行，這裡只負責讓使用者
+--- 「看得到按下去會發生什麼事」。
+local function direct_tip(code)
+  return function(input, seg, env, ctx)
+    local run_in = run_pattern[code]
+    local tip
+    if ctx.caret_pos - #input ~= 0 then
+      tip = "〔非起始輸入〕"
+    elseif run_in == nil then
+      tip = "〔本平台未提供〕"
+    else
+      tip = "〘 " .. run_in.name .. " 〙"
+    end
+    local cand = Candidate("simp_mf_tips", seg.start, seg._end, "", tip)
+    cand.preedit = env.prefix .. code .. "\t【指令】"
+    yield(cand)
+    return true
   end
-  local cand = Candidate("simp_mf_tips", seg.start, seg._end, "", tip)
-  cand.preedit = env.prefix .. "git" .. "\t【快捷開啟】"
-  yield(cand)
-  return true
+end
+
+--- 掛載所有 direct 指令。由 translator_multifunction_translator 在**所有其他模組
+--- 註冊完之後**呼叫 —— registry 是「後註冊覆蓋先註冊」，這樣才有辦法用
+--- has_exact 檢查代碼有沒有被佔用，撞到就跳過（讓路給既有功能，不會靜默弄壞它）。
+--- processor_p_run_files 也用同一個判斷，兩邊一致。
+local function register_direct(reg)
+  for code, v in pairs(run_pattern) do
+    if v.direct and not reg.has_exact(code) then
+      reg.register_exact(code, direct_tip(code))
+      reg.claim_direct(code)          -- 讓 processor 知道這個代碼真的掛上了
+    end
+  end
 end
 
 ----------------------------------------------------------------------------------------
@@ -320,15 +266,10 @@ local function register(reg)
   reg.register_exact("ky", menu_handler(function() return ky_table end, "【拉丁 形碼 中文拼音 編碼】"))
   reg.register_exact("kg", menu_handler(function() return kg_table end, "【希臘 形碼 編碼】"))
   reg.register_exact("kc", menu_handler(function() return kc_table end, "【西里爾 形碼 編碼】"))
-  -- '/j 指令與快捷開啟（分層選單）。⚠ 別改用 "c"：mf_unicode 在本檔之後才註冊，
-  --   它的 register_exact("c")（內碼十進制）會直接覆蓋掉這一列，選單靜默消失。
-  reg.register_exact("j",  hier_menu("j"))
-  reg.register_matcher(j_run)                                                          -- j[a-z]+ 快捷開啟
   reg.register_matcher(bare_prefix)  -- 裸代碼前綴搜尋（'/gi → '/git）
-  reg.register_exact("git", git_update)                                                -- '/git 更新設定並重新部署
   reg.register_exact("v", ver)
   reg.register_exact("g", garbage)
   reg.register_exact("gc", garbage_collect)
 end
 
-return { register = register }
+return { register = register, register_direct = register_direct }

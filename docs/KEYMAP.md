@@ -3,7 +3,7 @@
 > ⚠ **這份檔案由 `tools/keymap-dump.ps1` 產生，不要手改** —— 下次重跑會被覆蓋。
 > 要改行為請改對應的來源檔（每一節都標了來源），改完重新部署再跑一次這支腳本。
 >
-> 產生時間：2026-08-26 00:45　方案：`bopomo_onionplus`
+> 產生時間：2026-08-26 01:22　方案：`bopomo_onionplus`
 
 這份表要回答的問題：**「這個鍵／這個代碼，現在是誰在用？」**
 資料直接取自部署後的 `build/`（patch 與 `__include` 都已合併）與 lua 原始碼，
@@ -258,8 +258,6 @@
 | `'/ky` | 【拉丁 形碼 中文拼音 編碼】 | `lua/mf_components/mf_open_menu.lua` |
 | `'/kg` | 【希臘 形碼 編碼】 | `lua/mf_components/mf_open_menu.lua` |
 | `'/kc` | 【西里爾 形碼 編碼】 | `lua/mf_components/mf_open_menu.lua` |
-| `'/j` | 分層選單 | `lua/mf_components/mf_open_menu.lua` |
-| `'/git` | '/git 更新設定並重新部署 | `lua/mf_components/mf_open_menu.lua` |
 | `'/v` | handler: `ver` | `lua/mf_components/mf_open_menu.lua` |
 | `'/g` | handler: `garbage` | `lua/mf_components/mf_open_menu.lua` |
 | `'/gc` | handler: `garbage_collect` | `lua/mf_components/mf_open_menu.lua` |
@@ -276,9 +274,10 @@
 
 ### 命名空間
 
-指令與快捷開啟固定用 `'/j`（lua/p_components/p_run_menu.lua 的 `NS`）。
-⚠ **不要改成 `c`** —— `'/c` 是十進制內碼、`'/cs` 是 devkit 命名風格轉換，
-改了會被靜默遮蔽（試過，見 `docs/GOTCHAS.md`）。
+指令沒有命名空間：`p_run_pattern.lua` 裡 `direct = true` 的條目就是一級代碼
+（`'/h` `'/git` `'/phrase` `'/cmd`），由 mf_open_menu.register_direct 掛載。
+⚠ 代碼撞到上表任何一個既有代碼時，該條目會**整條失效**（讓路給既有功能）。
+曾經有過 ``/j`` 命名空間與改用 ``c`` 的版本，都已移除，見 `docs/GOTCHAS.md`。
 
 ## 6. recognizer 樣式（會「搶走」按鍵的隱形規則）
 

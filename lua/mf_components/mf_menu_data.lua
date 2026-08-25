@@ -25,8 +25,6 @@
   結果六列被 uniquifier 併成一列，畫面上只剩第一列。
 --]]
 
-local run_pattern = require("p_components/p_run_pattern")
-local run_menu    = require("p_components/p_run_menu")
 local registry    = require("mf_components/core/registry")
 
 local M = {}
@@ -54,11 +52,9 @@ M.menus = {
   [""] = {
     tag = "《功能總覽》" .. HOW,
     rows = {
-      -- 攤平：快捷開啟清單清到只剩速查表之後，'/j 那一層只是多按一次，
-      -- 直接把它擺在第一列（run 有值＝選中即執行）。'/jh、'/j 仍是可打的別名。
-      -- key 用 jh 不用 h：候選文字＝「可以直接打的代碼」是選單的約定，而 '/h
-      -- 沒有任何 handler（打了零候選）。run = "h" 讓選中仍然是直接開，不用兩段。
-      { key = "jh",   run = "h",
+      -- 指令已攤平成一級代碼（'/h、'/git…），不再有 '/j 命名空間那一層。
+      -- run 有值＝選中即執行，不用先跳進去再按一次空白。
+      { key = "h",    run = "h",
                       label = "❖ 輸入法速查表　　全部功能與範例，開瀏覽器看" },
       -- run 有值＝選中就直接執行，不會再進一層（動作見 p_run_pattern 的 git 條目）
       { key = "git",  run = "git",
@@ -152,19 +148,14 @@ M.menus = {
 
   --------------------------------------------------------------------------
   -- '/set 設定與維護
-  -- 收兩類東西：① 編輯方案內設檔（動作寫在 processor_p_run_files.lua，
-  -- 不在 p_run_pattern）② 版本／記憶體（以前只能背 '/v、'/g、'/gc）。
-  --
-  -- jc／jt 兩列同時給 key 與 run：
-  --   ‧ Windows 的 p_run_pattern 有 "c"（指定 Notepad++ 開新視窗）→ run 命中，選中即執行
-  --   ‧ Mac 沒有 "c"、兩邊都沒有 "t" → 退回 key，選中先變成 '/jc、'/jt，再按空白執行
-  -- 這是刻意的兩段式，不是漏做：那兩個動作的路徑存在 processor 的 env 裡。
+  -- 收兩類東西：① 編輯方案內設檔（'/phrase、'/cmd，條目就在 p_run_pattern）
+  -- ② 版本／記憶體（以前只能背 '/v、'/g、'/gc，沒有任何入口找得到）。
   --------------------------------------------------------------------------
   ["set"] = {
     tag = "【設定與維護】" .. HOW,
     rows = {
-      { key = "jc", run = "c", label = "編輯 自訂短語　打 email 出信箱那種" },
-      { key = "jt",            label = "編輯 指令清單　快捷開啟要加條目就改這裡" },
+      { key = "phrase", run = "phrase", label = "編輯 自訂短語　打 email 出信箱那種" },
+      { key = "cmd",    run = "cmd",    label = "編輯 指令清單　要加快捷開啟就改這裡" },
       { key = "v",             label = "版本資訊　　　Weasel 0.17.4  (Weasel)" },
       { key = "g",             label = "Lua 佔用記憶體　1824 KB（Garbage）" },
       { key = "gc",            label = "垃圾回收　　　跑一次 collectgarbage" },
@@ -200,52 +191,15 @@ M.menus = {
     },
   },
 }
-
 --------------------------------------------------------------------------
--- 「指令與快捷開啟」是動態選單：內容由 p_run_pattern 的條目算出來，
--- 所以不寫死在上面的表裡。translator（顯示）與 processor（執行）都走這個入口，
--- 保證兩邊看到的列序完全一致 —— 選第 3 列就一定是第 3 列那個指令。
--- 代碼固定用 'j'（上游沿用）。⚠ 別改成 'c'：mf_unicode 已經 register_exact("c")
--- 當「內碼十進制」前導提示，而且它註冊在後面 —— 後註冊的會覆蓋前面的，
--- 指令選單會被靜默吃掉（曾經如此，畫面顯示的是【內碼十進制】▶）。
+-- 選單查表：主選單與各層子選單都在上面的 M.menus，這裡只多做一件事 ——
+-- 「打一半」的前綴搜尋。
+--
+-- 舊版還有一層 '/j 命名空間（'/jh、'/jgit…）專門放指令，已經拿掉：
+-- 指令現在就是一般的一級代碼（p_run_pattern 裡 direct = true 的條目），
+-- 跟 '/dt、'/num 平起平坐，不必多按一個 j。
 --------------------------------------------------------------------------
 function M.lookup(code)
-  if code == "j" then
-    return run_menu(run_pattern), "【指令與快捷開啟】" .. HOW
-  end
-
-  --------------------------------------------------------------------------
-  -- '/j<字首> 前綴搜尋：打 '/jg 就列出所有 jg… 開頭的指令，像 slash command
-  -- 一樣邊打邊縮小範圍。只開放在 j 命名空間 —— 主選單那層不能這樣做，
-  -- 因為 '/d、'/de 之類早就是日期代碼，會互相搶輸入。
-  --
-  -- 規則：完整代碼「而且沒有更長的同字首代碼」＝直接執行；其餘一律列出候選。
-  --   '/jg  → 只有 '/jgit          → 列出來
-  --   '/jo  → 自己 ＋ '/jow         → 兩列都列出來（否則看不到 '/jow）
-  --   '/jh  → 只有自己               → 直接執行
-  --------------------------------------------------------------------------
-  if string.match(code, "^j[a-z]+$") then
-    local rows = run_menu(run_pattern)
-    local hits, exact = {}, nil
-    for _, r in ipairs(rows) do
-      if r.key == code then exact = r end
-      if string.sub(r.key, 1, #code) == code then
-        hits[#hits + 1] = r                                -- 含完整命中的那一列（排序後自然在最前）
-      end
-    end
-
-    -- 只命中自己一列（例如 '/jh、'/jgit）→ 回 nil，交給原本的直接執行路徑。
-    -- ⚠ 這一步不能省：單列選單選中會 push_input 回同一串輸入，畫面不變＝看起來當掉。
-    -- 反過來說，'/jo 這種「自己是完整碼、同時又是 '/jow 的字首」必須列出來，
-    -- 否則使用者永遠看不到還有 '/jow（同類：'/jr 之於 '/jrw、'/jl 之於 '/jlw）。
-    if exact and #hits <= 1 then return nil, nil end
-
-    if #hits > 0 then
-      return hits, "【指令 '/" .. code .. "…】" .. HOW
-    end
-    return nil, nil
-  end
-  --------------------------------------------------------------------------
   -- 裸代碼前綴搜尋：打 '/gi 就列出 '/git，'/co → '/code，'/uu → '/uuid。
   -- 補的是「打到一半沒有任何候選」那種死路 —— 使用者說過打 '/gi 什麼都沒有，
   -- 會以為沒這個功能。
@@ -272,7 +226,6 @@ function M.lookup(code)
       end
     end
     for _, menu in pairs(M.menus) do scan(menu.rows) end
-    scan(run_menu(run_pattern))
     if #hits > 0 then
       table.sort(hits, function(a, b) return a.key < b.key end)
       return hits, "【代碼 '/" .. code .. "…】" .. HOW
@@ -287,7 +240,7 @@ end
 
 --[[ ────────────────────────────────────────────────────────────────────────
 原本的平面式 '/ 總覽（47 列）保留於此，需要時可對照。
-已改為上面的分層選單，完整清單改由 cheatsheet.html（'/jh）承擔。
+已改為上面的分層選單，完整清單改由 cheatsheet.html（'/h）承擔。
 
       { "【日期和時間】", "⓪" }
     , { "　f〔年月日〕  ym〔年月〕  md〔月日〕", "①" }

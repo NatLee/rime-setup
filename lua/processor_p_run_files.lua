@@ -7,6 +7,7 @@
 local generic_open = require("p_components/p_generic_open")
 local run_pattern = require("p_components/p_run_pattern")
 local menu_data = require("mf_components/mf_menu_data")
+local registry  = require("mf_components/core/registry")
 ----------------------------------------------------------------------------------------
 
 -- local function generic_open(dest)
@@ -109,27 +110,14 @@ local function processor(key, env)
         n = ps * math.floor((seg.selected_index or 0) / ps) + n
       end
     end
-
     if not n then return 2 end   -- 其他鍵（含繼續打字）交還給後面的 processor
 
     local row = rows[n]
-    local target = row and row.key and (env.prefix .. row.key) or nil
     context:clear()
     if row and row.run and run_pattern[row.run] then
       generic_open(run_pattern[row.run].open)     -- 直接執行（開速查表、跑更新腳本…）
-    elseif target == c_input then
-      -- 選到的就是「目前已經打好的這一串」——push 回去等於沒動，畫面不變會被
-      -- 當成當掉。這種列沒有 run（動作寫在下面的指令分支，如 '/jt 編輯指令清單、
-      -- Mac 的 '/jc 編輯自訂短語），所以直接把該分支的動作做掉。
-      -- 目前 jt／jc 都不是任何代碼的字首、走不到這裡，但加了代碼就可能踩到。
-      local op = string.match(c_input, "^" .. env.prefix .. "j([a-z]+)$")
-      if op == "t" then
-        generic_open(env.run_pattern)
-      elseif op == "c" and env.textdict ~= "" then
-        generic_open(env.custom_phrase)
-      end
-    elseif target then
-      context:push_input(target)                  -- 進到該功能／子選單
+    elseif row and row.key then
+      context:push_input(env.prefix .. row.key)   -- 進到該功能／子選單
     end
     return 1
 
@@ -143,46 +131,30 @@ local function processor(key, env)
 
   elseif seg:has_tag("mf_translator") then  -- 開頭
 
-    -- 指令的兩種打法：
-    --   ① 命名空間形式「前綴 j 指令碼」，例如 '/jgit、'/jh。j＝join（上游沿用）。
-    --      曾短暫改用 c＝command，但 '/c 已是「內碼十進制」的代碼、'/cs 是 devkit
-    --      的命名風格轉換，撞碼後指令選單被靜默遮蔽 —— 已改回 j，勿再動。
-    --   ② 直達形式「前綴 指令碼」，例如 '/git —— 但只有 p_run_pattern 裡標了
-    --      direct = true 的條目才開放，否則 '/f、'/t 這些日期代碼會被當成開啟碼吃掉
-    --      （下面找不到碼時會 context:clear()，等於把日期功能整個弄壞）。
-    local op_code = #c_input == caret_pos and
-      string.match(c_input, "^" .. env.prefix .. "j([a-z]+)$")
-
-    if not op_code and #c_input == caret_pos then
+    -- 一級指令代碼：直接打「前綴 代碼」，例如 '/h、'/git、'/phrase、'/cmd。
+    -- 舊版還有一層命名空間（'/jh、'/jgit），已經拿掉 —— 清單縮到幾條之後
+    -- 那個 j 只是多按一次。
+    --
+    -- 兩道限制：
+    --   ① 只認 p_run_pattern 裡標了 direct = true 的條目。
+    --   ② 這個代碼必須真的被 translator 認領（registry.is_direct）。
+    --      這個 processor 排在鏈首，少了這道判斷的話，在 p_run_pattern 加一個
+    --      鍵名叫 "f" 的條目就會把日期功能整個吃掉（'/f 按空白變成開檔案）。
+    --      認領名單由 mf_open_menu.register_direct 產生，它會跳過撞到既有代碼的
+    --      條目 —— 兩邊看同一份名單，撞碼就是整條失效，不會半生不熟。
+    local op_code
+    if #c_input == caret_pos then
       local bare = string.match(c_input, "^" .. env.prefix .. "([a-z]+)$")
-      if bare and run_pattern[bare] and run_pattern[bare].direct then
+      if bare and run_pattern[bare] and run_pattern[bare].direct
+         and registry.is_direct(bare) then
         op_code = bare
       end
     end
-    local run_in = run_pattern[ op_code ] -- 此處不能「.open」，如 op_code 不符合會報錯！
+
     if op_code then
-      if op_code == "t" then
-        -- engine:commit_text( "TEST！！！" )  -- 測試用
-        generic_open(env.run_pattern)
-        context:clear()
-        return 1
-      elseif run_in ~= nil then
-        -- engine:commit_text(run_in)  -- 測試用
-        generic_open(run_in.open)  -- 要確定 run_in 不為 nil，才能加.open
-        context:clear()
-        return 1
-      elseif env.textdict == "" then
-        return 2
-      elseif op_code == "c" then
-        -- io.popen("env.custom_phrase")  -- 無效！
-        generic_open(env.custom_phrase)
-        context:clear()
-        return 1
-      else  -- 沒有該碼，空白鍵清空
-        -- context:confirm_current_selection()
-        context:clear()
-        return 1
-      end
+      generic_open(run_pattern[op_code].open)
+      context:clear()
+      return 1
     end
   end
 
