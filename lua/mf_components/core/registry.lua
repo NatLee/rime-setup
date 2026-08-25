@@ -23,6 +23,12 @@ function M.register_exact(code, handler)
   exact[code] = handler
 end
 
+--- 某個精確代碼是否已經有人註冊。給 mf_menu_data 的「裸代碼前綴搜尋」判斷用：
+--- 代碼本身有 handler（'/f、'/de 這些日期碼）就不能改成選單，否則功能會被吃掉。
+function M.has_exact(code)
+  return exact[code] ~= nil
+end
+
 function M.register_matcher(handler)
   matchers[#matchers + 1] = handler
 end

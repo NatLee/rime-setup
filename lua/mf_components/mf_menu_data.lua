@@ -27,6 +27,7 @@
 
 local run_pattern = require("p_components/p_run_pattern")
 local run_menu    = require("p_components/p_run_menu")
+local registry    = require("mf_components/core/registry")
 
 local M = {}
 
@@ -230,6 +231,40 @@ function M.lookup(code)
     end
     return nil, nil
   end
+  --------------------------------------------------------------------------
+  -- 裸代碼前綴搜尋：打 '/gi 就列出 '/git，'/co → '/code，'/uu → '/uuid。
+  -- 補的是「打到一半沒有任何候選」那種死路 —— 使用者說過打 '/gi 什麼都沒有，
+  -- 會以為沒這個功能。
+  --
+  -- 三道護欄，缺一不可（每一道都對應一個會被弄壞的既有功能）：
+  --   ① 代碼本身已經有 handler → 不介入。'/f、'/de、'/nu 都是真的日期代碼，
+  --      改成選單會把日期功能整個吃掉（'/f 有 fa/fc/fn/fw… 一堆更長的同字首碼）。
+  --   ② 只認「嚴格字首」，不認完全相等。'/ts 是 devkit 的時間戳、'/pw 是密碼，
+  --      它們同時也是選單列的 key，相等就介入會蓋掉 devkit。
+  --   ③ 目標列的 key 必須是純字母。選單裡有 rgb1a73e8、cshello.world 這種
+  --      「可以直接跑的範例」當 key，若把它們算進來，'/rgb1、'/csh 會被判成
+  --      字首而蓋掉 devkit 真正的輸出（實測 '/csh → camelCase、'/rgb1 → 提示）。
+  --------------------------------------------------------------------------
+  if string.match(code, "^[a-z]+$") and not registry.has_exact(code) then
+    local seen, hits = {}, {}
+    local function scan(rows)
+      for _, r in ipairs(rows or {}) do
+        local k = r.key
+        if k and not seen[k] and string.match(k, "^[a-z]+$")
+           and #k > #code and string.sub(k, 1, #code) == code then
+          seen[k] = true
+          hits[#hits + 1] = r
+        end
+      end
+    end
+    for _, menu in pairs(M.menus) do scan(menu.rows) end
+    scan(run_menu(run_pattern))
+    if #hits > 0 then
+      table.sort(hits, function(a, b) return a.key < b.key end)
+      return hits, "【代碼 '/" .. code .. "…】" .. HOW
+    end
+  end
+
 
   local m = M.menus[code]
   if m then return m.rows, m.tag end

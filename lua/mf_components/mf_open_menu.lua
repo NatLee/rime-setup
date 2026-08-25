@@ -211,6 +211,26 @@ local function j_run(input, seg, env, ctx)
 end
 
 ----------------------------------------------------------------------------------------
+--- 裸代碼前綴搜尋：'/gi → '/git、'/co → '/code、'/uu → '/uuid。
+--- 判斷規則全部在 mf_menu_data.lookup（三道護欄的理由寫在那裡），這裡只負責算繪。
+--- 註冊位置：緊接在 j_run 之後、mf_letters／mf_unicode 之前。
+---   ‧ 不能更早：沒有意義，j_run 只吃 j 開頭。
+---   ‧ 不能更晚：mf_unicode 的 codes() 對 '/ca 這種 [xuco]+hex 會 return true
+---     （雖然一個候選都不吐），排在它後面就永遠輪不到，畫面空白但 p_run_files
+---     那邊卻認得選單，兩邊會不一致。
+--- 實測不會蓋到別人：letters 吃 / ; ' 開頭、calc 與指定日期都要數字，
+--- 而 devkit 是獨立的 translator，本來就與這裡並存。
+
+local function bare_prefix(input, seg, env, ctx)
+  local code = string.match(input, "^" .. env.prefix .. "([a-z]+)$")
+  if not code then return false end
+  if ctx.caret_pos - #input ~= 0 then return false end   -- 非起始輸入不介入
+  local rows, tag = menu_data.lookup(code)
+  if not rows then return false end
+  return render_rows(rows, tag, input, seg, env)
+end
+
+----------------------------------------------------------------------------------------
 --- '/git 直達碼：更新設定並重新部署
 --- 動作本身由 processor_p_run_files.lua 攔截空白鍵執行，這裡只負責顯示提示候選，
 --- 免得按下去不知道會發生什麼事。與 '/jgit 走同一個 run_pattern 條目。
@@ -304,6 +324,7 @@ local function register(reg)
   --   它的 register_exact("c")（內碼十進制）會直接覆蓋掉這一列，選單靜默消失。
   reg.register_exact("j",  hier_menu("j"))
   reg.register_matcher(j_run)                                                          -- j[a-z]+ 快捷開啟
+  reg.register_matcher(bare_prefix)  -- 裸代碼前綴搜尋（'/gi → '/git）
   reg.register_exact("git", git_update)                                                -- '/git 更新設定並重新部署
   reg.register_exact("v", ver)
   reg.register_exact("g", garbage)

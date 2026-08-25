@@ -302,6 +302,27 @@ switch ($Mode) {
       if ($got -like $want) { $pass++; Write-Host ("  PASS {0,-22} [{1}]" -f $k, $got) -ForegroundColor DarkGray }
       else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
     }
+
+    # ── 裸代碼前綴搜尋（'/gi → '/git）與它的三道護欄 ──
+    # 比對「第一個候選的文字」。C04~C07 是護欄：前綴搜尋若判斷放寬，
+    # 這幾個既有功能會被選單蓋掉而靜默消失，而且不會有任何錯誤訊息。
+    $ccases = [ordered]@{
+      'C01 gi → git'       = @("'/gi",   "'/git")
+      'C02 co → code'      = @("'/co",   "'/code")
+      'C03 uu → uuid'      = @("'/uu",   "'/uuid")
+      'C04 csh 仍是 devkit' = @("'/csh",  'h')          # 蓋掉的話會變成 '/cshello.world
+      'C05 rgb1 仍是 devkit'= @("'/rgb1", '')           # 蓋掉的話會變成 '/rgb1a73e8
+      'C06 f 仍是日期'      = @("'/f",    '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]')
+      'C07 de 仍是日期'     = @("'/de",   '*th')
+      'C08 ts 仍是時間戳'   = @("'/ts",   '[0-9]*')      # 相等不介入，否則蓋掉 devkit
+    }
+    foreach ($k in $ccases.Keys) {
+      $seq, $want = $ccases[$k]
+      $rows = Get-Cands $seq 1
+      $got = if ($rows.Count) { $rows[0].text } else { '(no cand)' }
+      if ($got -like $want) { $pass++; Write-Host ("  PASS {0,-22} [{1}]" -f $k, $got) -ForegroundColor DarkGray }
+      else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
+    }
     Write-Host "`n  $pass PASS / $fail FAIL" -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
   }
 
