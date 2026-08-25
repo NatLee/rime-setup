@@ -329,7 +329,17 @@ kr_2set_0m_choice = require("processor_kr_2set_0m_choice")
 -- -- 快捷鍵開啟檔案/程式/網站
 -- -- p_open_files：英文字母開啟/p_run_files：上屏鍵開啟。
 -- -- p_open_files = require("processor_p_open_files")
--- p_run_files = require("processor_p_run_files")
+-- ⚠ 這一行是元件名稱的唯一來源：yaml 寫了 lua_processor@p_run_files，但 rime.lua
+--   沒 bind 這個名字，librime-lua 就建不出元件、整段功能靜默失效（選單畫得出來、
+--   按下去卻只把候選文字上屏）。詳見 docs/GOTCHAS.md。
+p_run_files = require("processor_p_run_files")
+
+
+--- p_select_keys
+-- ⇧1~⇧6 選字。不用 menu/alternative_select_keys 是因為 macOS 鼠鬚管的候選標籤
+-- 會直接印出選字鍵本身（!@#$%^），詳見 lua/processor_p_select_keys.lua 開頭。
+-- ⚠ 同上：這一行是元件名稱的唯一來源，註解掉就整組選字鍵失效。
+p_select_keys = require("processor_p_select_keys")
 
 
 

@@ -102,9 +102,16 @@ patch:
   "key_binder/bindings/+":
     - { accept: "Control+Shift+F5", toggle: en_sort, when: always }
 
-  # ── Shift+數字 選字 ──
-  # 數字鍵本身是注音編碼，故用 Shift+1~6（!@#$%^）作選字鍵；標籤顯示 1.~6.
-  "menu/alternative_select_keys": "!@#$%^"
+  # ── Shift+數字 選字（數字鍵本身是注音編碼，故用 Shift+1~6）──
+  # 選字鍵字串給 lua_processor@p_select_keys 用（順便給 p_run_files 的選單共用），
+  # ⚠ 這裡**故意不設** menu/alternative_select_keys —— 設了 macOS 的標籤就壞：
+  #   librime 選字鍵與標籤兩份資料都交給前端，但取用優先序兩邊相反 ——
+  #   小狼毫先看 labels、鼠鬚管先看 select_keys，於是 macOS 的標籤永遠是 !@#$%^。
+  #   → select_keys 留空（前端只剩 labels 可用），選字改由 p_select_keys 做。
+  #   完整原委見 lua/processor_p_select_keys.lua 開頭與 docs/GOTCHAS.md。
+  "p_select_keys/keys": "!@#$%^"
+  # ⚠ 標籤數量必須 ≥ menu/page_size（6），否則 librime 根本不填 select_labels，
+  #   兩邊前端都會退回顯示選字鍵／流水號。
   "menu/alternative_select_labels": [ "⇧1", "⇧2", "⇧3", "⇧4", "⇧5", "⇧6" ]
   # ── 開發者小工具（'/ts 時間戳、'/uuid、'/pw 密碼、'/rgb 色碼、'/cs 命名風格）──
   # devkit_translator 掛在 mf_translator 之後，共用「'/」段落
@@ -128,18 +135,30 @@ patch:
     - lua_translator@instruction_grave_bpmf
     - script_translator
 
-  # selector 移到 punctuator 之前：選單開啟時 Shift+數字先被選字器處理；
-  # 無選單時 selector 不動作，Shift+1 照常輸出「！」
+  # ── processor 鏈順序（順序就是攔截優先權，改動前先讀完這段）──
+  # selector 在 punctuator 之前：選單開啟時選字鍵先給選字器處理；
+  # 無選單時 selector 不動作，Shift+1 照常輸出「！」。
+  #
+  # p_run_files 排在**最前面**，'/ 系列的「選中即執行」才會生效：
+  #   ‧ 要在 mix_apc_s2rm_ltk 之前 —— 否則空白／Enter 先被它 confirm 上屏，
+  #     選單只會吐出候選文字本身（'/dt、'/jh 這種字面字串）。
+  #   ‧ 要在 p_select_keys／selector 之前 —— 否則 ⇧1~6 先被拿去選字上屏，症狀同上。
+  #   ‧ 要在 speller／express_editor 之前 —— 否則按鍵先被拿去組字或直接上屏。
+  #
+  # p_select_keys（⇧1~6 選字）排在 recognizer 之後、speller/selector 之前：
+  #   ‧ 在 recognizer **之後** —— '@' 要先讓 email 樣式接走，否則打不出信箱。
+  #   ‧ 在 speller/selector/punctuator **之前** —— 才選得到字、'!' 不會先變「！」。
+  #   ‧ 不能用 key_binder 轉 KP_1~KP_6 代替：mix_apc_s2rm_ltk 會把 KP_n 當成
+  #     「小鍵盤打數字」塞進 '/ 計算機的輸入，選字反而失效。
+  # ⚠ 元件名 p_run_files／p_select_keys 必須在 rime.lua 有 bind（`x = require(...)`），
+  #   否則這幾行等於沒寫：librime-lua 建不出元件，整段功能靜默失效。
   "engine/processors":
+    - lua_processor@p_run_files
     - lua_processor@mix_apc_s2rm_ltk
     - ascii_composer
     - recognizer
     - key_binder
-    # ↓ '/ 系列的「按空白鍵執行動作」全靠這個 processor：快捷開啟（'/j*）、
-    #   '/git 更新設定、分層選單的選中跳轉。少了它，選單畫得出來但按下去毫無反應
-    #   —— 這正是先前「'/jh 打了沒事、'/git 不跳視窗、選單 Enter 進不去」的原因。
-    #   位置要在 speller／selector／express_editor 之前，才能搶在空白鍵上屏前處理。
-    - lua_processor@p_run_files
+    - lua_processor@p_select_keys
     - speller
     - selector
     - punctuator

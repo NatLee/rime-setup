@@ -58,7 +58,7 @@ end
 
 -- cand.preedit = input .. "\t《時間日期數字字母》▶"
 ----------------------------------------------------------------------------------------
---- 分層選單（'/ 主選單、'/dt 日期時間、'/ca 計算機）
+--- 分層選單（'/ 主選單、'/dt 日期時間、'/num 計算機、'/dev 小工具、'/code 編碼）
 --- 資料在 mf_components/mf_menu_data.lua，與 processor_p_run_files.lua 共用同一份表：
 --- 這裡只負責「顯示」，按下空白後的「跳轉/執行」由該 processor 依 selected_index 處理。
 --- 候選文字放「該列的代碼」（'/dt、'/f…）：一來看得到代碼、下次可以直接打，
@@ -67,17 +67,23 @@ end
 
 local menu_data = require("mf_components/mf_menu_data")
 
+-- 選單列的算繪。hier_menu（固定選單）與 j_run（'/j 前綴搜尋）共用同一份，
+-- 兩邊長相與候選文字規則才會完全一致。
+local function render_rows(rows, tag, input, seg, env)
+  for _, row in ipairs(rows) do
+    local text = env.prefix .. (row.key or "")
+    local cand = Candidate("simp_mf_tips", seg.start, seg._end, text, "  " .. row.label)
+    cand.preedit = input .. "\t" .. tag
+    yield(cand)
+  end
+  return true
+end
+
 local function hier_menu(code)
   return function(input, seg, env, ctx)
     local rows, tag = menu_data.lookup(code)
     if not rows then return false end
-    for _, row in ipairs(rows) do
-      local text = env.prefix .. (row.key or "")
-      local cand = Candidate("simp_mf_tips", seg.start, seg._end, text, "  " .. row.label)
-      cand.preedit = input .. "\t" .. tag
-      yield(cand)
-    end
-    return true
+    return render_rows(rows, tag, input, seg, env)
   end
 end
 
@@ -143,13 +149,24 @@ local k_keys_table = {
 
 local function j_run(input, seg, env, ctx)
   local caret_pos = ctx.caret_pos
-    local op_check = string.match(input, env.prefix .. "[cj]([a-z]+)$")  -- c＝command（主要）、j＝上游相容別名
+    local op_check = string.match(input, env.prefix .. "j([a-z]+)$")
     local first_check = caret_pos - #input
     if op_check and first_check ~= 0 then
       local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔非起始輸入〕")
       cand2.preedit = input .. "\t【指令與快捷開啟】"
       yield(cand2)
       return true
+
+    ----------------------------------------------------------------------
+    -- 前綴搜尋（slash command 式）：'/jg 就列出所有 jg… 開頭的指令。
+    -- 只有「打不完整」時才會走這裡 —— menu_data.lookup 對剛好等於某一列的
+    -- 完整代碼（'/jh、'/jgit、'/jt…）回 nil，於是往下掉到原本的直接執行提示。
+    -- 選中的動作由 processor_p_run_files.lua 的選單分支處理，與其他選單同一條路。
+    ----------------------------------------------------------------------
+    elseif op_check and menu_data.lookup("j" .. op_check) then
+      local rows, tag = menu_data.lookup("j" .. op_check)
+      return render_rows(rows, tag, input, seg, env)
+
     elseif op_check == "t" then
       local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 編輯 快捷開啟 table 〙")  -- or〔錯誤〕
       cand2.preedit = input .. "\t【指令與快捷開啟】"
@@ -262,7 +279,11 @@ local function register(reg)
   reg.register_exact("",    hier_menu(""))                                             -- '/ 功能總覽（分層選單）
   reg.register_exact("dt",  hier_menu("dt"))                                           -- '/dt 日期與時間
   reg.register_exact("num", hier_menu("num"))                                          -- '/num 計算機用法
-  reg.register_exact("c",   hier_menu("c"))                                            -- '/c 指令與快捷開啟
+  reg.register_exact("dev",  hier_menu("dev"))                                         -- '/dev 開發小工具＋版本
+  -- ⚠ "code" 開頭雖然撞到 mf_unicode 的 c（十進制內碼），但 registry 是「先查
+  --   精確表、再跑 matcher」，精確碼永遠贏；而且 mf_unicode 只註冊單字母 c，
+  --   不會覆蓋 code 這一鍵。'/co、'/cod 中間狀態沒有候選是預期的。
+  reg.register_exact("code", hier_menu("code"))                                        -- '/code 編碼與字母
   reg.register_exact("k",  menu_handler(function() return k_keys_table end, "【鍵位和編碼】▶"))
   reg.register_exact("ko", menu_handler(function(env) return hotkeys(env.schema_id)[1] end, "【操作鍵 說明】"))
   reg.register_exact("kk", menu_handler(function(env) return hotkeys(env.schema_id)[2] end, "【快捷鍵 說明】"))
@@ -274,7 +295,9 @@ local function register(reg)
   reg.register_exact("ky", menu_handler(function() return ky_table end, "【拉丁 形碼 中文拼音 編碼】"))
   reg.register_exact("kg", menu_handler(function() return kg_table end, "【希臘 形碼 編碼】"))
   reg.register_exact("kc", menu_handler(function() return kc_table end, "【西里爾 形碼 編碼】"))
-  reg.register_exact("j",  hier_menu("j"))                                             -- '/j 同 '/c（相容別名）
+  -- '/j 指令與快捷開啟（分層選單）。⚠ 別改用 "c"：mf_unicode 在本檔之後才註冊，
+  --   它的 register_exact("c")（內碼十進制）會直接覆蓋掉這一列，選單靜默消失。
+  reg.register_exact("j",  hier_menu("j"))
   reg.register_matcher(j_run)                                                          -- j[a-z]+ 快捷開啟
   reg.register_exact("git", git_update)                                                -- '/git 更新設定並重新部署
   reg.register_exact("v", ver)

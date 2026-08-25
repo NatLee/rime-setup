@@ -7,6 +7,11 @@
 #   連同你沒寫的預設值一起消失 —— 其中就包含 candidate_format，
 #   結果候選標籤退回內建 fallback，顯示成選字鍵 !@#$%^ 而不是 ⇧1～⇧6。
 #   用路徑鍵才是逐鍵覆寫。詳見 docs/GOTCHAS.md。
+#
+# ⚠ 「標籤變成 !@#$%^」還有另一個更常見的原因，不在這個檔案：方案設了
+#   menu/alternative_select_keys。鼠鬚管取標籤時 select_keys 優先於
+#   select_labels（小狼毫相反），所以那個鍵一有值，Mac 就永遠顯示選字鍵本身。
+#   → 本專案已改成不設它、選字交給 lua_processor@p_select_keys。詳見 docs/GOTCHAS.md。
 
 patch:
   # ── 終端機類 App 預設英文（對應 Windows 端的 cmd/terminal 設定）──

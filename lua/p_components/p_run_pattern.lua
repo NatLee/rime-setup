@@ -19,12 +19,12 @@ local run_pattern = {
 -- 通用：
 --------------------------------------------------------------------------
   ["h"] = { s = 0, direct = false, name = "輸入法速查表 Cheatsheet", open = '"' .. user_dir .. '/cheatsheet.html"' },
-  ["r"] = { s = 1, name = "Rime 官方 GitHub", open = "https://github.com/rime" },
-  ["rw"] = { s = 2, name = "Rime 詳解", open = "https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md" },
-  ["l"] = { s = 3, name = "librime-lua 官方 GitHub", open = "https://github.com/hchunhui/librime-lua" },
-  ["lw"] = { s = 4, name = "librime-lua 腳本開發指南", open = "https://github.com/hchunhui/librime-lua/wiki/Scripting" },
-  ["o"] = { s = 5, name = "上游方案 GitHub", open = "https://github.com/oniondelta/Onion_Rime_Files" },
-  ["ow"] = { s = 6, name = "上游方案 GitHub Wiki", open = "https://github.com/oniondelta/Onion_Rime_Files/wiki" },
+  ["r"] = { s = 3, name = "Rime 官方 GitHub", open = "https://github.com/rime" },
+  ["rw"] = { s = 4, name = "Rime 詳解", open = "https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md" },
+  ["l"] = { s = 5, name = "librime-lua 官方 GitHub", open = "https://github.com/hchunhui/librime-lua" },
+  ["lw"] = { s = 6, name = "librime-lua 腳本開發指南", open = "https://github.com/hchunhui/librime-lua/wiki/Scripting" },
+  ["o"] = { s = 7, name = "上游方案 GitHub", open = "https://github.com/oniondelta/Onion_Rime_Files" },
+  ["ow"] = { s = 8, name = "上游方案 GitHub Wiki", open = "https://github.com/oniondelta/Onion_Rime_Files/wiki" },
 --------------------------------------------------------------------------
 -- Mac：
 --------------------------------------------------------------------------
@@ -90,7 +90,7 @@ local run_pattern = {
 --------------------------------------------------------------------------
 local get_os_name = require("f_components/f_get_os_name")
 if get_os_name() == "Windows" then
-  run_pattern["c"] = { s = 8, name = "編輯 custom 短語（開新視窗）",
+  run_pattern["c"] = { s = 2, name = "編輯 custom 短語（開新視窗）",
     open = [["C:\Program Files\Notepad++\notepad++.exe" -multiInst ]] .. '"' .. user_dir .. '/bopomo_onionplus_phrase.txt"' }
 end
 
@@ -107,10 +107,10 @@ end
 -- direct = true：這個指令碼可以不加命名空間直接打（'/git，不必 '/cgit）。
 -- 只給常用且不會跟日期時間代碼撞名的指令開放。
 if get_os_name() == "Mac" then
-  run_pattern["git"] = { s = 7, direct = true, name = "更新設定並重新部署",
+  run_pattern["git"] = { s = 1, direct = true, name = "更新設定並重新部署",
     open = '"' .. user_dir .. '/scripts/rime-update.command"' }
 elseif get_os_name() == "Windows" then
-  run_pattern["git"] = { s = 7, direct = true, name = "更新設定並重新部署",
+  run_pattern["git"] = { s = 1, direct = true, name = "更新設定並重新部署",
     open = [[pwsh -NoExit -ExecutionPolicy Bypass -File "]] .. user_dir .. [[/scripts/rime-update.ps1"]] }
 end
 
