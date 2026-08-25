@@ -33,6 +33,8 @@ local function init(env)
   env.run_pattern = path .. "/lua/p_components/p_run_pattern.lua" or ""
   -- 選字鍵（本方案是 Shift+1~6 → "!@#$%^"）。從設定讀，不寫死，改了選字鍵這裡自動跟上。
   env.alt_select = config:get_string("menu/alternative_select_keys") or ""
+  -- 選字鍵是「當頁第幾個」，不是絕對序號；換算時要知道一頁幾列
+  env.page_size = config:get_int("menu/page_size") or 6
   -- log.info("lua_custom_phrase: \'" .. env.textdict .. ".txt\' Initilized!")  -- 日誌中提示已經載入 txt 短語
 end
 
@@ -71,9 +73,9 @@ local function processor(key, env)
   ----------------------------------------------------------------------
   elseif seg:has_tag("mf_translator")
      and #c_input == caret_pos
-     and menu_data.menus[string.match(c_input, "^" .. env.prefix .. "(.*)$")] then
+     and menu_data.lookup(string.match(c_input, "^" .. env.prefix .. "(.*)$")) then
 
-    local menu = menu_data.menus[string.match(c_input, "^" .. env.prefix .. "(.*)$")]
+    local rows = menu_data.lookup(string.match(c_input, "^" .. env.prefix .. "(.*)$"))
     local repr = key:repr()
     local n
 
@@ -84,11 +86,16 @@ local function processor(key, env)
       local kc = key.keycode
       local ch = (kc and kc >= 0x20 and kc < 0x7f) and string.char(kc) or nil
       n = ch and string.find(env.alt_select, ch, 1, true)  -- plain find，$ ^ 等不當正規符號
+      if n then
+        -- ⇧1 指的是「這一頁的第 1 列」，翻到第 2 頁就要加上該頁起始位置
+        local ps = env.page_size
+        n = ps * math.floor((seg.selected_index or 0) / ps) + n
+      end
     end
 
     if not n then return 2 end   -- 其他鍵（含繼續打字）交還給後面的 processor
 
-    local row = menu.rows[n]
+    local row = rows[n]
     context:clear()
     if row and row.run and run_pattern[row.run] then
       generic_open(run_pattern[row.run].open)     -- 直接執行（開速查表、跑更新腳本…）
@@ -107,12 +114,20 @@ local function processor(key, env)
 
   elseif seg:has_tag("mf_translator") then  -- 開頭
 
-    -- 一般開啟碼要打「前綴 j 開啟碼」；'/git 是唯一的直達碼（少打一個 j，
-    -- 因為這個功能會常用）。直達碼只認完全相符的 "git"，不會攔到其他輸入。
-    local op_code = #c_input == caret_pos and (
-         string.match(c_input, "^" .. env.prefix .. "j([a-z]+)$")
-      or string.match(c_input, "^" .. env.prefix .. "(git)$")
-    )
+    -- 指令的兩種打法：
+    --   ① 命名空間形式「前綴 c 指令碼」，例如 '/cgit、'/ch。c＝command，j 為上游相容別名。
+    --   ② 直達形式「前綴 指令碼」，例如 '/git —— 但只有 p_run_pattern 裡標了
+    --      direct = true 的條目才開放，否則 '/f、'/t 這些日期代碼會被當成開啟碼吃掉
+    --      （下面找不到碼時會 context:clear()，等於把日期功能整個弄壞）。
+    local op_code = #c_input == caret_pos and
+      string.match(c_input, "^" .. env.prefix .. "[cj]([a-z]+)$")
+
+    if not op_code and #c_input == caret_pos then
+      local bare = string.match(c_input, "^" .. env.prefix .. "([a-z]+)$")
+      if bare and run_pattern[bare] and run_pattern[bare].direct then
+        op_code = bare
+      end
+    end
     local run_in = run_pattern[ op_code ] -- 此處不能「.open」，如 op_code 不符合會報錯！
     if op_code then
       if op_code == "t" then

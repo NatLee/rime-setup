@@ -38,9 +38,10 @@
 | `'/` 開頭的多功能（日期／計算機／Unicode…） | `lua/mf_components/` → 見 [架構文件](docs/ARCHITECTURE.md) |
 | `'/ts`、`'/uuid`、`'/pw`、`'/rgb`、`'/cs` | `lua/translator_devkit.lua` |
 | 日文候選釋義（中／英／日） | `lua/filter_gloss.lua` ＋ `jpnin1_gloss*.dict.yaml` |
-| 使用者速查表 | `cheatsheet.html`（`'/jh`＋空格 或 `Ctrl+Alt+H` 開啟） |
-| `'/j` 快捷開啟清單、`'/git` 更新指令 | `lua/p_components/p_run_pattern.lua`（動作攔截在 `processor_p_run_files.lua`） |
-| `'/git` 實際跑的內容 | `scripts/rime-update.command`（Mac）／`scripts/rime-update.ps1`（Win） |
+| 使用者速查表 | `cheatsheet.html`（`'/ch`＋空格開啟） |
+| `'/c` 指令清單、`'/cgit` 更新指令 | `lua/p_components/p_run_pattern.lua`（清單算繪在 `p_run_menu.lua`，動作攔截在 `processor_p_run_files.lua`） |
+| `'/` 分層選單內容 | `lua/mf_components/mf_menu_data.lua` |
+| `'/cgit` 實際跑的內容 | `scripts/rime-update.command`（Mac）／`scripts/rime-update.ps1`（Win） |
 
 ---
 

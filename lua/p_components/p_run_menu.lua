@@ -1,81 +1,48 @@
 --[[
-快捷開啟（join/joint）檔案/程式/網址列表生成選單。
+「指令與快捷開啟」選單（'/c，'/j 為相容別名）的列表產生器。
+
+輸出格式與 mf_components/mf_menu_data.lua 的選單列一致：
+  key    這一列的代碼（不含前綴），同時是候選文字 —— 顯示成 '/ch、'/cgit 這樣，
+         讓你看得到指令、下次可以直接打。
+  label  說明文字
+  run    有值就代表「選中即執行」，值為 p_run_pattern 裡的鍵
+
+⚠ 候選文字（'/ + key）在同一份選單裡必須唯一：engine/filters 末端的 uniquifier
+  會把文字相同的候選合併掉。舊版用 ⓿❶❷ 這種圈圈數字當文字就是為了閃這個，
+  現在改用代碼本身，唯一而且有資訊量。
+
+排序：先照 p_run_pattern 各條目的 s（自訂順序），s 相同再照代碼字母序。
 --]]
 
+local NS = "c"   -- 指令命名空間（command）；'/j 仍可用，見 processor_p_run_files.lua
+
 local function run_menu(pattern)
-  -- keys_table 不能放在 run_menu() 外，開啟其他檔案後，選單會亂掉
-  local keys_table = {
-      { "※ 限起始輸入英文 [a-z]+  ", "⓿" }
-    , { "※ 編輯後須「重新部署」生效  ", "❶" }
-    , { "═════ 預設 ═════  ", "❷" }  --════════════  
-    , { "  ~t  〔 編輯 快捷開啟 table 〕", "❸" }
-    , { "  ~c  〔 編輯 custom 短語 〕", "❹" }
-    , { "═════ 自訂 ═════  ", "❺" }  --────────────  
-    , { "", "❻" }
-    , { "", "❼" }
-    , { "", "❽" }
-    , { "", "❾" }
-    , { "", "❿" }
-    , { "", "⓫" }
-    , { "", "⓬" }
-    , { "", "⓭" }
-    , { "", "⓮" }
-    , { "", "⓯" }
-    , { "", "⓰" }
-    , { "", "⓱" }
-    , { "", "⓲" }
-    , { "", "⓳" }
-    , { "", "⓴" }
+  local rows = {}
+  for code, v in pairs(pattern) do
+    rows[#rows + 1] = {
+      key   = NS .. code,
+      run   = code,
+      label = v.name or code,
+      _s    = v.s or 100,
     }
-
-  local insert_table = {}
-  for i, v in pairs(pattern) do
-    local name = v.name or "NONAME"  -- 防疏漏
-    local s = v.s or 100  -- 防疏漏
-    insert_table[#insert_table + 1] = {i, name, s}
   end
-  -- i (開啟碼)排序：a[1]<b[1]； v.name (名稱)排序：a[2]<b[2]； v.s (指定)排序：a[3]<b[3]。
-  -- 以(指定)排序 v.s (a[3]<b[3])優先比較，如 v.s (a[3]==b[3])一樣，比 i (開啟碼)。
-  table.sort(insert_table, function(a,b) return (a[3]==b[3] and a[1]<b[1] or a[3]<b[3]) end)
+  table.sort(rows, function(a, b)
+    if a._s == b._s then return a.key < b.key end
+    return a._s < b._s
+  end)
 
-  local end_mark = "═══  結束  ═══  "
-  local n_insert = 1  -- 插入條目數（-1也為空條目數）
-  local f = 0  -- 檢驗是否末尾
-  for k, v in ipairs(keys_table) do
-    if v[1] == "" and n_insert < 16 and f == 0 then
-    -- if v[1] == "" and f == 0 then
-      if insert_table[n_insert] ~= nil then
-        v[1] = "  ~" .. insert_table[n_insert][1] .. "  〔 " .. insert_table[n_insert][2] .. " 〕"
-        n_insert = n_insert+1
-      elseif insert_table[n_insert] == nil then
-        v[1] = end_mark
-        f = f+1
-      end
-    elseif v[1] == "" then  -- 繼續計算空條目(n_insert-1)，後面有用到。
-      n_insert = n_insert+1
-      -- v[1] = n_insert  -- 測試顯示用
-    end
+  -- 兩個方案內建檔案的編輯捷徑（動作寫在 processor 裡，不在 p_run_pattern）。
+  -- 沒有 run，選中會先把輸入變成 '/ct、'/cc，再按一次空白才執行。
+  -- ⚠ Windows 端 p_run_pattern 有自己的 "c"（指定用 Notepad++ 開），
+  --   那時上面的迴圈已經產生 '/cc 這一列，這裡就不能再加，否則兩列文字相同會被 uniquifier 併掉。
+  if pattern["t"] == nil then
+    rows[#rows + 1] = { key = NS .. "t", label = "編輯 指令清單（p_run_pattern.lua）" }
+  end
+  if pattern["c"] == nil then
+    rows[#rows + 1] = { key = NS .. "c", label = "編輯 自訂短語（打 email 出信箱那種）" }
   end
 
-  local n_empty = n_insert-1  -- n_empty：預設為 15
-  if #insert_table == n_empty and keys_table[21] ~= nil then
-    if keys_table[21][1] ~= end_mark then
-      table.insert(keys_table, {end_mark, "21"})
-    end
-  elseif #insert_table > n_empty then
-    local n_all = 22  -- 總條目數
-    for k, v in ipairs(insert_table) do
-      if k > n_empty then
-        local comment = "  ~" .. v[1] .. "  〔 " .. v[2] .. " 〕"
-        table.insert(keys_table, {comment, n_all-1})
-       -- keys_table[n_all] = {comment, n_all-1}
-        n_all=n_all+1
-      end
-    end
-    table.insert(keys_table, {end_mark, n_all-1})
-  end
-
-  return keys_table
+  return rows
 end
 
 return run_menu

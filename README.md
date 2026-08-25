@@ -20,7 +20,7 @@ NatLee 的 RIME 輸入法設定，Windows（小狼毫）與 macOS（鼠鬚管）
 - **macOS**：`bash ~/Library/Rime/scripts/rime-sync.sh`
 
 只想「把另一台改好的設定拉下來套用」（不推送本機變更）時，不必開終端機 ——
-直接在輸入法裡打 `'/git`＋空格即可（`scripts/rime-update.command` / `rime-update.ps1`）。
+直接在輸入法裡打 `'/cgit`＋空格即可（`scripts/rime-update.command` / `rime-update.ps1`）。
 
 腳本流程：`git pull` → 重新部署 → `git commit + push`（只提交設定變更）。
 兩台機器輪流執行即可；同時改到同一個設定檔時 git 會提示衝突，手動解掉再 push。
@@ -41,11 +41,12 @@ NatLee 的 RIME 輸入法設定，Windows（小狼毫）與 macOS（鼠鬚管）
 
 | 功能 | 操作 |
 |---|---|
-| **更新設定** | 打 `'/git`＋空格 —— 拉取遠端設定 → 部署 → 重啟，開終端機視窗顯示過程 |
-| **速查表** | 打 `'/jh`＋空格，或 Windows 按 `Ctrl+Alt+H`（[cheatsheet.html](cheatsheet.html)） |
-| 功能總覽 | 打 `'/` 單獨 —— 4 個大類的分層選單，**選中就直接進入該功能**（不必記代碼） |
+| **更新設定** | 打 `'/cgit`（或直達碼 `'/git`）＋空格 —— 拉取遠端設定 → 部署 → 重啟，開終端機視窗顯示過程 |
+| **速查表** | 打 `'/ch`＋空格（[cheatsheet.html](cheatsheet.html)） |
+| 功能總覽 | 打 `'/` 單獨 —— 3 個大類的分層選單，**用 ⇧1~6 或空白選中就直接進入**（不必記代碼） |
 | 快捷鍵說明 | `'/kk`、`'/ko` |
 | 計算機 | `'/123+45*2`；運算符字母別名 `a`+ `r`− `x`× `v`÷ `s`^ `q`( `w`) |
+| 指令清單 | 打 `'/c` —— 速查表、更新設定、常用網站，選中即執行 |
 | 方案選單 | `Ctrl+` `` ` ``（Mac 建議用這個）或 `F4` |
 | 直接切方案 | `Ctrl+Shift+F1~F4`（Win）／`Ctrl+Opt+1~4`（Mac 備援） |
 | 選字 | `Shift+1`～`Shift+6`（標籤 ⇧1.～⇧6.） |

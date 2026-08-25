@@ -18,7 +18,7 @@ local run_pattern = {
 --------------------------------------------------------------------------
 -- 通用：
 --------------------------------------------------------------------------
-  ["h"] = { s = 0, name = "📌 輸入法速查表 Cheatsheet", open = '"' .. user_dir .. '/cheatsheet.html"' },
+  ["h"] = { s = 0, direct = false, name = "輸入法速查表 Cheatsheet", open = '"' .. user_dir .. '/cheatsheet.html"' },
   ["r"] = { s = 1, name = "Rime 官方 GitHub", open = "https://github.com/rime" },
   ["rw"] = { s = 2, name = "Rime 詳解", open = "https://github.com/LEOYoon-Tsaw/Rime_collections/blob/master/Rime_description.md" },
   ["l"] = { s = 3, name = "librime-lua 官方 GitHub", open = "https://github.com/hchunhui/librime-lua" },
@@ -104,11 +104,13 @@ end
 --   Windows start "" pwsh -NoExit -File  → 開新主控台視窗，跑完不自動關
 -- 直達碼 '/git 的攔截寫在 processor_p_run_files.lua。
 --------------------------------------------------------------------------
+-- direct = true：這個指令碼可以不加命名空間直接打（'/git，不必 '/cgit）。
+-- 只給常用且不會跟日期時間代碼撞名的指令開放。
 if get_os_name() == "Mac" then
-  run_pattern["git"] = { s = 7, name = "更新設定並重新部署",
+  run_pattern["git"] = { s = 7, direct = true, name = "更新設定並重新部署",
     open = '"' .. user_dir .. '/scripts/rime-update.command"' }
 elseif get_os_name() == "Windows" then
-  run_pattern["git"] = { s = 7, name = "更新設定並重新部署",
+  run_pattern["git"] = { s = 7, direct = true, name = "更新設定並重新部署",
     open = [[pwsh -NoExit -ExecutionPolicy Bypass -File "]] .. user_dir .. [[/scripts/rime-update.ps1"]] }
 end
 

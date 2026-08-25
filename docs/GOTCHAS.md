@@ -38,6 +38,15 @@ python3 -c "import yaml;print(yaml.safe_load(open('build/bopomo_onionplus.schema
 順序也有講究：要攔空白鍵就得排在 `express_editor` 之前，要攔選字鍵（`!@#$%^`）
 就得排在 `selector` 之前。本專案放在 `key_binder` 之後。
 
+### 選字鍵給的是「當頁第幾個」，不是絕對序號
+`seg.selected_index` 是**絕對**索引（第 8 列就是 7），但使用者按 `⇧1`～`⇧6`
+指的是**這一頁**的第幾列。選單超過一頁時，兩者不換算就會選錯：
+```lua
+local ps = env.page_size   -- 讀 menu/page_size，別寫死
+n = ps * math.floor((seg.selected_index or 0) / ps) + n
+```
+專案內 `processor_zhuyin_space.lua`、`processor_mix_zhs_ltk.lua` 也是同樣寫法（那邊是 9）。
+
 ### 選單只顯示第一列 → uniquifier 把候選文字相同的列合併了
 `engine/filters` 末端掛著 `uniquifier`，它**以候選文字去重**。
 選單類候選若把文字留空（想讓選中時不上屏任何東西），六列會被併成一列。
@@ -190,6 +199,13 @@ if f then f:write("...\n") f:close() end
 `'/f`、`'/t` 等每秒都在變。回歸比對要嘛正規化數字，要嘛用凍結時鐘（在沙盒 `rime.lua` 注入 `os.date`/`os.time` shim）。跨午夜測試會誤判日期類項目。
 
 ## librime-lua API
+
+### 這裡的 Lua 是 5.3，不是 5.4
+`filter_gloss.lua`、`filter_cand/tran_utf8_comment.lua` 等檔案會直接改寫 for 迴圈的
+控制變數（`for sense in ... do sense = sense:gsub(...)`）。這在 **5.3 合法、5.4 會編譯失敗**
+（`attempt to assign to const variable`）。既然這些檔案實際上跑得起來，代表執行環境是 5.3。
+→ 拿 `luac5.4` 或外部 Lua 5.4 去做語法檢查會噴這三個假警報，別當成 bug 去「修」。
+反過來說，新寫的碼也不要用 5.4 才有的語法。
 
 ### 所有元件共用同一個 Lua state
 忘記 `local` 的變數會**跨方案、跨元件互相覆蓋**。本專案修過 5 個檔案的此類 bug。

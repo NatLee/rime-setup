@@ -69,12 +69,12 @@ local menu_data = require("mf_components/mf_menu_data")
 
 local function hier_menu(code)
   return function(input, seg, env, ctx)
-    local menu = menu_data.menus[code]
-    if not menu then return false end
-    for _, row in ipairs(menu.rows) do
+    local rows, tag = menu_data.lookup(code)
+    if not rows then return false end
+    for _, row in ipairs(rows) do
       local text = env.prefix .. (row.key or "")
       local cand = Candidate("simp_mf_tips", seg.start, seg._end, text, "  " .. row.label)
-      cand.preedit = input .. "\t" .. menu.tag
+      cand.preedit = input .. "\t" .. tag
       yield(cand)
     end
     return true
@@ -143,50 +143,50 @@ local k_keys_table = {
 
 local function j_run(input, seg, env, ctx)
   local caret_pos = ctx.caret_pos
-    local op_check = string.match(input, env.prefix .. "j([a-z]+)$")
+    local op_check = string.match(input, env.prefix .. "[cj]([a-z]+)$")  -- c＝command（主要）、j＝上游相容別名
     local first_check = caret_pos - #input
     if op_check and first_check ~= 0 then
       local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔非起始輸入〕")
-      cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+      cand2.preedit = input .. "\t【指令與快捷開啟】"
       yield(cand2)
       return true
     elseif op_check == "t" then
       local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 編輯 快捷開啟 table 〙")  -- or〔錯誤〕
-      cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+      cand2.preedit = input .. "\t【指令與快捷開啟】"
       yield(cand2)
       return true
     elseif op_check == "c" and env.prefix == "`" then
       local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無短語功能〕")  -- or〔錯誤〕
-      cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+      cand2.preedit = input .. "\t【指令與快捷開啟】"
       yield(cand2)
       return true
     elseif op_check == "c" then
       local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 編輯 custom 短語 〙")  -- or〔錯誤〕
-      cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+      cand2.preedit = input .. "\t【指令與快捷開啟】"
       yield(cand2)
       return true
     elseif op_check and first_check == 0 then
       local run_in = run_pattern[ op_check ]
       if run_in ~= nil then
         local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〘 " .. run_in.name .. " 〙")  -- or〔錯誤〕
-        cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+        cand2.preedit = input .. "\t【指令與快捷開啟】"
         yield(cand2)
       return true
       elseif run_in == nil then
         local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無〕")  -- 〔無此開啟碼〕or〔錯誤〕
-        cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+        cand2.preedit = input .. "\t【指令與快捷開啟】"
         yield(cand2)
         return true
       end
     -- elseif op_check == "fc" then
     --   local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無短語功能〕")  -- or〔錯誤〕
-    --   cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+    --   cand2.preedit = input .. "\t【指令與快捷開啟】"
     --   yield(cand2)
     --   return
     -- elseif op_check and first_check == 0 then
     -- -- if (input == env.prefix .. "opp" ) then
     --   local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", "〔無此開啟碼〕")  -- or〔錯誤〕
-    --   cand2.preedit = env.prefix .. "j " .. op_check .. "\t【快捷開啟】"
+    --   cand2.preedit = input .. "\t【指令與快捷開啟】"
     --   yield(cand2)
     --   return
     end
@@ -259,9 +259,10 @@ end
 --- 向 registry 註冊（精確代碼查表；j[a-z]+ 為 matcher，保持原 if 鏈順序）
 
 local function register(reg)
-  reg.register_exact("",   hier_menu(""))                                              -- '/ 功能總覽（分層選單）
-  reg.register_exact("dt", hier_menu("dt"))                                            -- '/dt 日期與時間
-  reg.register_exact("ca", hier_menu("ca"))                                            -- '/ca 計算機用法
+  reg.register_exact("",    hier_menu(""))                                             -- '/ 功能總覽（分層選單）
+  reg.register_exact("dt",  hier_menu("dt"))                                           -- '/dt 日期與時間
+  reg.register_exact("num", hier_menu("num"))                                          -- '/num 計算機用法
+  reg.register_exact("c",   hier_menu("c"))                                            -- '/c 指令與快捷開啟
   reg.register_exact("k",  menu_handler(function() return k_keys_table end, "【鍵位和編碼】▶"))
   reg.register_exact("ko", menu_handler(function(env) return hotkeys(env.schema_id)[1] end, "【操作鍵 說明】"))
   reg.register_exact("kk", menu_handler(function(env) return hotkeys(env.schema_id)[2] end, "【快捷鍵 說明】"))
@@ -273,7 +274,7 @@ local function register(reg)
   reg.register_exact("ky", menu_handler(function() return ky_table end, "【拉丁 形碼 中文拼音 編碼】"))
   reg.register_exact("kg", menu_handler(function() return kg_table end, "【希臘 形碼 編碼】"))
   reg.register_exact("kc", menu_handler(function() return kc_table end, "【西里爾 形碼 編碼】"))
-  reg.register_exact("j",  menu_handler(function(env) return env.run_menu_table end, "【快捷開啟】▶"))  -- init 引入
+  reg.register_exact("j",  hier_menu("j"))                                             -- '/j 同 '/c（相容別名）
   reg.register_matcher(j_run)                                                          -- j[a-z]+ 快捷開啟
   reg.register_exact("git", git_update)                                                -- '/git 更新設定並重新部署
   reg.register_exact("v", ver)
