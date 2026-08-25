@@ -11,6 +11,7 @@
   pwsh tools\rime-test.ps1 -Mode gloss            # 三語釋義檢查
   pwsh tools\rime-test.ps1 -Mode cands -Input "6sakura"   # 列出某輸入的全部候選
   pwsh tools\rime-test.ps1 -Mode commit -Input "'/uuid "  # 看某按鍵序列上屏什麼
+  pwsh tools\rime-test.ps1 -Mode labels -Input "su3"      # 看前端會拿到的選字鍵／標籤
 
 .NOTES
   ⚠ PowerShell 單引號字串裡「反引號」不是跳脫字元：'``1f' 送出的是【兩個】反引號。
@@ -18,7 +19,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'examples')]
+  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples')]
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
@@ -46,6 +47,11 @@ if ($Sync -or -not (Test-Path "$Sandbox\build")) {
   $xd = @('.git', 'sync', 'tools', '_cleanup*') + (Get-ChildItem $RimeDir -Directory -Filter '*.userdb*' | ForEach-Object { $_.Name })
   robocopy $RimeDir $Sandbox /E /XD @xd /XF '*.zip' '*.bak' /NJH /NJS /NDL /NFL | Out-Null
   if ($LASTEXITCODE -ge 8) { throw "robocopy 失敗 ($LASTEXITCODE)" }
+  # ⚠ 沙盒自己的 *.userdb 一定要清掉，否則測試不可重現：每次 Get-Commit 上屏都會
+  #   被詞庫學習，把剛選的字往前推（測過 su3 → 你 變成 妳，看起來像選字鍵壞了）。
+  #   清掉後每次都從方案內建詞典的原始順序開始。
+  Get-ChildItem $Sandbox -Directory -Filter '*.userdb*' -ErrorAction SilentlyContinue |
+    Remove-Item -Recurse -Force -Confirm:$false
 }
 
 # ---------------------------------------------------------------- P/Invoke
@@ -170,6 +176,25 @@ function Get-Cands([string]$seq, [int]$max = 16) {
   return $rows
 }
 
+# 取編碼列（含段落提示標籤，如《英》▶、【指令與快捷開啟】）。
+# 選單類的驗證要用這個，不能用 Get-Commit —— 指令選單每一列選中都會真的
+# 開檔案／跑腳本（'/jgit 會 git pull ＋部署＋重啟服務）。
+function Get-Preedit([string]$seq) {
+  [RimeT]::RimeClearComposition($session) | Out-Null
+  [RimeT]::RimeSimulateKeySequence($session, $seq) | Out-Null
+  $c = New-Object RimeContextT
+  $c.data_size = [Runtime.InteropServices.Marshal]::SizeOf([type][RimeContextT]) - 4
+  $pre = ''
+  if ([RimeT]::RimeGetContext($session, [ref]$c)) {
+    if ($c.composition.preedit -ne [IntPtr]::Zero) {
+      $pre = [Runtime.InteropServices.Marshal]::PtrToStringUTF8($c.composition.preedit)
+    }
+    [RimeT]::RimeFreeContext([ref]$c) | Out-Null
+  }
+  [RimeT]::RimeClearComposition($session) | Out-Null
+  return $pre
+}
+
 # ---------------------------------------------------------------- 測試模式
 switch ($Mode) {
 
@@ -194,15 +219,49 @@ switch ($Mode) {
       'T16 URL  /ie4bda0'   = @("'/ie4bda0 ", '你')
       'T17 版本 /v'         = @("'/v ", '*Weasel*')
       'T18 鍵表 /kk'        = @("'/kk ", '*')
-      'T19 開啟 /j'         = @("'/j ", '*')
+      # T19／T24／T25 釘住「選單選中會上屏字面代碼」這個回歸：
+      # p_run_files 沒在 rime.lua bind、或排在 mix_apc_s2rm_ltk／selector 之後時，
+      # 空白與 ⇧1~6 會先被別人吃掉，畫面上就是吐出 '/dt、'/jh 這種字面字串。
+      # 正確行為是「跳到子選單」或「執行動作」，兩者都不上屏。
+      # ⚠ 別拿 '/j 那一頁的列當樣本：它每一列選中都會真的開檔案／瀏覽器。
+      'T19 選單空白選中'    = @("'/ ", '(no commit)')
       'T20 devkit /uuid'    = @("'/uuid ", '????????-????-????-????-????????????')
       'T21 devkit /ts'      = @("'/ts ", '##########')
       'T22 切日文+sakura'   = @('{Control+Shift+F2}sakura ', 'さくら')
       'T23 切回注音+su3'    = @('{Control+Shift+F1}su3 ', '你')
+      # ⚠ 主選單 ⇧1 是 '/j（進子選單，安全）、⇧2 是「更新設定」——後者選中會**真的**
+      #   跑 scripts/rime-update.ps1（git pull → 部署 → 重啟）。測試一律避開 ⇧2，
+      #   改用 ⇧3（'/dt，純跳轉無副作用）。
+      'T24 選單⇧3 選中'     = @("'/{Shift+numbersign}", '(no commit)')
+      'T25 子選單⇧1 選中'   = @("'/dt{Shift+exclam}", '(no commit)')
+      # T26~T29 釘住「⇧1~6 選字」這條鏈。本方案**不設** menu/alternative_select_keys
+      # （設了 macOS 標籤就變 !@#$%^），選字是 lua_processor@p_select_keys 做的，
+      # 所以這幾條同時在測：yaml 有掛、rime.lua 有 bind、鏈上位置沒被搶。
+      # T26 走完整兩層：'/ ⇧3 → '/dt，再 ⇧1 → '/f，空白上屏日期。
+      'T26 兩層選單⇧n 貫通' = @("'/{Shift+numbersign}{Shift+exclam} ", (Get-Date -Format 'yyyyMMdd'))
+      # ⚠ 不可以寫死「你」「妳」：沙盒詞庫會學習，每上屏一次就把那個字往前推，
+      #   候選順序跟著漂移，測起來時綠時紅（查過一輪，不是選字鍵壞掉）。
+      #   (cand:N) ＝ 當場問引擎「現在第 N 個候選是什麼」再比。
+      'T27 選字鍵⇧1'        = @('su3{Shift+exclam}', '(cand:0)')
+      # ⇧2 拿計算機來測，不用注音：注音輸入按 ⇧2 會被 email 樣式接走（見
+      # docs/GOTCHAS.md「⇧2 在注音輸入時選不到字」），那是上游設計不是回歸。
+      # 這一條同時釘住「別用 key_binder 轉 KP_2」——那樣 '/12345 按 ⇧2 會變成
+      # 把「2」打進算式（'/123452），拿不到「12,345」。
+      'T28 選字鍵⇧2（計算機）' = @("'/12345{Shift+at}", '12,345')
+      # 數字鍵是注音編碼，絕不能變成選字鍵（select_keys 留空後 selector 的
+      # 數字分支會活過來，靠 speller 排在 selector 之前擋住）
+      'T29 數字不選字'      = @('su31 ', '(no commit)')
     }
     $pass = 0; $fail = 0
     foreach ($k in $cases.Keys) {
       $seq, $want = $cases[$k]
+      # (cand:N) 必須在「上屏之前」就換算成實際候選：上屏本身會把該字往前推，
+      # 事後再問順序就已經變了（查過一輪，別再改回事後比對）。
+      if ($want -match '^\(cand:(\d+)\)$') {
+        $i = [int]$Matches[1]
+        $base = $seq -replace '\{.*$', ''
+        $want = (Get-Cands $base ($i + 1))[$i].text
+      }
       $got = Get-Commit $seq
       $ok = switch -Regex ($want) {
         '^\*'  { $got -like $want }
@@ -211,6 +270,31 @@ switch ($Mode) {
         default { $got -eq $want }
       }
       if ($ok) { $pass++; Write-Host ("  PASS {0,-22} [{1}]" -f $k, $got) -ForegroundColor DarkGray }
+      else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
+    }
+
+    # ── 選單／前綴搜尋：只驗編碼列，不按下去 ──
+    # 指令選單每一列選中都會真的執行動作，所以這幾條一律用 preedit 驗證。
+    $pcases = [ordered]@{
+      'P01 功能總覽'        = @("'/",     '*《功能總覽》*')
+      'P02 指令選單'        = @("'/j",    '*【指令與快捷開啟】*')
+      'P03 前綴搜尋 jg'     = @("'/jg",   "*【指令 '/jg*")
+      'P04 前綴搜尋 jgi'    = @("'/jgi",  "*【指令 '/jgi*")
+      # jr 自己是完整碼，但也是 '/jrw 的字首 → 要列出兩列，不能只給提示
+      'P05 完整碼也列同字首' = @("'/jr",  "*【指令 '/jr*")
+      'P11 jo 列出 jo+jow'  = @("'/jo",  "*【指令 '/jo*")
+      # jh 只有自己一列，沒有更長的同字首碼 → 維持「直接執行提示」，不進選單
+      'P12 唯一完整碼直執行' = @("'/jh",  '*【指令與快捷開啟】*')
+      'P06 無此碼'          = @("'/jz",   '*【指令與快捷開啟】*')
+      'P07 開發小工具'      = @("'/dev",  '*【開發小工具】*')
+      'P08 編碼與字母'      = @("'/code", '*【編碼與字母】*')
+      'P09 ⇧6 到編碼選單'   = @("'/{Shift+asciicircum}", '*【編碼與字母】*')
+      'P10 內碼十進制沒被蓋' = @("'/c",   '*【內碼十進制】*')
+    }
+    foreach ($k in $pcases.Keys) {
+      $seq, $want = $pcases[$k]
+      $got = Get-Preedit $seq
+      if ($got -like $want) { $pass++; Write-Host ("  PASS {0,-22} [{1}]" -f $k, $got) -ForegroundColor DarkGray }
       else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
     }
     Write-Host "`n  $pass PASS / $fail FAIL" -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
@@ -254,6 +338,35 @@ switch ($Mode) {
     if ([RimeT]::RimeGetContext($session, [ref]$c)) {
       $pre = if ($c.composition.preedit -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::PtrToStringUTF8($c.composition.preedit) } else { '' }
       "[{0}] preedit => [{1}]" -f $InputSeq, $pre
+      [RimeT]::RimeFreeContext([ref]$c) | Out-Null
+    }
+    [RimeT]::RimeClearComposition($session) | Out-Null
+  }
+
+  'labels' {
+    # 看候選標籤前端會拿到什麼 —— 這是唯一能在 Windows 上驗證「macOS 標籤」的方法：
+    # librime 同時交出 menu.select_keys 與 select_labels 兩份資料，而
+    #   ‧ 小狼毫 RimeWithWeasel.cpp        ：labels 優先
+    #   ‧ 鼠鬚管 SquirrelInputController.swift：**select_keys 優先**，有值就不看 labels
+    # 所以 select_keys 必須是 (null)、labels 必須是 ⇧1~⇧6，兩邊才會一致顯示 ⇧1.。
+    $seq = if ($InputSeq) { $InputSeq } else { 'su3' }
+    [RimeT]::RimeClearComposition($session) | Out-Null
+    [RimeT]::RimeSimulateKeySequence($session, $seq) | Out-Null
+    $c = New-Object RimeContextT
+    $c.data_size = [Runtime.InteropServices.Marshal]::SizeOf([type][RimeContextT]) - 4
+    if ([RimeT]::RimeGetContext($session, [ref]$c)) {
+      $sk = if ($c.menu.select_keys -ne [IntPtr]::Zero) {
+        [Runtime.InteropServices.Marshal]::PtrToStringUTF8($c.menu.select_keys)
+      } else { '(null)' }
+      $lb = if ($c.select_labels -ne [IntPtr]::Zero) {
+        (0..($c.menu.page_size - 1) | ForEach-Object {
+          $p = [Runtime.InteropServices.Marshal]::ReadIntPtr($c.select_labels, $_ * [IntPtr]::Size)
+          [Runtime.InteropServices.Marshal]::PtrToStringUTF8($p)
+        }) -join ' '
+      } else { '(null)' }
+      "[{0}]  page_size={1}" -f $seq, $c.menu.page_size
+      "  menu.select_keys = [{0}]   ← 鼠鬚管優先用這個，必須是 (null)" -f $sk
+      "  select_labels    = [{0}]   ← 兩邊真正想顯示的標籤" -f $lb
       [RimeT]::RimeFreeContext([ref]$c) | Out-Null
     }
     [RimeT]::RimeClearComposition($session) | Out-Null
