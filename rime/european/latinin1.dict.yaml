@@ -1,7 +1,6 @@
 # Rime dictionary
 # encoding: utf-8
-# 《拉丁+音標字母（洋蔥形碼鍵位）碼表》
-# 『洋蔥』製作
+# 《拉丁+音標字母（形碼鍵位）碼表》
 ---
 name: latinin1
 version: "202210"

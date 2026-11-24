@@ -1,7 +1,6 @@
 # Rime dictionary
 # encoding: utf-8
 # 《韓語 HNC 鍵位 字詞庫匯入頁》
-# 『洋蔥』製作
 ---
 name: hangeul_hnc.extended
 version: "202304"

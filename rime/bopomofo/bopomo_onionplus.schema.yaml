@@ -5,8 +5,6 @@ schema:
   schema_id: bopomo_onionplus
   name: "注音Na+"
   version: "202311"
-  author:
-    - 『洋蔥』
   description: |
     注音符號輸入，採用「大千式」鍵盤排列。
 

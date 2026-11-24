@@ -5,8 +5,6 @@ schema:
   schema_id: jpnin1_gloss_zh
   name: "提示碼_日翻中"
   version: "20260825"
-  author:
-    - Onion
   description: |
     只在反查掛載作用（讓 jpnin1_gloss_zh.dict.yaml 被編譯）
 

@@ -5,8 +5,6 @@ schema:
   schema_id: hangeul_hnc # 注意此ID與文件名裏 .schema.yaml 之前的部分相同
   name: "韓文"
   version: "202308"
-  author:
-    - 『洋蔥』
   description: |
     韓文HNC
   dependencies:

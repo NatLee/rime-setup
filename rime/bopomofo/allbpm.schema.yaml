@@ -5,8 +5,6 @@ schema:
   schema_id: allbpm
   name: "注音文"
   version: "202302"
-  author:
-    - 『洋蔥』
   description: |
     包含一般和特殊注音符號
 

@@ -5,8 +5,6 @@ schema:
   schema_id: easy_en_lcomment
   name: "英文（附釋義）"
   version: "202301"
-  author:
-    - Onion
   description: |
     只在反查掛載作用
 
