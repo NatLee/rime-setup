@@ -48,7 +48,15 @@ local run_pattern = {
 -- 單一實例編輯器第二次起只會在既有視窗加分頁，而背景程序（輸入法）無權把它
 -- 拉到前景，看起來就像沒反應。-multiInst 每次開新程序＝新視窗，會正常跳前景。
 --------------------------------------------------------------------------
+-- 沒裝 Notepad++ 的電腦退回系統關聯（.txt 預設是記事本），否則會直接開不起來。
+local npp_exe = [[C:\Program Files\Notepad++\notepad++.exe]]
+local has_npp = false
 if os_name == "Windows" then
+  local f = io.open(npp_exe, "rb")
+  if f then f:close(); has_npp = true end
+end
+
+if os_name == "Windows" and has_npp then
   run_pattern["phrase"] = { s = 1, direct = true, name = "編輯 自訂短語（開新視窗）",
     open = [["C:\Program Files\Notepad++\notepad++.exe" -multiInst ]] ..
            '"' .. user_dir .. '/bopomo_onionplus_phrase.txt"' }
@@ -59,6 +67,8 @@ end
 
 --------------------------------------------------------------------------
 -- 編輯 這個檔案本身（要加／改指令就開它）
+-- ⚠ 開到的是「使用者資料夾裡的副本」，下次更新設定時會被 repo 的版本蓋掉。
+--   要長久保留的修改請改 repo 裡的 rime/lua/p_components/p_run_pattern.lua。
 --------------------------------------------------------------------------
 run_pattern["cmd"] = { s = 2, direct = true, name = "編輯 指令清單（本檔）",
   open = '"' .. user_dir .. '/lua/p_components/p_run_pattern.lua"' }
@@ -68,15 +78,21 @@ run_pattern["cmd"] = { s = 2, direct = true, name = "編輯 指令清單（本�
 -- 視窗顯示過程。兩邊啟動方式不同：
 --   macOS   open <.command>              → .command 預設關聯到「終端機」，會自己
 --                                          開新視窗跑（檔案需有 +x，git 已記錄 755）
---   Windows start "" pwsh -NoExit -File  → 開新主控台視窗，跑完不自動關
+--   Windows start "" <.cmd>              → 開新主控台視窗跑 rime-update.cmd，
+--                                          由它挑 pwsh 7 或系統內建的 powershell 5.1
+--                                          （一般人的電腦沒有 pwsh，寫死 pwsh 會直接開不起來）
 --------------------------------------------------------------------------
+-- na-update.* 是安裝時產生在使用者資料夾的啟動器（scripts/rime-apply.* 寫的），
+-- 裡面記著設定 repo 的位置；repo 與使用者資料夾是分開的兩個地方。
 if os_name == "Mac" then
   run_pattern["git"] = { s = 3, direct = true, name = "更新設定並重新部署",
-    open = '"' .. user_dir .. '/scripts/rime-update.command"' }
+    open = '"' .. user_dir .. '/na-update.command"' }
 elseif os_name == "Windows" then
   run_pattern["git"] = { s = 3, direct = true, name = "更新設定並重新部署",
-    open = [[pwsh -NoExit -ExecutionPolicy Bypass -File "]] .. user_dir ..
-           [[/scripts/rime-update.ps1"]] }
+    open = '"' .. user_dir .. '/na-update.cmd"' }
+  -- 原寫法（寫死 pwsh，沒裝 PowerShell 7 的電腦開不起來）：
+  -- open = [[pwsh -NoExit -ExecutionPolicy Bypass -File "]] .. user_dir ..
+  --        [[/scripts/rime-update.ps1"]] }
 end
 
 return run_pattern

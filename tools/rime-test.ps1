@@ -1,10 +1,10 @@
-<#
+﻿<#
 .SYNOPSIS
   RIME 方案回歸測試工具（直接呼叫 librime C API，不需開啟輸入法視窗）
 
 .DESCRIPTION
   在「沙盒副本」上執行，不會污染正式的使用者詞庫（*.userdb）。
-  修改 C:\RIME 的 lua/yaml 後，用 -Sync 同步到沙盒再測。
+  修改 lua/yaml 後，用 -Sync 同步到沙盒再測。
 
 .EXAMPLE
   pwsh tools\rime-test.ps1 -Sync -Mode basic      # 23 條基本回歸（最常用）
@@ -24,9 +24,9 @@ param(
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
   [string[]]$Option = @(),            # 測試前開啟的開關，如 -Option en_sort,gloss_en
-  [switch]$Sync,                      # 先把 C:\RIME 同步到沙盒
+  [switch]$Sync,                      # 先把 repo 的 rime\ 套用到沙盒
   [switch]$Rebuild,                   # 強制完整重編（改了 yaml 必用）
-  [string]$RimeDir = 'C:\RIME',
+  [string]$Repo = (Split-Path $PSScriptRoot -Parent),      # 設定 repo（來源是它的 rime\）
   [string]$Sandbox = "$env:TEMP\rime_sandbox",
   [string]$WeaselRoot = ''
 )
@@ -41,22 +41,18 @@ if (-not $WeaselRoot) {
 
 # ---------------------------------------------------------------- 同步沙盒
 if ($Sync -or -not (Test-Path "$Sandbox\build")) {
-  Write-Host "同步 $RimeDir -> $Sandbox ..." -ForegroundColor Cyan
-  New-Item -ItemType Directory -Force $Sandbox | Out-Null
-  # 排除使用者詞庫與 git，避免污染正式資料
-  $xd = @('.git', 'sync', 'tools', '_cleanup*') + (Get-ChildItem $RimeDir -Directory -Filter '*.userdb*' | ForEach-Object { $_.Name })
-  # ⚠ 一定要 /PURGE：只有 /E 的話，來源已刪除的檔案會**留在沙盒**，測試對著幽靈檔跑。
+  Write-Host "套用 $Repo\rime -> $Sandbox ..." -ForegroundColor Cyan
+  # 用跟正式安裝同一支 rime-apply.ps1 把 rime\ 攤平到沙盒 —— 測到的就是使用者會拿到的檔案配置。
+  # ⚠ 它會依 na_manifest.txt 清掉「repo 已刪除」的舊檔。這一步不能省：
   #   踩過一次 —— p_run_menu.lua 已從 repo 刪掉、translator 卻還 require 它，
   #   沙盒因為留著舊檔所以 53 條全綠，正式環境一部署就會整個 lua 掛掉。
-  robocopy $RimeDir $Sandbox /E /PURGE /XD @xd /XF '*.zip' '*.bak' /NJH /NJS /NDL /NFL | Out-Null
-  if ($LASTEXITCODE -ge 8) { throw "robocopy 失敗 ($LASTEXITCODE)" }
+  & (Join-Path $Repo 'scripts\rime-apply.ps1') -RimeDir $Sandbox -NoLaunchers -Quiet | Out-Null
   # ⚠ 沙盒自己的 *.userdb 一定要清掉，否則測試不可重現：每次 Get-Commit 上屏都會
   #   被詞庫學習，把剛選的字往前推（測過 su3 → 你 變成 妳，看起來像選字鍵壞了）。
   #   清掉後每次都從方案內建詞典的原始順序開始。
   Get-ChildItem $Sandbox -Directory -Filter '*.userdb*' -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -Confirm:$false
 }
-
 # ---------------------------------------------------------------- P/Invoke
 if (-not ([System.Management.Automation.PSTypeName]'RimeT').Type) {
   Add-Type -TypeDefinition @"

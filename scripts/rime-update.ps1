@@ -1,8 +1,15 @@
-# rime-update.ps1 — Windows：拉取遠端設定 →（必要時）部署 →（必要時）重啟服務
+﻿# rime-update.ps1 — Windows：拉取最新設定 → 套用到使用者資料夾 →（必要時）部署／重啟
 #
-# 由輸入法內打 '/git ＋空白鍵觸發（見 lua/p_components/p_run_pattern.lua）。
-# 以 `start "" pwsh -NoExit -File ...` 開新主控台視窗執行，看得到過程。
-# rime-sync.ps1 也會呼叫這支（加 -SkipPull -NoPause），套用設定只有一份邏輯。
+# 由輸入法內打 '/git ＋空白鍵觸發：lua 開使用者資料夾裡的 na-update.cmd，
+# 它轉給 repo 的 scripts\rime-update.cmd，後者挑 pwsh 或 powershell 來跑這支。
+# 安裝腳本 install.ps1 最後一步也是呼叫這支（-Force -SkipPull）。
+#
+# repo 與使用者資料夾是分開的兩個地方（repo 的 rime\ 按功能分類，使用者資料夾是攤平的），
+# 中間靠 rime-apply.ps1 複製。這支腳本所在的 repo 就是來源。
+#
+# ⚠ 要同時能在 Windows PowerShell 5.1 與 pwsh 7 跑（一般人的電腦只有 5.1）：
+#   ‧ 不用三元運算子、??、&& 這些 7 才有的語法
+#   ‧ 本檔存成「UTF-8 含 BOM」—— 5.1 讀沒有 BOM 的檔會當成 ANSI，中文變亂碼甚至語法錯
 #
 # ── 這支腳本為什麼長這樣（都是實測出來的，改之前先讀）──────────────────
 #
@@ -20,12 +27,11 @@
 #    而且要「等它真的消失」再啟動，不要 Start-Sleep 猜秒數。
 #
 # ③ 沒變更就什麼都不做
-#    以前不管 git pull 有沒有拉到東西都照樣部署＋重啟 —— 光是「確認一下有沒有
-#    更新」就要付十幾秒的 IME 中斷。現在比對 pull 前後的 HEAD：
-#      沒變更        → 直接結束（實測 2 秒，完全不動 IME）
+#    以「套用時實際有沒有檔案被改到」為準（rime-apply.ps1 的回傳值）：
+#      沒有檔案變動  → 直接結束（完全不動 IME）
 #      只有 .lua     → 只重啟（lua 只在服務啟動時載入，部署不會重讀）
 #      有 yaml/詞典  → 部署＋重啟
-#    要強制跑一輪：pwsh rime-update.ps1 -Force
+#    要強制跑一輪：加 -Force
 #
 # ④ 成功自己關視窗，失敗才停下來等人看
 #    這個視窗是 WeaselServer 透過 os.execute 開出來的，留著不關很煩。
@@ -33,9 +39,11 @@
 [CmdletBinding()]
 param(
     [switch]$Force,          # 沒有變更也強制部署＋重啟
-    [switch]$SkipPull,       # 不自己 git pull（給已經拉過的呼叫端，如 rime-sync.ps1）
+    [switch]$SkipPull,       # 不自己 git pull（給已經拉過的呼叫端，如 install.ps1、rime-sync.ps1）
     [switch]$NoPause,        # 失敗時不要等 Enter（被其他腳本呼叫時必加，否則會卡住對方）
-    [int]$CloseAfter = 5     # 成功後幾秒自動關閉（0 = 不自動關）
+    [switch]$NoDeploy,       # 只套用檔案，完全不碰輸入法服務（測試用）
+    [int]$CloseAfter = 5,    # 成功後幾秒自動關閉（0 = 不自動關）
+    [string]$RimeDir         # RIME 使用者資料夾（預設讀小狼毫的設定）
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,65 +60,93 @@ function Fail-Exit ([string]$msg) {
 Write-Host '════════ RIME 更新設定 ════════'
 Write-Host ''
 
-$RimeDir = 'C:\RIME'
-if (-not (Test-Path $RimeDir)) { Fail-Exit "找不到 $RimeDir" }
+# 來源＝這支腳本所在的 repo
+$Repo = Split-Path $PSScriptRoot -Parent
+if (-not (Test-Path (Join-Path $Repo 'rime'))) { Fail-Exit "$Repo 裡找不到 rime\ 資料夾" }
 
-# 自動找目前安裝的小狼毫版本，不寫死 0.17.4
-$WeaselDir = Get-ChildItem 'C:\Program Files\Rime' -Directory -Filter 'weasel-*' -ErrorAction SilentlyContinue |
+# 目標＝RIME 使用者資料夾。不寫死：預設是 %APPDATA%\Rime，但可以在小狼毫設定裡改到別處。
+if (-not $RimeDir) {
+    $r = Get-ItemProperty 'HKCU:\Software\Rime\Weasel' -ErrorAction SilentlyContinue
+    if ($r -and $r.RimeUserDir) { $RimeDir = $r.RimeUserDir } else { $RimeDir = Join-Path $env:APPDATA 'Rime' }
+}
+
+# 防呆：WeaselDeployer 只會部署「小狼毫設定的那個資料夾」。目標若是別的資料夾，
+# 檔案會複製過去、卻去重啟一個跟它無關的輸入法 —— 多半是測試時指錯了，直接擋下。
+if (-not $NoDeploy) {
+    $r = Get-ItemProperty 'HKCU:\Software\Rime\Weasel' -ErrorAction SilentlyContinue
+    $registered = Join-Path $env:APPDATA 'Rime'
+    if ($r -and $r.RimeUserDir) { $registered = $r.RimeUserDir }
+    if ([IO.Path]::GetFullPath($RimeDir).TrimEnd('\') -ine [IO.Path]::GetFullPath($registered).TrimEnd('\')) {
+        Fail-Exit "目標 $RimeDir 不是小狼毫目前使用的資料夾（$registered）。只想複製檔案請加 -NoDeploy。"
+    }
+}
+
+# 找小狼毫：先問登錄檔（同時裝了多個版本時，這才是「目前在用」的那個），
+# 找不到再退回掃 Program Files\Rime\weasel-*（取版本最新的），不寫死版本號。
+$server = $null; $deployer = $null; $WeaselRoot = $null
+if (-not $NoDeploy) {
+    foreach ($k in 'HKLM:\SOFTWARE\WOW6432Node\Rime\Weasel', 'HKLM:\SOFTWARE\Rime\Weasel') {
+        $r = Get-ItemProperty $k -ErrorAction SilentlyContinue
+        if ($r -and $r.WeaselRoot -and (Test-Path (Join-Path $r.WeaselRoot 'WeaselServer.exe'))) { $WeaselRoot = $r.WeaselRoot; break }
+    }
+    if (-not $WeaselRoot) {
+        $d = Get-ChildItem (Join-Path $env:ProgramFiles 'Rime') -Directory -Filter 'weasel-*' -ErrorAction SilentlyContinue |
              Sort-Object Name -Descending | Select-Object -First 1
-if (-not $WeaselDir) { Fail-Exit '找不到小狼毫安裝目錄（C:\Program Files\Rime\weasel-*）' }
-$server   = Join-Path $WeaselDir.FullName 'WeaselServer.exe'
-$deployer = Join-Path $WeaselDir.FullName 'WeaselDeployer.exe'
+        if ($d) { $WeaselRoot = $d.FullName }
+    }
+    if (-not $WeaselRoot) { Fail-Exit '找不到小狼毫安裝目錄。請先安裝：https://rime.im/download/' }
+    $server   = Join-Path $WeaselRoot 'WeaselServer.exe'
+    $deployer = Join-Path $WeaselRoot 'WeaselDeployer.exe'
+}
 
-Set-Location $RimeDir
-
-# ── [1/3] 拉取 ────────────────────────────────────────────────────────
-Write-Host '[1/3] 拉取遠端設定…'
-$before = (git rev-parse HEAD).Trim()
+# ── [1/4] 拉取 ────────────────────────────────────────────────────────
+Write-Host '[1/4] 拉取最新設定…'
 if ($SkipPull) {
-    Write-Host '      （呼叫端已經拉過，略過 git pull）'
+    Write-Host '      （呼叫端已經處理，略過 git pull）'
+} elseif (-not (Test-Path (Join-Path $Repo '.git'))) {
+    Write-Host '      （這份設定不是 git clone 來的，略過 git pull）'
 } else {
-    git pull --ff-only
+    git -C $Repo pull --ff-only
     if ($LASTEXITCODE -ne 0) {
         Write-Host ''
-        Write-Host '  常見原因：本機有未提交的變更，或與遠端分岔。' -ForegroundColor Yellow
-        Write-Host "  看狀況：git -C `"$RimeDir`" status"
-        Write-Host "  想同步本機變更請改跑：pwsh `"$RimeDir\scripts\rime-sync.ps1`""
+        Write-Host '  常見原因：改過 repo 裡的檔案，或與遠端分岔（例如上游重寫過歷史）。' -ForegroundColor Yellow
+        Write-Host "  看狀況：git -C `"$Repo`" status"
+        Write-Host '  最簡單的解法：重跑 README 的安裝指令。'
         Fail-Exit 'git pull 失敗，沒有動到輸入法。'
     }
 }
-$after = (git rev-parse HEAD).Trim()
 
-# ── 判斷要做什麼 ──────────────────────────────────────────────────────
-$changed = if ($before -ne $after) { @(git diff --name-only $before $after) } else { @() }
-$luaChanged   = @($changed | Where-Object { $_ -match '\.lua$' })
-# 會進 build\ 的：方案／設定 yaml、詞典、短語 txt、語言模型、opencc 對照表
-$buildChanged = @($changed | Where-Object { $_ -match '\.(yaml|txt|gram|json)$' -or $_ -match '^opencc/' })
+# ── [2/4] 套用到使用者資料夾 ──────────────────────────────────────────
+Write-Host ''
+Write-Host '[2/4] 套用到使用者資料夾…'
+try { $applied = & (Join-Path $PSScriptRoot 'rime-apply.ps1') -RimeDir $RimeDir | Select-Object -Last 1 }
+catch { Fail-Exit $_.Exception.Message }
+$RimeDir = $applied.RimeDir
 
-$needDeploy  = $Force -or $buildChanged.Count -gt 0
-$needRestart = $Force -or $luaChanged.Count -gt 0 -or $needDeploy
+if ($NoDeploy) {
+    Write-Host ''
+    Write-Host '✓ 已套用檔案（-NoDeploy：沒有部署、沒有動輸入法服務）。' -ForegroundColor Green
+    exit 0
+}
+
+$needDeploy  = $Force -or $applied.Build -gt 0 -or $applied.Removed -gt 0
+$needRestart = $Force -or $applied.Lua -gt 0 -or $needDeploy
 
 if (-not $needRestart) {
     Write-Host ''
-    if ($changed.Count) {
-        Write-Host ("✓ 拉到 {0} 個檔案，但都不影響輸入法（文件／腳本之類），不用重啟。" -f $changed.Count) -ForegroundColor Green
-    } else {
-        Write-Host '✓ 已是最新，沒有需要部署或重啟的變更。' -ForegroundColor Green
-    }
+    Write-Host '✓ 已是最新，沒有需要部署或重啟的變更。' -ForegroundColor Green
     Write-Host '  （要強制跑一輪：加上 -Force）'
     if ($CloseAfter -gt 0) { Start-Sleep -Seconds 2 }
     exit 0
 }
 
-Write-Host ''
-Write-Host ("      變更 {0} 個檔案；需要部署：{1}；需要重啟：{2}" -f `
-            $changed.Count, $(if ($needDeploy) { '是' } else { '否' }), $(if ($needRestart) { '是' } else { '否' }))
+Write-Host ("      需要部署：{0}；需要重啟：{1}" -f $(if ($needDeploy) { '是' } else { '否' }), $(if ($needRestart) { '是' } else { '否' }))
 Write-Host ''
 
-# ── [2/3] 停服務 → 部署 ───────────────────────────────────────────────
+# ── [3/4] 停服務 → 部署 ───────────────────────────────────────────────
 # 停在部署之前：部署是同步的，服務活著的話這段時間 IME 收鍵不回字＝看起來卡死。
 if (Get-Process WeaselServer -ErrorAction SilentlyContinue) {
-    Write-Host '[2/3] 停止 WeaselServer（/quit，不強殺）…'
+    Write-Host '[3/4] 停止 WeaselServer（/quit，不強殺）…'
     # 閒置時 /quit 約 100~200ms 就退出，但服務正在編譯（或剛啟動還在初始化）時
     # 會不理它 —— 實測遇過。所以重送幾次再考慮強殺，別一逾時就 -Force。
     $sw = [Diagnostics.Stopwatch]::StartNew()
@@ -132,7 +168,7 @@ if (Get-Process WeaselServer -ErrorAction SilentlyContinue) {
         Write-Host ("      已退出（{0}ms）" -f [int]$sw.Elapsed.TotalMilliseconds)
     }
 } else {
-    Write-Host '[2/3] WeaselServer 沒在執行，略過停止。'
+    Write-Host '[3/4] WeaselServer 沒在執行，略過停止。'
 }
 
 if ($needDeploy) {
@@ -150,8 +186,8 @@ if ($needDeploy) {
 }
 Write-Host ''
 
-# ── [3/3] 啟動並確認 ──────────────────────────────────────────────────
-Write-Host '[3/3] 啟動 WeaselServer…'
+# ── [4/4] 啟動並確認 ──────────────────────────────────────────────────
+Write-Host '[4/4] 啟動 WeaselServer…'
 Start-Process $server
 $sw = [Diagnostics.Stopwatch]::StartNew()
 while (-not (Get-Process WeaselServer -ErrorAction SilentlyContinue) -and $sw.Elapsed.TotalSeconds -lt 10) {
@@ -185,8 +221,8 @@ if ($needDeploy) {
 }
 
 Write-Host ''
-Write-Host "✓ 完成（使用 $($WeaselDir.Name)）。" -ForegroundColor Green
-if ($luaChanged.Count) { Write-Host ("  lua 變更 {0} 個，已隨重啟生效。" -f $luaChanged.Count) }
+Write-Host "✓ 完成（使用 $(Split-Path $WeaselRoot -Leaf)）。" -ForegroundColor Green
+if ($applied.Lua) { Write-Host ("  lua 變更 {0} 個，已隨重啟生效。" -f $applied.Lua) }
 if ($CloseAfter -gt 0) {
     Write-Host ''
     Write-Host "  ${CloseAfter} 秒後自動關閉（Ctrl+C 可留下視窗）…"

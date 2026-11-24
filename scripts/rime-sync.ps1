@@ -1,38 +1,34 @@
-# rime-sync.ps1 — Windows（小狼毫）設定同步
-# 只同步「設定檔」：git pull → 重新部署 → git commit/push
-# 打字紀錄（詞頻資料庫）不進版控，各機器獨立。
-# 用法：pwsh scripts/rime-sync.ps1
+﻿# rime-sync.ps1 — Windows（小狼毫）設定同步【維護者／fork 擁有者用】
+# 會 commit 並 push 到 origin，所以只有對 origin 有寫入權限的人才用得到；
+# 一般使用者要更新請在輸入法內打 '/git（那支只拉不推）。
+#
+# 流程：git pull --rebase → 套用到使用者資料夾（有變動才部署／重啟）→ git commit + push
+# 在 repo 裡改設定（rime\ 底下），改完跑這支，就會套用到這台並推上去。
+# 打字紀錄與個人檔（詞頻、個人短語、安裝選項）在使用者資料夾，不在 repo 裡，不會被推。
+# 用法：pwsh scripts\rime-sync.ps1
+#
+# ⚠ 本檔存成 UTF-8 含 BOM（Windows PowerShell 5.1 相容，見 docs\GOTCHAS.md）。
 
 $ErrorActionPreference = 'Stop'
-$RimeDir = Split-Path $PSScriptRoot -Parent
-Set-Location $RimeDir
-
+$Repo = Split-Path $PSScriptRoot -Parent
+Set-Location $Repo
 
 Write-Host '[1/3] git pull...' -ForegroundColor Cyan
-$before = (git rev-parse HEAD).Trim()
-git pull --rebase origin main
-$after = (git rev-parse HEAD).Trim()
-$changed = if ($before -ne $after) { git diff --name-only $before $after } else { @() }
-$luaChanged   = @($changed | Where-Object { $_ -match '\.lua$' })
-$buildChanged = @($changed | Where-Object { $_ -match '\.(yaml|txt|gram|json)$' -or $_ -match '^opencc/' })
+git pull --rebase --autostash origin main
+if ($LASTEXITCODE -ne 0) { Write-Host 'git pull 失敗，請先處理衝突。' -ForegroundColor Red; exit 1 }
 
-# 套用遠端設定。與 rime-update.ps1 同一套作法，理由見那支腳本開頭：
-#   ‧ 沒拉到相關變更就完全不動輸入法（以前不管有沒有變更都部署＋等 20 秒）
-#   ‧ 先 /quit 停服務再部署 —— 部署是同步的，服務活著時 IME 收鍵不回字＝像卡死
-#   ‧ /quit 不用 Stop-Process -Force —— 強殺會讓正在打字的視窗卡在具名管線上
-if ($luaChanged.Count -or $buildChanged.Count) {
-    Write-Host '[2/3] 套用遠端設定...' -ForegroundColor Cyan
-    # -SkipPull：上面已經 pull 過（而且是 --rebase，rime-update 的 --ff-only 在
-    #            本機有未提交變更時會失敗）。-NoPause：失敗別停在 Read-Host 卡住這支。
-    & (Join-Path $RimeDir 'scripts\rime-update.ps1') -Force -SkipPull -NoPause -CloseAfter 0
-} else {
-    Write-Host '[2/3] 沒有設定變更，略過部署與重啟。' -ForegroundColor Cyan
-}
+# 套用＋（必要時）部署重啟，邏輯只有一份，在 rime-update.ps1。
+#   -SkipPull：上面已經 pull 過（而且是 --rebase；rime-update 的 --ff-only 在分岔時會失敗）
+#   -NoPause ：失敗別停在 Read-Host 卡住這支
+#   沒有檔案變動時它會自己判斷不動輸入法。
+Write-Host '[2/3] 套用到使用者資料夾...' -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot 'rime-update.ps1') -SkipPull -NoPause -CloseAfter 0
+if ($LASTEXITCODE -ne 0) { Write-Host '套用失敗，先不推送。' -ForegroundColor Red; exit 1 }
 
 Write-Host '[3/3] git commit / push...' -ForegroundColor Cyan
 git add -A
 if (git status --porcelain) {
-    git commit -m "config: natlee-windows $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    git commit -m "config: windows $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
     git push origin main
     Write-Host '完成：已推送本機設定變更。' -ForegroundColor Green
 } else {
