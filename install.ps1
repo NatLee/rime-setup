@@ -29,8 +29,10 @@
 #     pwsh 7 則可以直接 pwsh -File install.ps1。
 
 param(
-    [string]$Theme,      # matcha | light | dark | auto | classic
+    [string]$Theme,      # matcha | light | dark | classic
+    [string]$Dark,       # auto（系統深色模式時自動換成 Nat Dark）| off
     [string]$Layout,     # vertical | horizontal
+    [string]$Size,       # small | medium | large（候選字級）
     [string]$Emoji,      # on | off
     [string]$Langs,      # ja,ko,en,extra 任意組合；none＝只留注音
     [string]$Gloss,      # zh | en | ja
@@ -42,7 +44,7 @@ param(
 )
 
 function Install-NaPlus {
-    param($Theme, $Layout, $Emoji, $Langs, $Gloss, [bool]$Yes, [bool]$NoDeploy, $Repo, $Branch, $RimeDir)
+    param($Theme, $Dark, $Layout, $Size, $Emoji, $Langs, $Gloss, [bool]$Yes, [bool]$NoDeploy, $Repo, $Branch, $RimeDir)
 
     $ErrorActionPreference = 'Stop'
 
@@ -129,15 +131,18 @@ function Install-NaPlus {
         @('matcha',  'Nat Matcha   抹茶奶油色（預設）'),
         @('light',   'Nat Light    明亮白底'),
         @('dark',    'Nat Dark     深色'),
-        @('auto',    '跟隨系統     淺色模式 Nat Light／深色模式 Nat Dark'),
         @('classic', 'Nat Classic  經典黃綠')
     )
-    $themeMap = @{   # 值 → (color_scheme, color_scheme_dark)
-        matcha  = @('NatMatcha', 'NatMatcha')
-        light   = @('NatLight',  'NatLight')
-        dark    = @('NatDark',   'NatDark')
-        auto    = @('NatLight',  'NatDark')
-        classic = @('NatLee',    'NatLee')
+    $themeMap = @{ matcha = 'NatMatcha'; light = 'NatLight'; dark = 'NatDark'; classic = 'NatLee' }   # 值 → color_scheme
+    $darkItems = @(
+        @('auto', '跟隨系統：系統切到深色模式時，候選窗自動換成 Nat Dark（預設）'),
+        @('off',  '不跟隨：永遠用上面選的主題')
+    )
+    $sizeItems = @( @('small', '小'), @('medium', '中（預設）'), @('large', '大') )
+    $sizeMap = @{   # 值 → (小狼毫候選字, 小狼毫標籤與註釋, 鼠鬚管候選字, 鼠鬚管標籤與註釋)，單位 pt
+        small  = @(15, 12, 18, 13)
+        medium = @(17, 13, 21, 15)
+        large  = @(20, 15, 24, 17)
     }
     $layoutItems = @( @('vertical', '直排（預設）'), @('horizontal', '橫排') )
     $emojiItems  = @( @('on', '開：候選裡附帶對應的 emoji（預設）'), @('off', '關') )
@@ -158,7 +163,7 @@ function Install-NaPlus {
     $glossItems = @( @('zh', '中文（預設）'), @('en', '英文'), @('ja', '日文') )
     $glossMap   = @{ zh = 0; en = 1; ja = 2 }
 
-    $defaults = @{ theme = 'matcha'; layout = 'vertical'; emoji = 'on'; langs = 'ja,ko,en,extra'; gloss = 'zh' }
+    $defaults = @{ theme = 'matcha'; dark = 'auto'; size = 'medium'; layout = 'vertical'; emoji = 'on'; langs = 'ja,ko,en,extra'; gloss = 'zh' }
 
     # ── 開始 ──────────────────────────────────────────────────────────
     Say ''
@@ -326,7 +331,7 @@ function Install-NaPlus {
         }
     }
     $opt = @{}
-    $given = @{ theme = (Pick $Theme 'NA_THEME'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
+    $given = @{ theme = (Pick $Theme 'NA_THEME'); dark = (Pick $Dark 'NA_DARK'); size = (Pick $Size 'NA_SIZE'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
                 langs = (Pick $Langs 'NA_LANGS'); gloss = (Pick $Gloss 'NA_GLOSS') }
     foreach ($k in $defaults.Keys) {
         if ($given[$k])     { $opt[$k] = $given[$k].ToLower() }
@@ -334,21 +339,28 @@ function Install-NaPlus {
         else                { $opt[$k] = $defaults[$k] }
     }
 
+    # 舊值相容：以前「跟隨系統」是主題的一個選項（auto），現在拆成獨立的 dark 選項
+    if ($opt.theme -eq 'auto') { $opt.theme = 'light'; if (-not $given.dark) { $opt.dark = 'auto' } }
+
     if ($interactive) {
         Step '選項（之後想改，重跑同一行安裝指令即可）'
-        if (-not $given.theme)  { $opt.theme  = Ask-One '[1/5] 主題（候選窗配色）' $themeItems $opt.theme }
-        if (-not $given.layout) { $opt.layout = Ask-One '[2/5] 候選排列' $layoutItems $opt.layout }
-        if (-not $given.emoji)  { $opt.emoji  = Ask-One '[3/5] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' $emojiItems $opt.emoji }
+        if (-not $given.theme)  { $opt.theme  = Ask-One '[1/7] 主題（候選窗配色）' $themeItems $opt.theme }
+        if (-not $given.dark)   { $opt.dark   = Ask-One '[2/7] 系統深色模式' $darkItems $opt.dark }
+        if (-not $given.layout) { $opt.layout = Ask-One '[3/7] 候選排列' $layoutItems $opt.layout }
+        if (-not $given.size)   { $opt.size   = Ask-One '[4/7] 候選字級' $sizeItems $opt.size }
+        if (-not $given.emoji)  { $opt.emoji  = Ask-One '[5/7] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' $emojiItems $opt.emoji }
         if (-not $given.langs) {
             $curLangs = @($opt.langs -split ',' | Where-Object { $_ -and $_ -ne 'none' })
-            $sel = Ask-Many '[4/5] 方案選單要放哪些語言（注音一定有）' $langItems $curLangs
+            $sel = Ask-Many '[6/7] 方案選單要放哪些語言（注音一定有）' $langItems $curLangs
             if ($sel.Count) { $opt.langs = ($sel -join ',') } else { $opt.langs = 'none' }
         }
-        if (-not $given.gloss)  { $opt.gloss  = Ask-One '[5/5] 日文／英文候選的釋義要用哪種語言顯示' $glossItems $opt.gloss }
+        if (-not $given.gloss)  { $opt.gloss  = Ask-One '[7/7] 日文／英文候選的釋義要用哪種語言顯示' $glossItems $opt.gloss }
     }
 
     # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
-    if (-not $themeMap.ContainsKey($opt.theme)) { Die "不認得的主題：$($opt.theme)（可用：matcha light dark auto classic）" }
+    if (-not $themeMap.ContainsKey($opt.theme)) { Die "不認得的主題：$($opt.theme)（可用：matcha light dark classic）" }
+    if ('auto', 'off' -notcontains $opt.dark) { Die "不認得的深色模式設定：$($opt.dark)（可用：auto off）" }
+    if (-not $sizeMap.ContainsKey($opt.size)) { Die "不認得的字級：$($opt.size)（可用：small medium large）" }
     if ('vertical', 'horizontal' -notcontains $opt.layout) { Die "不認得的排列：$($opt.layout)（可用：vertical horizontal）" }
     if ('on', 'off' -notcontains $opt.emoji) { Die "不認得的 emoji 設定：$($opt.emoji)（可用：on off）" }
     if (-not $glossMap.ContainsKey($opt.gloss)) { Die "不認得的釋義語言：$($opt.gloss)（可用：zh en ja）" }
@@ -360,15 +372,23 @@ function Install-NaPlus {
     if ($opt.layout -eq 'horizontal') { $horizontal = 'true'; $mac = 'linear' }
     $emojiNum = 1
     if ($opt.emoji -eq 'off') { $emojiNum = 0 }
+    $scheme = $themeMap[$opt.theme]
+    $schemeDark = $scheme
+    if ($opt.dark -eq 'auto') { $schemeDark = 'NatDark' }
+    $sz = $sizeMap[$opt.size]
 
     $y = New-Object System.Collections.Generic.List[string]
     $y.Add('# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）')
     $y.Add('# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。')
     $y.Add('# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。')
-    $y.Add("# na-options: theme=$($opt.theme) layout=$($opt.layout) emoji=$($opt.emoji) langs=$($opt.langs) gloss=$($opt.gloss)")
+    $y.Add("# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) emoji=$($opt.emoji) langs=$($opt.langs) gloss=$($opt.gloss)")
     $y.Add('patch:')
-    $y.Add("  theme: $($themeMap[$opt.theme][0])")
-    $y.Add("  theme_dark: $($themeMap[$opt.theme][1])")
+    $y.Add("  theme: $scheme")
+    $y.Add("  theme_dark: $schemeDark")
+    $y.Add("  font_point: $($sz[0])")
+    $y.Add("  label_font_point: $($sz[1])")
+    $y.Add("  mac_font_point: $($sz[2])")
+    $y.Add("  mac_label_font_point: $($sz[3])")
     $y.Add("  horizontal: $horizontal")
     $y.Add("  candidate_list_layout: $mac")
     $y.Add("  emoji: $emojiNum")
@@ -381,7 +401,7 @@ function Install-NaPlus {
     # 不帶 BOM、LF：這個檔是給 librime 讀的
     [IO.File]::WriteAllText($optFile, (($y -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
     Step '已寫入選項'
-    Say "    主題 $($opt.theme)｜排列 $($opt.layout)｜emoji $($opt.emoji)｜語言 $($opt.langs)｜釋義 $($opt.gloss)"
+    Say "    主題 $($opt.theme)｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜emoji $($opt.emoji)｜語言 $($opt.langs)｜釋義 $($opt.gloss)"
 
     # ── [6] 套用檔案＋部署＋重啟 ──────────────────────────────────────
     # 交給 repo 裡的 rime-update.ps1：它會把 rime\ 攤平複製到使用者資料夾、部署、重啟。
@@ -405,7 +425,7 @@ function Install-NaPlus {
 }
 
 try {
-    Install-NaPlus -Theme $Theme -Layout $Layout -Emoji $Emoji -Langs $Langs -Gloss $Gloss `
+    Install-NaPlus -Theme $Theme -Dark $Dark -Layout $Layout -Size $Size -Emoji $Emoji -Langs $Langs -Gloss $Gloss `
         -Yes ([bool]$Yes) -NoDeploy ([bool]$NoDeploy) -Repo $Repo -Branch $Branch -RimeDir $RimeDir
 } catch {
     Write-Host ''

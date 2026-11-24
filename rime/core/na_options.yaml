@@ -17,7 +17,14 @@
 # NatMatcha 抹茶奶油｜NatLight 明亮｜NatDark 深色｜NatLee 經典
 # 配色定義在 weasel.custom.yaml（Windows）／squirrel.custom.yaml（macOS）
 theme: NatMatcha
-theme_dark: NatMatcha # 系統深色模式時用的主題；與 theme 相同＝不跟隨系統
+theme_dark: NatDark # 系統深色模式時用的主題（預設跟隨系統換成深色）；與 theme 相同＝不跟隨
+
+# ── 字級（pt）──
+# 標籤與註釋共用 label_font_point，比候選字小一截，候選字才突出。
+font_point: 17 # Windows：候選字
+label_font_point: 13 # Windows：標籤與註釋
+mac_font_point: 21 # macOS：候選字（同樣的 pt 在 Mac 上看起來比較小，所以大兩級）
+mac_label_font_point: 15 # macOS：標籤與註釋
 
 # ── 候選排列 ──
 horizontal: false # Windows：true 橫排／false 直排

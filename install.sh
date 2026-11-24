@@ -10,8 +10,10 @@
 #   NA_THEME=light NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL <網址>)"
 #   bash ~/.na-plus/install.sh --local --theme light --emoji off --langs ja,en --yes
 #
-#   --theme   matcha | light | dark | auto | classic
+#   --theme   matcha | light | dark | classic
+#   --dark    auto（系統深色模式時自動換成 Nat Dark）| off
 #   --layout  vertical | horizontal
+#   --size    small | medium | large（候選字級）
 #   --emoji   on | off
 #   --langs   ja,ko,en,extra 任意組合；none＝只留注音
 #   --gloss   zh | en | ja
@@ -45,15 +47,17 @@ main() {
     local SQUIRREL="${NA_SQUIRREL:-${SQUIRREL_APP}/Contents/MacOS/Squirrel}"
     local YES="${NA_YES:-}" NO_DEPLOY="${NA_NO_DEPLOY:-}"
     local G_THEME="${NA_THEME:-}" G_LAYOUT="${NA_LAYOUT:-}" G_EMOJI="${NA_EMOJI:-}"
-    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}"
+    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}" G_DARK="${NA_DARK:-}" G_SIZE="${NA_SIZE:-}"
     local BACKUP=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
-            --theme|--layout|--emoji|--langs|--gloss)
+            --theme|--dark|--layout|--size|--emoji|--langs|--gloss)
                 [ $# -ge 2 ] || { echo "✗ $1 後面要接一個值" >&2; return 2; }
                 case "$1" in
                     --theme)  G_THEME="$2" ;;
+                    --dark)   G_DARK="$2" ;;
+                    --size)   G_SIZE="$2" ;;
                     --layout) G_LAYOUT="$2" ;;
                     --emoji)  G_EMOJI="$2" ;;
                     --langs)  G_LANGS="$2" ;;
@@ -98,13 +102,20 @@ main() {
     }
 
     # ── 選項定義 ──────────────────────────────────────────────────────
-    theme_pair() { # 值 → "color_scheme color_scheme_dark"
+    theme_scheme() { # 值 → color_scheme
         case "$1" in
-            matcha)  echo "NatMatcha NatMatcha" ;;
-            light)   echo "NatLight NatLight" ;;
-            dark)    echo "NatDark NatDark" ;;
-            auto)    echo "NatLight NatDark" ;;
-            classic) echo "NatLee NatLee" ;;
+            matcha)  echo "NatMatcha" ;;
+            light)   echo "NatLight" ;;
+            dark)    echo "NatDark" ;;
+            classic) echo "NatLee" ;;
+            *) return 1 ;;
+        esac
+    }
+    size_points() { # 值 → "小狼毫候選字 小狼毫標籤與註釋 鼠鬚管候選字 鼠鬚管標籤與註釋"（pt）
+        case "$1" in
+            small)  echo "15 12 18 13" ;;
+            medium) echo "17 13 21 15" ;;
+            large)  echo "20 15 24 17" ;;
             *) return 1 ;;
         esac
     }
@@ -230,6 +241,7 @@ main() {
 
     # ── [4] 選項 ──────────────────────────────────────────────────────
     local OPT_FILE="${RIME_DIR}/na_options.custom.yaml"
+    local P_DARK="" P_SIZE=""
     local P_THEME="" P_LAYOUT="" P_EMOJI="" P_LANGS="" P_GLOSS="" line kv
     if [ -f "${OPT_FILE}" ]; then
         # 上次的選擇記在檔頭那行「# na-options: k=v k=v」
@@ -237,6 +249,8 @@ main() {
         for kv in ${line}; do
             case "${kv}" in
                 theme=*)  P_THEME="${kv#theme=}" ;;
+                dark=*)   P_DARK="${kv#dark=}" ;;
+                size=*)   P_SIZE="${kv#size=}" ;;
                 layout=*) P_LAYOUT="${kv#layout=}" ;;
                 emoji=*)  P_EMOJI="${kv#emoji=}" ;;
                 langs=*)  P_LANGS="${kv#langs=}" ;;
@@ -245,8 +259,12 @@ main() {
         done
     fi
     # 參數／環境變數 > 上次的選擇 > 預設值
-    local THEME LAYOUT EMOJI LANGS GLOSS
+    local THEME LAYOUT EMOJI LANGS GLOSS DARK SIZE
     THEME="$(lower "${G_THEME:-${P_THEME:-matcha}}")"
+    DARK="$(lower "${G_DARK:-${P_DARK:-auto}}")"
+    SIZE="$(lower "${G_SIZE:-${P_SIZE:-medium}}")"
+    # 舊值相容：以前「跟隨系統」是主題的一個選項（auto），現在拆成獨立的 dark 選項
+    if [ "${THEME}" = "auto" ]; then THEME=light; [ -z "${G_DARK}" ] && DARK=auto; fi
     LAYOUT="$(lower "${G_LAYOUT:-${P_LAYOUT:-vertical}}")"
     EMOJI="$(lower "${G_EMOJI:-${P_EMOJI:-on}}")"
     LANGS="$(lower "${G_LANGS:-${P_LANGS:-ja,ko,en,extra}}")"
@@ -256,23 +274,32 @@ main() {
         step '選項（之後想改，重跑同一行安裝指令即可）'
         local CHOICE=""
         if [ -z "${G_THEME}" ]; then
-            choose_one '[1/5] 主題（候選窗配色）' "${THEME}" \
+            choose_one '[1/7] 主題（候選窗配色）' "${THEME}" \
                 matcha 'Nat Matcha   抹茶奶油色（預設）' light 'Nat Light    明亮白底' dark 'Nat Dark     深色' \
-                auto '跟隨系統     淺色模式 Nat Light／深色模式 Nat Dark' classic 'Nat Classic  經典黃綠'
+                classic 'Nat Classic  經典黃綠'
             THEME="${CHOICE}"
         fi
+        if [ -z "${G_DARK}" ]; then
+            choose_one '[2/7] 系統深色模式' "${DARK}" \
+                auto '跟隨系統：系統切到深色模式時，候選窗自動換成 Nat Dark（預設）' off '不跟隨：永遠用上面選的主題'
+            DARK="${CHOICE}"
+        fi
         if [ -z "${G_LAYOUT}" ]; then
-            choose_one '[2/5] 候選排列' "${LAYOUT}" vertical '直排（預設）' horizontal '橫排'
+            choose_one '[3/7] 候選排列' "${LAYOUT}" vertical '直排（預設）' horizontal '橫排'
             LAYOUT="${CHOICE}"
         fi
+        if [ -z "${G_SIZE}" ]; then
+            choose_one '[4/7] 候選字級' "${SIZE}" small '小' medium '中（預設）' large '大'
+            SIZE="${CHOICE}"
+        fi
         if [ -z "${G_EMOJI}" ]; then
-            choose_one '[3/5] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' "${EMOJI}" \
+            choose_one '[5/7] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' "${EMOJI}" \
                 on '開：候選裡附帶對應的 emoji（預設）' off '關'
             EMOJI="${CHOICE}"
         fi
         if [ -z "${G_LANGS}" ]; then
             local cur_nums="" i=1 l mark picked tok bad
-            printf '\n\033[36m%s\033[0m\n' '[4/5] 方案選單要放哪些語言（注音一定有）'
+            printf '\n\033[36m%s\033[0m\n' '[6/7] 方案選單要放哪些語言（注音一定有）'
             for l in ja ko en extra; do
                 case ",${LANGS}," in *",${l},"*) mark='*'; cur_nums="${cur_nums}${cur_nums:+ }${i}" ;; *) mark=' ' ;; esac
                 case "${l}" in
@@ -300,14 +327,16 @@ main() {
             done
         fi
         if [ -z "${G_GLOSS}" ]; then
-            choose_one '[5/5] 日文／英文候選的釋義要用哪種語言顯示' "${GLOSS}" zh '中文（預設）' en '英文' ja '日文'
+            choose_one '[7/7] 日文／英文候選的釋義要用哪種語言顯示' "${GLOSS}" zh '中文（預設）' en '英文' ja '日文'
             GLOSS="${CHOICE}"
         fi
     fi
 
     # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
-    local pair
-    pair="$(theme_pair "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light dark auto classic）"; return 1; }
+    local scheme scheme_dark pts
+    scheme="$(theme_scheme "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light dark classic）"; return 1; }
+    case "${DARK}" in auto) scheme_dark=NatDark ;; off) scheme_dark="${scheme}" ;; *) die "不認得的深色模式設定：${DARK}（可用：auto off）"; return 1 ;; esac
+    pts="$(size_points "${SIZE}")" || { die "不認得的字級：${SIZE}（可用：small medium large）"; return 1; }
     case "${LAYOUT}" in vertical|horizontal) ;; *) die "不認得的排列：${LAYOUT}（可用：vertical horizontal）"; return 1 ;; esac
     case "${EMOJI}" in on|off) ;; *) die "不認得的 emoji 設定：${EMOJI}（可用：on off）"; return 1 ;; esac
     local gnum
@@ -331,10 +360,11 @@ main() {
         printf '%s\n' '# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）'
         printf '%s\n' '# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。'
         printf '%s\n' '# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。'
-        printf '# na-options: theme=%s layout=%s emoji=%s langs=%s gloss=%s\n' "${THEME}" "${LAYOUT}" "${EMOJI}" "${LANGS}" "${GLOSS}"
+        printf '# na-options: theme=%s dark=%s layout=%s size=%s emoji=%s langs=%s gloss=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${EMOJI}" "${LANGS}" "${GLOSS}"
         printf 'patch:\n'
-        printf '  theme: %s\n' "${pair% *}"
-        printf '  theme_dark: %s\n' "${pair#* }"
+        printf '  theme: %s\n' "${scheme}"
+        printf '  theme_dark: %s\n' "${scheme_dark}"
+        printf '  font_point: %s\n  label_font_point: %s\n  mac_font_point: %s\n  mac_label_font_point: %s\n' ${pts}
         printf '  horizontal: %s\n' "${horizontal}"
         printf '  candidate_list_layout: %s\n' "${mac}"
         printf '  emoji: %s\n' "${emoji_num}"
@@ -350,7 +380,7 @@ main() {
         done
     } > "${OPT_FILE}" || { die "寫不進 ${OPT_FILE}"; return 1; }
     step '已寫入選項'
-    say "    主題 ${THEME}｜排列 ${LAYOUT}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
+    say "    主題 ${THEME}｜深色模式 ${DARK}｜排列 ${LAYOUT}｜字級 ${SIZE}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
 
     # ── [5] 套用檔案＋重新部署 ────────────────────────────────────────
     # 交給 repo 裡的 rime-update.command：把 rime/ 攤平複製到使用者資料夾，再重新部署。
