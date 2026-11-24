@@ -14,13 +14,13 @@
   右 Shift 放開時那一筆還在 → 才算單按。正在組字（有編碼沒上屏）時不切，免得打到一半的字不見。
 
 ■ 循環順序＝方案選單的順序（default.yaml 的 schema_list，安裝選項 langs 決定有哪些），
-  但跳過 default.custom.yaml 的 schema_cycle/skip 列出的方案 —— 注音文、全形、符號這類
+  但跳過 na_default.yaml 的 schema_cycle/skip 列出的方案 —— 注音文、全形、符號這類
   「偶爾才用」的方案如果也排進循環，要按八九下才繞得回注音，就不順了；它們仍可從方案選單選。
   兩份清單都從 build/default.yaml 讀，那是部署後的最終結果，已經套完所有 patch。
 
 ■ 要掛在「每一個」會出現在選單裡的方案的 engine/processors 最前面：
   切過去之後是由新方案自己的 processor 鏈接手，沒掛的方案就切不走了。
-  default.custom.yaml 的 switch_key 也要把 Shift_R 設成 noop，否則右 Shift 同時會切中英。
+  na_default.yaml 的 switch_key 也要把 Shift_R 設成 noop，否則右 Shift 同時會切中英。
 
 ■ 想換成別的鍵：改下面的 CYCLE_KEY（例如右 Ctrl 是 0xffe4），並把 switch_key 裡對應的鍵設成 noop。
 --]]

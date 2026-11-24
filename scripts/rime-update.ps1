@@ -2,7 +2,7 @@
 #
 # 由輸入法內打 '/git ＋空白鍵觸發：lua 開使用者資料夾裡的 na-update.cmd，
 # 它轉給 repo 的 scripts\rime-update.cmd，後者挑 pwsh 或 powershell 來跑這支。
-# 安裝腳本 install.ps1 最後一步也是呼叫這支（-Force -SkipPull）。
+# 安裝腳本 install.ps1 最後一步也是呼叫這支（-SkipPull；第一次安裝加 -Force，只改選項加 -Deploy）。
 #
 # repo 與使用者資料夾是分開的兩個地方（repo 的 rime\ 按功能分類，使用者資料夾是攤平的），
 # 中間靠 rime-apply.ps1 複製。這支腳本所在的 repo 就是來源。
@@ -30,11 +30,12 @@
 #
 #    保險：部署器啟動 20 秒仍完全不吃 CPU 就是互鎖了，腳本會把它結束並把服務重新叫起來，
 #    不會讓整台電腦的輸入法一直卡著。
-## ③ 沒變更就什麼都不做
+#
+# ③ 沒變更就什麼都不做
 #    以「套用時實際有沒有檔案被改到」為準（rime-apply.ps1 的回傳值）：
 #      沒有檔案變動  → 直接結束（完全不動 IME）
 #      只有 .lua     → 只重啟（lua 只在服務啟動時載入，部署不會重讀）
-#      有 yaml/詞典  → 部署＋重啟
+#      有 yaml/詞典  → 部署（服務保持運作；lua 也有變才另外重啟）
 #    要強制跑一輪：加 -Force
 #
 # ④ 成功自己關視窗，失敗才停下來等人看
@@ -43,6 +44,7 @@
 [CmdletBinding()]
 param(
     [switch]$Force,          # 沒有變更也強制部署＋重啟
+    [switch]$Deploy,         # 一定要部署，但不為此重啟服務（個人選項檔變了：那些檔不是這支複製的，它看不到）
     [switch]$SkipPull,       # 不自己 git pull（給已經拉過的呼叫端，如 install.ps1、rime-sync.ps1）
     [switch]$NoPause,        # 失敗時不要等 Enter（被其他腳本呼叫時必加，否則會卡住對方）
     [switch]$NoDeploy,       # 只套用檔案，完全不碰輸入法服務（測試用）
@@ -133,7 +135,7 @@ if ($NoDeploy) {
     exit 0
 }
 
-$needDeploy  = $Force -or $applied.Build -gt 0 -or $applied.Removed -gt 0
+$needDeploy  = $Force -or $Deploy -or $applied.Build -gt 0 -or $applied.Removed -gt 0
 # 重啟只為了 lua：服務活著時部署，部署器結束會通知服務重新載入設定（yaml 的變更就生效了），
 # 但 lua 只在服務行程啟動時載入一次，所以 lua 有變才需要真的重啟。
 $needRestart = $Force -or $applied.Lua -gt 0

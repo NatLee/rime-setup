@@ -152,7 +152,7 @@ W '合併後的完整清單。`accept` 是實際按的鍵，`send`/`toggle`/`sel
 W ''
 W '| 按鍵 | 動作 | 生效條件 | 來源 |'
 W '|---|---|---|---|'
-foreach ($srcPair in @(@($build, '方案（element_bopomo ＋ custom）'), @($defBuild, '全域（default.custom.yaml）'))) {
+foreach ($srcPair in @(@($build, '方案（element_bopomo ＋ custom）'), @($defBuild, '全域（na_default.yaml）'))) {
   $src, $srcName = $srcPair
   $inKB = $false
   foreach ($l in (Get-Content $src -Encoding UTF8)) {
@@ -171,7 +171,7 @@ foreach ($srcPair in @(@($build, '方案（element_bopomo ＋ custom）'), @($de
   }
 }
 W ''
-W '來源：`default.custom.yaml`（全域）＋ `element_bopomo.yaml`（方案內建）＋'
+W '來源：`na_default.yaml`（全域）＋ `element_bopomo.yaml`（方案內建）＋'
 W '`bopomo_onionplus.custom.yaml` 的 `key_binder/bindings/+`。'
 W ''
 

@@ -9,8 +9,14 @@
 sync/
 # 個人自訂短語（信箱、地址之類）；範本是 rime/bopomofo/bopomo_onionplus_phrase.sample.txt
 bopomo_onionplus_phrase.txt
-# 個人安裝選項；預設值在 rime/core/na_options.yaml
+# 個人安裝選項；預設值在 rime/core/na_style.yaml、na_input.yaml、na_menu.yaml
+na_style.custom.yaml
+na_input.custom.yaml
+na_menu.custom.yaml
 na_options.custom.yaml
+na_options.custom.yaml.bak
+# 小狼毫內建設定檔的副本（rime-apply.ps1 產生）
+na_shared_copy.txt
 
 # ===== 機器專屬狀態與編譯輸出 =====
 installation.yaml

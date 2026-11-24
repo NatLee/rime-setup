@@ -239,7 +239,8 @@ main() {
             cp -R "${db}" "${RIME_DIR}/" && restored=$(( restored + 1 ))
         done
         [ -d "${BACKUP}/sync" ] && cp -R "${BACKUP}/sync" "${RIME_DIR}/"
-        for f in installation.yaml user.yaml bopomo_onionplus_phrase.txt na_options.custom.yaml; do
+        for f in installation.yaml user.yaml bopomo_onionplus_phrase.txt \
+                 na_style.custom.yaml na_input.custom.yaml na_menu.custom.yaml na_options.custom.yaml; do
             [ -f "${BACKUP}/${f}" ] && cp "${BACKUP}/${f}" "${RIME_DIR}/"
         done
         ok "已從備份還原 ${restored} 個詞頻資料庫與個人檔案"
@@ -247,12 +248,16 @@ main() {
     fi
 
     # ── [4] 選項 ──────────────────────────────────────────────────────
-    local OPT_FILE="${RIME_DIR}/na_options.custom.yaml"
+    # 選項分三個檔（原因見 rime/core/na_style.yaml 檔頭）：長相 na_style、輸入行為 na_input、方案清單 na_menu。
+    # 上次的選擇記在各檔檔頭那行「# na-options: k=v k=v」。na_options.custom.yaml 是舊版的單一檔，
+    # 先讀它、再讓新檔蓋過去（舊檔之後由 rime-apply.sh 收掉）。
+    local STYLE_FILE="${RIME_DIR}/na_style.custom.yaml" INPUT_FILE="${RIME_DIR}/na_input.custom.yaml" MENU_FILE="${RIME_DIR}/na_menu.custom.yaml"
+    local FIRST_INSTALL=1; [ -f "${RIME_DIR}/na_manifest.txt" ] && FIRST_INSTALL=0
     local P_DARK="" P_SIZE="" P_FONT=""
-    local P_THEME="" P_LAYOUT="" P_EMOJI="" P_LANGS="" P_GLOSS="" line kv
-    if [ -f "${OPT_FILE}" ]; then
-        # 上次的選擇記在檔頭那行「# na-options: k=v k=v」
-        line="$(grep -m1 '^#[[:space:]]*na-options:' "${OPT_FILE}" 2>/dev/null | sed 's/^#[[:space:]]*na-options://' || true)"
+    local P_THEME="" P_LAYOUT="" P_EMOJI="" P_LANGS="" P_GLOSS="" line kv pf
+    for pf in "${RIME_DIR}/na_options.custom.yaml" "${STYLE_FILE}" "${INPUT_FILE}" "${MENU_FILE}"; do
+        [ -f "${pf}" ] || continue
+        line="$(grep -m1 '^#[[:space:]]*na-options:' "${pf}" 2>/dev/null | sed 's/^#[[:space:]]*na-options://' || true)"
         for kv in ${line}; do
             case "${kv}" in
                 theme=*)  P_THEME="${kv#theme=}" ;;
@@ -265,7 +270,7 @@ main() {
                 gloss=*)  P_GLOSS="${kv#gloss=}" ;;
             esac
         done
-    fi
+    done
     # 參數／環境變數 > 上次的選擇 > 預設值
     local THEME LAYOUT EMOJI LANGS GLOSS DARK SIZE
     THEME="$(lower "${G_THEME:-${P_THEME:-matcha}}")"
@@ -417,11 +422,20 @@ main() {
     [ "${LAYOUT}" = "horizontal" ] && { horizontal=true; mac=linear; }
     [ "${EMOJI}" = "off" ] && emoji_num=0
 
+    # 只重寫內容真的變了的檔：RIME 是看檔案時間決定要不要重編的，沒變卻重寫等於白白重編一輪。
+    # 用法：先把內容寫進 ${OPT_TMP}，再 write_option <目標檔>（不能用管線接：管線右邊是子 shell，計數帶不出來）
+    local OPT_CHANGED=0 OPT_TMP="${RIME_DIR}/.na_option.tmp"
+    write_option() {
+        if [ -f "$1" ] && cmp -s "${OPT_TMP}" "$1"; then rm -f "${OPT_TMP}"; return 0; fi
+        mv "${OPT_TMP}" "$1" || return 1
+        OPT_CHANGED=$(( OPT_CHANGED + 1 ))
+    }
+    local note='# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。'
     {
-        printf '%s\n' '# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）'
-        printf '%s\n' '# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。'
-        printf '%s\n' '# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。'
-        printf '# na-options: theme=%s dark=%s layout=%s size=%s font=%s emoji=%s langs=%s gloss=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${FONT}" "${EMOJI}" "${LANGS}" "${GLOSS}"
+        printf '%s\n' "# na_style.custom.yaml — 個人選項：候選窗的長相（由 '/setup 產生，不進版控）"
+        printf '%s\n' "# 想換：輸入法裡打 '/setup；或手動改下面的值後重新部署。各鍵說明見 na_style.yaml。"
+        printf '%s\n' "${note}"
+        printf '# na-options: theme=%s dark=%s layout=%s size=%s font=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${FONT}"
         printf 'patch:\n'
         printf '  theme: %s\n' "${scheme}"
         printf '  theme_dark: %s\n' "${scheme_dark}"
@@ -429,8 +443,22 @@ main() {
         printf '  font_face: "%s"\n  comment_font_face: "%s"\n  mac_font_face: "%s"\n  mac_comment_font_face: "%s"\n' "${win_font}" "${win_comment}" "${mac_font}" "${mac_comment}"
         printf '  horizontal: %s\n' "${horizontal}"
         printf '  candidate_list_layout: %s\n' "${mac}"
+    } > "${OPT_TMP}" && write_option "${STYLE_FILE}" || { die "寫不進 ${STYLE_FILE}"; return 1; }
+    {
+        printf '%s\n' "# na_input.custom.yaml — 個人選項：輸入時的行為（由 '/setup 產生，不進版控）"
+        printf '%s\n' "# 想換：輸入法裡打 '/setup；或手動改下面的值後重新部署。各鍵說明見 na_input.yaml。"
+        printf '%s\n' "${note}"
+        printf '# na-options: emoji=%s gloss=%s\n' "${EMOJI}" "${GLOSS}"
+        printf 'patch:\n'
         printf '  emoji: %s\n' "${emoji_num}"
         printf '  gloss: %s\n' "${gnum}"
+    } > "${OPT_TMP}" && write_option "${INPUT_FILE}" || { die "寫不進 ${INPUT_FILE}"; return 1; }
+    {
+        printf '%s\n' "# na_menu.custom.yaml — 個人選項：方案選單裡的語言（由 '/setup 產生，不進版控）"
+        printf '%s\n' "# 想換：輸入法裡打 '/setup；或手動改下面的清單後重新部署。說明見 na_menu.yaml。"
+        printf '%s\n' "${note}"
+        printf '# na-options: langs=%s\n' "${LANGS}"
+        printf 'patch:\n'
         printf '  schema_list:\n'
         printf '    - { schema: bopomo_onionplus } # 注音Na+\n'
         for l in ja ko en extra; do
@@ -440,19 +468,26 @@ main() {
                 done ;;
             esac
         done
-    } > "${OPT_FILE}" || { die "寫不進 ${OPT_FILE}"; return 1; }
-    step '已寫入選項'
+    } > "${OPT_TMP}" && write_option "${MENU_FILE}" || { die "寫不進 ${MENU_FILE}"; return 1; }
+    if [ ${OPT_CHANGED} -gt 0 ]; then step '已寫入選項'; else step '選項沒有變動'; fi
     say "    主題 ${THEME}｜深色模式 ${DARK}｜排列 ${LAYOUT}｜字級 ${SIZE}｜字型 ${FONT}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
 
     # ── [5] 套用檔案＋重新部署 ────────────────────────────────────────
-    # 交給 repo 裡的 rime-update.command：把 rime/ 攤平複製到使用者資料夾，再重新部署。
+    # 交給 repo 裡的 rime-update.command：把 rime/ 攤平複製到使用者資料夾，有變動才重新部署。
+    # 個人選項檔不是它複製的、它看不到，所以選項有變（或第一次安裝）時由這裡加 --force。
+    # 以前不管有沒有變都 --force，只是進來看一眼選項也要重新部署一輪。
     if [ -n "${NO_DEPLOY}" ]; then
         step '套用檔案（--no-deploy：不重新部署）'
         NA_RIME_DIR="${RIME_DIR}" NA_SQUIRREL="${SQUIRREL}" bash "${SRC_DIR}/scripts/rime-update.command" --skip-pull --no-pause --no-deploy \
             || { die '套用沒有成功，請看上面的訊息。'; return 1; }
-    else
-        step '套用檔案並重新部署（第一次要編譯詞典，約 2～5 分鐘；期間輸入法可能暫時沒反應）'
+    elif [ ${FIRST_INSTALL} = 1 ] || [ ${OPT_CHANGED} -gt 0 ]; then
+        if [ ${FIRST_INSTALL} = 1 ]; then step '套用檔案並重新部署（第一次要編譯詞典，約 2～5 分鐘；期間輸入法可能暫時沒反應）'
+        else step '套用檔案並重新部署'; fi
         NA_RIME_DIR="${RIME_DIR}" NA_SQUIRREL="${SQUIRREL}" bash "${SRC_DIR}/scripts/rime-update.command" --skip-pull --no-pause --force \
+            || { die '套用／部署沒有成功，請看上面的訊息。'; return 1; }
+    else
+        step '套用檔案（有變動才重新部署）'
+        NA_RIME_DIR="${RIME_DIR}" NA_SQUIRREL="${SQUIRREL}" bash "${SRC_DIR}/scripts/rime-update.command" --skip-pull --no-pause \
             || { die '套用／部署沒有成功，請看上面的訊息。'; return 1; }
     fi
 

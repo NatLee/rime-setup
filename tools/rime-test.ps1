@@ -53,7 +53,8 @@ if ($Sync -or -not (Test-Path "$Sandbox\build")) {
   # ⚠ 它會依 na_manifest.txt 清掉「repo 已刪除」的舊檔。這一步不能省：
   #   踩過一次 —— p_run_menu.lua 已從 repo 刪掉、translator 卻還 require 它，
   #   沙盒因為留著舊檔所以 53 條全綠，正式環境一部署就會整個 lua 掛掉。
-  & (Join-Path $Repo 'scripts\rime-apply.ps1') -RimeDir $Sandbox -NoLaunchers -Quiet | Out-Null
+  # -AllowDowngrade：沙盒會被不同分支輪流套用，裡面的版面比這份 repo 新是正常的，不必擋。
+  & (Join-Path $Repo 'scripts\rime-apply.ps1') -RimeDir $Sandbox -NoLaunchers -AllowDowngrade -Quiet | Out-Null
   # ⚠ 沙盒自己的 *.userdb 一定要清掉，否則測試不可重現：每次 Get-Commit 上屏都會
   #   被詞庫學習，把剛選的字往前推（測過 su3 → 你 變成 妳，看起來像選字鍵壞了）。
   #   清掉後每次都從方案內建詞典的原始順序開始。

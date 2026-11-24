@@ -1,0 +1,46 @@
+# na_style.yaml — 安裝選項的預設值：候選窗的「長相」（主題、字型、字級、排列）
+#
+# ⚠ 不要改這個檔。要換選項請在輸入法裡打 '/setup（或重跑安裝指令），
+#   它會把你的選擇寫進使用者資料夾的 na_style.custom.yaml（不在 repo 裡，更新不會被覆蓋）。
+#   想手動改也可以，在那個檔只寫要改的鍵，改完重新部署：
+#
+#     patch:
+#       theme: NatLight
+#       font_point: 20
+#
+# 運作方式：na_weasel.yaml／squirrel.custom.yaml 在需要的位置寫 `__include: na_style:/<鍵>` 取值；
+# RIME 編譯本檔時會自動套上 na_style.custom.yaml 的 patch（和 default.yaml ← default.custom.yaml 同一套機制）。
+#
+# 為什麼選項要分三個檔（na_style／na_input／na_menu），不放在一起：
+#   RIME 會記下每個設定檔「讀過哪些檔」，其中任何一個的時間變了，就把那個設定檔整個重編，
+#   連帶重建詞典的索引。全部放一個檔的話，只是換個主題，所有輸入方案都被當成有變動，
+#   每次套用要多等十秒。分開之後，改長相只會重編候選窗的設定。
+
+# ── 主題（候選窗配色）──
+# NatMatcha 抹茶｜NatLight 明亮｜NatFluent 低調｜NatSakura 櫻花｜NatOcean 海洋｜NatLatte 拿鐵
+# NatDark 深色｜NatMidnight 午夜｜NatLee 經典。長相見 README 的預覽圖。
+# 配色定義在 na_weasel.yaml（Windows）／squirrel.custom.yaml（macOS）
+theme: NatMatcha
+theme_dark: NatDark # 系統深色模式時用的主題（預設跟隨系統換成深色）。不想跟隨：在個人檔寫 theme_dark: ~
+# ⚠ 「不跟隨」不要寫成跟 theme 同一個名稱 —— 那會把深色模式釘死在那個主題，
+#   之後從小狼毫自己的「輸入法設定」換配色，在深色模式下會沒反應。
+
+# ── 字型 ──
+# 安裝時選「粉圓體」的話，安裝腳本會把這四個值換成 jf open 粉圓（沒裝會自動下載安裝）。
+# 這裡的預設值是系統內建字型，所以手動安裝、沒有粉圓體的人也不會出問題。
+# 逗號後面是後備字型：前面的字型沒有某個字（或根本沒安裝）時往後找。
+font_face: "Microsoft JhengHei:bold, Segoe UI Emoji" # Windows：候選字（:bold＝加粗）
+comment_font_face: "Microsoft JhengHei, Segoe UI" # Windows：註釋（一般字重）
+mac_font_face: "PingFangTC-Semibold" # macOS：候選字
+mac_comment_font_face: "PingFangTC-Regular" # macOS：註釋
+
+# ── 字級（pt）──
+# 標籤與註釋共用 label_font_point，比候選字小一截，候選字才突出。
+font_point: 17 # Windows：候選字
+label_font_point: 13 # Windows：標籤與註釋
+mac_font_point: 21 # macOS：候選字（同樣的 pt 在 Mac 上看起來比較小，所以大兩級）
+mac_label_font_point: 15 # macOS：標籤與註釋
+
+# ── 候選排列 ──
+horizontal: false # Windows：true 橫排／false 直排
+candidate_list_layout: stacked # macOS：linear 橫排／stacked 直排

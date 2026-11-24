@@ -1,5 +1,16 @@
-# weasel.custom.yaml
+# na_weasel.yaml — 小狼毫（Windows）的候選窗：配色定義、字型、排版。這套設定要對 weasel.yaml 做的 patch
 # 小狼毫 0.17.4（支援 corner_radius / shadow / color_scheme_dark / 字型 fallback 與字重）
+#
+# 為什麼不叫 weasel.custom.yaml：那個檔是「使用者的」。小狼毫「輸入法設定」對話框換配色時會把
+# 選擇寫進去，而且每次都把整個檔重寫。repo 的內容如果也放在那裡，下次更新一複製就把使用者選的
+# 配色蓋掉。所以 repo 的內容放這個檔，使用者資料夾的 weasel.custom.yaml 只有一行
+#
+#     patch:
+#       __include: na_weasel:/patch
+#
+# 由 scripts/rime-apply.ps1 在第一次套用時建立，之後永遠不覆蓋。寫在那一行底下的鍵會蓋過這裡的值
+# （對話框選的配色就是這樣生效的），想自己加設定也寫在那裡。原委見 docs/GOTCHAS.md
+# 「小狼毫設定對話框與 *.custom.yaml」。
 
 patch:
   app_options:
@@ -15,11 +26,11 @@ patch:
       ascii_mode: true
 
   style:
-    # ↓ 配色、排列、字級是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
-    #   na_options.custom.yaml（重跑安裝指令即可重選）。別在這裡直接寫死。
-    color_scheme: { __include: "na_options:/theme" }
-    color_scheme_dark: { __include: "na_options:/theme_dark?" } # 與上面相同＝深色模式也不換
-    horizontal: { __include: "na_options:/horizontal" } # false 直排／true 橫排
+    # ↓ 配色、排列、字級是安裝選項：預設值在 na_style.yaml，個人選擇由安裝腳本寫進
+    #   na_style.custom.yaml（打 '/setup 即可重選）。別在這裡直接寫死。
+    color_scheme: { __include: "na_style:/theme" }
+    color_scheme_dark: { __include: "na_style:/theme_dark?" } # 空值（~）＝深色模式也不換
+    horizontal: { __include: "na_style:/horizontal" } # false 直排／true 橫排
     inline_preedit: false # FALSE 雙行顯示（編碼列在候選窗內）
     preedit_type: composition
     display_tray_icon: true
@@ -28,12 +39,12 @@ patch:
     mark_text: "" # 留空＝高亮那一列的左側畫一條圓角色條（顏色是配色裡的 hilited_mark_color）
     hover_type: semi_hilite # 滑鼠移到候選上會淡淡反白，知道點下去會選到哪個
     paging_on_scroll: true # 在候選窗上滾輪可以翻頁
-    font_face: { __include: "na_options:/font_face" } # 安裝選項：粉圓體或系統字型（正黑粗體）
-    font_point: { __include: "na_options:/font_point" } # 安裝選項（小 15／中 17／大 20）
+    font_face: { __include: "na_style:/font_face" } # 安裝選項：粉圓體或系統字型（正黑粗體）
+    font_point: { __include: "na_style:/font_point" } # 安裝選項（小 15／中 17／大 20）
     label_font_face: "Segoe UI Semibold, Segoe UI Symbol" # 後者確保 ⇧ 符號有字形
-    label_font_point: { __include: "na_options:/label_font_point" } # 標籤縮小，候選字更突出
-    comment_font_face: { __include: "na_options:/comment_font_face" } # 安裝選項，跟候選字同一套字型
-    comment_font_point: { __include: "na_options:/label_font_point" } # 註釋與標籤一致
+    label_font_point: { __include: "na_style:/label_font_point" } # 標籤縮小，候選字更突出
+    comment_font_face: { __include: "na_style:/comment_font_face" } # 安裝選項，跟候選字同一套字型
+    comment_font_point: { __include: "na_style:/label_font_point" } # 註釋與標籤一致
     layout:
       margin_x: 8 # 視窗左右內距
       margin_y: 6 # 視窗上下內距。小狼毫會把它撐到至少等於光棒的上下內距（hilite_padding_y）

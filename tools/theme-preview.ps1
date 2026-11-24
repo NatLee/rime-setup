@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  從 rime/theme/weasel.custom.yaml 的配色產生每個主題的預覽圖（SVG），給 README 用。
+  從 rime/theme/na_weasel.yaml 的配色產生每個主題的預覽圖（SVG），給 README 用。
 
 .DESCRIPTION
   預覽圖是「照配色畫出來的示意圖」，不是螢幕截圖：圓角、間距、光棒形狀照小狼毫的設定畫，
@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 # ── 讀配色：preset_color_schemes 底下「四格縮排的名稱」→「六格縮排的 key: 0x……」──
 $schemes = [ordered]@{}
 $cur = $null; $inPreset = $false
-foreach ($ln in (Get-Content (Join-Path $Repo 'rime\theme\weasel.custom.yaml') -Encoding UTF8)) {
+foreach ($ln in (Get-Content (Join-Path $Repo 'rime\theme\na_weasel.yaml') -Encoding UTF8)) {
   if ($ln -match '^  preset_color_schemes:') { $inPreset = $true; continue }
   if (-not $inPreset) { continue }
   if ($ln -match '^    ([A-Za-z0-9_]+):\s*$') { $cur = $Matches[1]; $schemes[$cur] = @{}; continue }
@@ -69,7 +69,7 @@ foreach ($name in $schemes.Keys) {
   $shadowA = Alpha $c.shadow_color 0.16
   $title   = if ($c.name) { $c.name } else { $name }
 
-  # 排版數字對應 weasel.custom.yaml 的 layout：margin 8/6、視窗圓角 10、光棒圓角 6、
+  # 排版數字對應 na_weasel.yaml 的 layout：margin 8/6、視窗圓角 10、光棒圓角 6、
   # 光棒內距 8/4、候選列距 2、編碼列與候選間距 6、不設最小寬度。改了那邊記得回來對一下。
   $mark    = Css $c.hilited_mark_color ''
   $pageCol = Css $c.prevpage_color ''
