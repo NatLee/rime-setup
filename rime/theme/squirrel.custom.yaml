@@ -29,7 +29,7 @@ patch:
   "style/inline_preedit": false # 編碼列顯示在候選窗內（同 Windows）
 
   "style/color_scheme": { __include: "na_options:/theme" }
-  "style/color_scheme_dark": { __include: "na_options:/theme_dark" } # 與上面相同＝深色模式也不換
+  "style/color_scheme_dark": { __include: "na_options:/theme_dark?" } # 與上面相同＝深色模式也不換
 
   "style/corner_radius": 10 # 視窗圓角
   "style/hilited_corner_radius": 6 # 高亮光棒圓角

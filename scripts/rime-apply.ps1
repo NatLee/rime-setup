@@ -66,15 +66,72 @@ foreach ($cat in Get-ChildItem $Src -Directory | Sort-Object Name) {
 }
 
 # ── 複製（內容沒變就不動，避免無謂的重新編譯）──────────────────────────
-# 用「大小＋修改時間」判斷；Copy-Item 會保留修改時間，所以沒變的檔下次比對仍然相同。
+# 先比大小與修改時間，時間不同再比內容；Copy-Item 會保留修改時間，所以沒變的檔下次比對仍然相同。
 $lua = 0; $build = 0
+
+# ── 小狼毫「輸入法設定」對話框裡選的配色要能用、也要留得住 ──────────────
+# 那個對話框把選擇寫進使用者資料夾的 weasel.custom.yaml（patch 底下多一個
+# "style/color_scheme": 名稱），兩件事會讓它「選了沒反應」：
+#
+# ① 深色模式被釘住。Windows 在深色模式時，小狼毫先套 color_scheme，再看
+#    color_scheme_dark 讀不讀得到字串，讀得到就蓋過去。舊版安裝腳本在「不跟隨系統」時
+#    把 theme_dark 寫成跟 theme 同一個名稱 —— 等於把深色模式釘死在安裝當下的主題，
+#    對話框只改 color_scheme，深色模式下怎麼換都看不出來。
+#    現在「不跟隨」寫成 theme_dark: ~（空值），小狼毫讀不到就退回 color_scheme。
+#    這裡順手把舊格式的個人選項檔改過來（保留檔案時間，不影響下面「誰比較新」的判斷）。
+$optFile = Join-Path $RimeDir 'na_options.custom.yaml'
+if (Test-Path -LiteralPath $optFile) {
+    $optText = [IO.File]::ReadAllText($optFile)
+    $m1 = [regex]::Match($optText, '(?m)^  theme:[ \t]*(\S+)')
+    $m2 = [regex]::Match($optText, '(?m)^  theme_dark:[ \t]*(\S+)')
+    if ($m1.Success -and $m2.Success -and $m2.Groups[1].Value -ne '~' -and $m2.Groups[1].Value -eq $m1.Groups[1].Value) {
+        $stamp = (Get-Item -LiteralPath $optFile).LastWriteTimeUtc
+        $fixed = [regex]::Replace($optText, '(?m)^  theme_dark:[ \t]*\S+', '  theme_dark: ~', 1)
+        [IO.File]::WriteAllText($optFile, $fixed, (New-Object Text.UTF8Encoding $false))
+        (Get-Item -LiteralPath $optFile).LastWriteTimeUtc = $stamp
+        $build++   # 選項檔變了，要重新部署才會生效
+    }
+}
+
+# ② 會被蓋掉。weasel.custom.yaml 是從 repo 複製來的檔，照一般規則下次套用就整個蓋回去，
+#    對話框選的配色無聲無息消失。所以套用前先把那個選擇記下來，蓋完再補回檔尾。
+#    誰比較新聽誰的：之後用 '/setup（安裝腳本）重選主題會重寫 na_options.custom.yaml，
+#    它比 weasel.custom.yaml 新的話，對話框的舊選擇就不再保留。
+$weaselTail = ''
+$weaselDst = Join-Path $RimeDir 'weasel.custom.yaml'
+if (Test-Path -LiteralPath $weaselDst) {
+    $picked = [regex]::Match([IO.File]::ReadAllText($weaselDst), '(?m)^  "?style/color_scheme"?:[ \t]*"?([^"\s#]+)"?[ \t]*(#.*)?\r?$')
+    if ($picked.Success) {
+        $optNewer = (Test-Path -LiteralPath $optFile) -and
+                    ((Get-Item -LiteralPath $optFile).LastWriteTimeUtc -gt (Get-Item -LiteralPath $weaselDst).LastWriteTimeUtc)
+        if (-not $optNewer) {
+            $weaselTail = "`n  # ↓ 你在小狼毫「輸入法設定」裡選的配色。套用／更新時會自動保留；`n" +
+                          "  #   之後用 '/setup 重選主題的話，以那邊為準，這幾行會被拿掉。`n" +
+                          "  `"style/color_scheme`": $($picked.Groups[1].Value)`n"
+        }
+    }
+}
 foreach ($key in $map.Keys) {
     $s = $map[$key]
     $dst = Join-Path $RimeDir $rel[$key]
+    if ($weaselTail -and $key -eq 'weasel.custom.yaml') {
+        # 這個檔的「應有內容」＝repo 版本＋對話框的選擇；跟現況一樣就不動（否則每次更新都會觸發部署）
+        $want = ([IO.File]::ReadAllText($s.FullName) -replace "`r`n", "`n").TrimEnd("`n") + "`n" + $weaselTail
+        $have = [IO.File]::ReadAllText($dst) -replace "`r`n", "`n"
+        if ($want -ne $have) { [IO.File]::WriteAllText($dst, $want, (New-Object Text.UTF8Encoding $false)); $build++ }
+        continue
+    }
     $same = $false
     if (Test-Path -LiteralPath $dst) {
         $d = Get-Item -LiteralPath $dst
-        $same = ($d.Length -eq $s.Length) -and ($d.LastWriteTimeUtc -eq $s.LastWriteTimeUtc)
+        if ($d.Length -eq $s.Length) {
+            # 大小、時間都一樣 → 當成沒變（最常見，不必讀檔）。
+            # 大小一樣但時間不同 → 比內容。換一份 clone 來套用、或 git 重新簽出時，檔案內容沒變
+            # 但修改時間全都不一樣；只看時間的話會把一百多個檔全部重新複製，
+            # 連帶讓 RIME 整輪重新編譯（實測多等將近三分鐘）。
+            $same = ($d.LastWriteTimeUtc -eq $s.LastWriteTimeUtc) -or
+                    ((Get-FileHash -LiteralPath $dst -Algorithm SHA256).Hash -eq (Get-FileHash -LiteralPath $s.FullName -Algorithm SHA256).Hash)
+        }
     }
     if ($same) { continue }
     $dir = Split-Path $dst -Parent

@@ -18,7 +18,7 @@ patch:
     # ↓ 配色、排列、字級是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
     #   na_options.custom.yaml（重跑安裝指令即可重選）。別在這裡直接寫死。
     color_scheme: { __include: "na_options:/theme" }
-    color_scheme_dark: { __include: "na_options:/theme_dark" } # 與上面相同＝深色模式也不換
+    color_scheme_dark: { __include: "na_options:/theme_dark?" } # 與上面相同＝深色模式也不換
     horizontal: { __include: "na_options:/horizontal" } # false 直排／true 橫排
     inline_preedit: false # FALSE 雙行顯示（編碼列在候選窗內）
     preedit_type: composition

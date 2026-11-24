@@ -13,20 +13,24 @@
 #
 # ── 這支腳本為什麼長這樣（都是實測出來的，改之前先讀）──────────────────
 #
-# ① 先停服務、再部署
-#    部署是**同步**的：WeaselDeployer /deploy 會等編譯完才回傳
-#    （實測單一方案重編 1.6 秒、大改動 10~13 秒，動到詞典更久）。
-#    問題是服務還活著的時候，這段時間 IME 收得到按鍵卻回不了字 ——
-#    使用者看到的就是「卡死」。先把服務停掉，就變成乾淨的「暫時沒有輸入法」，
-#    而不是「有但沒反應」，也沒有人跟編譯搶 build\ 的檔案。
-#    實測：服務停止時部署 exit 0，且部署器不會自己把服務拉起來。
+# ① 部署時服務要「活著而且就緒」，絕對不要先把服務停掉
+#    小狼毫自己的「重新部署」就是這樣做的：部署器先通知服務進入維護模式，
+#    編譯完再通知它恢復。這是唯一安全的順序。
+#    這支腳本以前是「先 /quit 停服務 → 部署 → 啟動」，想讓中斷期間乾淨一點，結果出過兩次事：
+#    服務一消失，任何開著輸入法的程式都會自動把它叫回來；叫回來的時機如果撞上部署器
+#    剛啟動，兩邊互等（部署器 CPU 停在 0），所有用到輸入法的程式跟著沒有回應。
+#    第一次以為是腳本自己太早啟動服務（`& $deployer` 對視窗程式不會等待，確實也是錯），
+#    修掉之後又發生一次，才確定問題在「先停服務」這個設計本身。
+#    代價：部署期間輸入法暫時不能用（維護模式），但其他程式不會被拖住。
 #
-# ② 用 WeaselServer.exe /quit，不要 Stop-Process -Force
-#    強殺會讓正在連線的應用程式卡在具名管線上（那才是真的卡死，而且卡的是
-#    使用者當下在打字的那個視窗）。/quit 是官方開關，實測 159~177ms 乾淨退出。
-#    而且要「等它真的消失」再啟動，不要 Start-Sleep 猜秒數。
+# ② 重啟服務放在部署器「結束之後」，而且用 /quit 不用強殺
+#    lua 只在服務啟動時載入，部署不會重讀，所以 lua 有變還是得重啟一次 ——
+#    但那時部署器已經不在了，停、啟都安全。
+#    強殺會讓正在連線的應用程式卡在具名管線上，/quit 是官方開關，約 0.2 秒乾淨退出。
 #
-# ③ 沒變更就什麼都不做
+#    保險：部署器啟動 20 秒仍完全不吃 CPU 就是互鎖了，腳本會把它結束並把服務重新叫起來，
+#    不會讓整台電腦的輸入法一直卡著。
+## ③ 沒變更就什麼都不做
 #    以「套用時實際有沒有檔案被改到」為準（rime-apply.ps1 的回傳值）：
 #      沒有檔案變動  → 直接結束（完全不動 IME）
 #      只有 .lua     → 只重啟（lua 只在服務啟動時載入，部署不會重讀）
@@ -130,9 +134,11 @@ if ($NoDeploy) {
 }
 
 $needDeploy  = $Force -or $applied.Build -gt 0 -or $applied.Removed -gt 0
-$needRestart = $Force -or $applied.Lua -gt 0 -or $needDeploy
+# 重啟只為了 lua：服務活著時部署，部署器結束會通知服務重新載入設定（yaml 的變更就生效了），
+# 但 lua 只在服務行程啟動時載入一次，所以 lua 有變才需要真的重啟。
+$needRestart = $Force -or $applied.Lua -gt 0
 
-if (-not $needRestart) {
+if (-not ($needDeploy -or $needRestart)) {
     Write-Host ''
     Write-Host '✓ 已是最新，沒有需要部署或重啟的變更。' -ForegroundColor Green
     Write-Host '  （要強制跑一輪：加上 -Force）'
@@ -143,81 +149,133 @@ if (-not $needRestart) {
 Write-Host ("      需要部署：{0}；需要重啟：{1}" -f $(if ($needDeploy) { '是' } else { '否' }), $(if ($needRestart) { '是' } else { '否' }))
 Write-Host ''
 
-# ── [3/4] 停服務 → 部署 ───────────────────────────────────────────────
-# 停在部署之前：部署是同步的，服務活著的話這段時間 IME 收鍵不回字＝看起來卡死。
-if (Get-Process WeaselServer -ErrorAction SilentlyContinue) {
-    Write-Host '[3/4] 停止 WeaselServer（/quit，不強殺）…'
-    # 閒置時 /quit 約 100~200ms 就退出，但服務正在編譯（或剛啟動還在初始化）時
-    # 會不理它 —— 實測遇過。所以重送幾次再考慮強殺，別一逾時就 -Force。
+# ── 共用：服務的狀態與啟停 ────────────────────────────────────────────
+function Test-ServerRunning { [bool](Get-Process WeaselServer -ErrorAction SilentlyContinue) }
+
+# 服務「就緒」的判準：行程存在，而且已經活過啟動那一小段。
+# 行程剛起來、還在初始化的時候去跑部署器，就是會互鎖的時機，所以剛啟動的服務要等它安靜下來
+# （CPU 時間連續一秒不再增加＝方案載完了）；本來就在跑的服務不用等。
+function Wait-ServerReady {
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    foreach ($attempt in 1..3) {
-        & $server /quit
-        $deadline = $sw.Elapsed.TotalSeconds + 5
-        while ((Get-Process WeaselServer -ErrorAction SilentlyContinue) -and $sw.Elapsed.TotalSeconds -lt $deadline) {
-            Start-Sleep -Milliseconds 100
-        }
-        if (-not (Get-Process WeaselServer -ErrorAction SilentlyContinue)) { break }
-        Write-Host ("      第 {0} 次 /quit 沒反應（服務可能正在編譯），再試…" -f $attempt) -ForegroundColor DarkYellow
+    while ($sw.Elapsed.TotalSeconds -lt 20) {
+        $p = Get-Process WeaselServer -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $p) { Start-Sleep -Milliseconds 200; continue }
+        if (((Get-Date) - $p.StartTime).TotalSeconds -ge 5) { return $true }   # 早就在跑了
+        $cpu1 = $p.TotalProcessorTime.TotalMilliseconds
+        Start-Sleep -Milliseconds 1000
+        $p.Refresh()
+        if ($p.HasExited) { continue }
+        if (($p.TotalProcessorTime.TotalMilliseconds - $cpu1) -lt 15 -and ((Get-Date) - $p.StartTime).TotalSeconds -ge 2) { return $true }
     }
-    if (Get-Process WeaselServer -ErrorAction SilentlyContinue) {
-        # 三次都不理才強殺。強殺會讓連線中的視窗卡在具名管線上，是最後手段。
-        Write-Host '      仍未退出，改為強制結束（正在打字的視窗可能要重新點一下）' -ForegroundColor Yellow
-        Stop-Process -Name WeaselServer -Force -ErrorAction SilentlyContinue
-        Start-Sleep -Milliseconds 500
-    } else {
-        Write-Host ("      已退出（{0}ms）" -f [int]$sw.Elapsed.TotalMilliseconds)
-    }
-} else {
-    Write-Host '[3/4] WeaselServer 沒在執行，略過停止。'
+    return (Test-ServerRunning)
 }
 
-if ($needDeploy) {
-    Write-Host '      部署中…（動到詞典的話會久一點，請等它跑完）'
+# 等服務「閒下來」：CPU 時間連續 1.5 秒沒有增加，最多等 30 秒。
+function Wait-ServerIdle {
+    Start-Sleep -Seconds 2
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    & $deployer /deploy
-    $code = $LASTEXITCODE
+    while ($sw.Elapsed.TotalSeconds -lt 30) {
+        $p = Get-Process WeaselServer -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $p) { return }
+        $cpu1 = $p.TotalProcessorTime.TotalMilliseconds
+        Start-Sleep -Milliseconds 1500
+        $p.Refresh()
+        if ($p.HasExited -or ($p.TotalProcessorTime.TotalMilliseconds - $cpu1) -lt 15) { return }
+    }
+}
+
+function Start-Server {
+    if (-not (Test-ServerRunning)) { Start-Process $server }
+    return (Wait-ServerReady)
+}
+function Stop-Server {
+    if (-not (Test-ServerRunning)) { return }
+    # 用官方的 /quit，不要一開始就強殺：強殺會讓正在連線的視窗卡在具名管線上。
+    # 閒置時 /quit 約 100~200ms 就退出，但服務正在忙時會不理它，所以重送幾次再考慮強殺。
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    foreach ($attempt in 1..3) {
+        # ⚠ 不可以用 Start-Process -ArgumentList '/quit'：Windows PowerShell 5.1 組出來的命令列
+        #   結尾會多一個空白（"…WeaselServer.exe" /quit␠），小狼毫是整串比對，認不出這是 /quit，
+        #   於是把它當成「啟動一個新的服務」—— 新的把舊的擠掉自己留下來，看起來就像 /quit 沒反應，
+        #   連送三次都一樣，最後落到強殺。用 .NET 直接給參數就沒有這個問題。
+        [void][Diagnostics.Process]::Start($server, '/quit')
+        $deadline = $sw.Elapsed.TotalSeconds + 8
+        while ((Test-ServerRunning) -and $sw.Elapsed.TotalSeconds -lt $deadline) { Start-Sleep -Milliseconds 100 }
+        if (-not (Test-ServerRunning)) { return }
+        Write-Host ("      第 {0} 次 /quit 沒反應，再試…" -f $attempt) -ForegroundColor DarkYellow
+    }
+    Write-Host '      仍未退出，改為強制結束（正在打字的視窗可能要重新點一下）' -ForegroundColor Yellow
+    Stop-Process -Name WeaselServer -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+}
+
+# ── [3/4] 部署（服務保持運作）────────────────────────────────────────
+if ($needDeploy) {
+    Write-Host '[3/4] 部署…'
+    # 已經有部署在跑（例如使用者剛從工作列按了「重新部署」）就等它，不要再開一個
+    $other = Get-Process WeaselDeployer -ErrorAction SilentlyContinue
+    if ($other) {
+        Write-Host '      已經有一個部署在執行，等它結束…'
+        $other | ForEach-Object { [void]$_.WaitForExit(600000) }
+        if (Get-Process WeaselDeployer -ErrorAction SilentlyContinue) {
+            Fail-Exit '另一個 WeaselDeployer 十分鐘後仍在執行（可能卡住了）。請在工作管理員結束它之後再試。'
+        }
+    }
+
+    # 部署前確定服務「已經在跑而且就緒」。沒在跑就先把它叫起來、等它就緒。
+    # 不這樣做的話，部署到一半會有別的程式把服務叫起來，而且正好叫在最糟的時機。
+    if (-not (Start-Server)) { Fail-Exit "WeaselServer 沒有起來，不敢在沒有服務的狀態下部署。手動啟動：`"$server`"" }
+
+    Write-Host '      部署中…期間輸入法暫時不能用（動到詞典的話要重新編譯，可能要好幾分鐘）'
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    # ⚠ 一定要 Start-Process 拿到行程再等它結束，不可以寫成 `& $deployer /deploy`：
+    #   WeaselDeployer.exe 是視窗程式，PowerShell 的 & 對視窗程式不會等待。
+    #   參數用 .NET 直接給，理由同 /quit（5.1 的 Start-Process 會在命令列尾端多一個空白）。
+    $proc = [Diagnostics.Process]::Start($deployer, '/deploy')
+    $nextNote = 15
+    while (-not $proc.WaitForExit(1000)) {
+        if ($sw.Elapsed.TotalSeconds -ge $nextNote) {
+            Write-Host ("      …還在編譯（已 {0:N0} 秒）" -f $sw.Elapsed.TotalSeconds)
+            $nextNote += 30
+        }
+        # 互鎖的特徵：部署器起來了卻完全不吃 CPU。正常的部署一開始就會用到 CPU。
+        # 真的發生就把它結束掉 —— 留著的話，所有開著輸入法的程式都會跟著沒有回應。
+        if ($sw.Elapsed.TotalSeconds -ge 20 -and $proc.TotalProcessorTime.TotalSeconds -lt 0.2) {
+            Write-Host '      ✗ 部署器啟動 20 秒仍沒有任何進展，判定為卡住，把它結束。' -ForegroundColor Red
+            try { $proc.Kill() } catch { }
+            Stop-Process -Name WeaselServer -Force -ErrorAction SilentlyContinue   # 被它拖住的服務也重來
+            Start-Sleep -Seconds 1
+            [void](Start-Server)
+            Fail-Exit '部署沒有完成，已把輸入法服務重新啟動（設定仍是更新前的）。請稍後再打 ''/git 試一次，或從開始功能表按「重新部署」。'
+        }
+        if ($sw.Elapsed.TotalMinutes -ge 20) {
+            Fail-Exit '部署超過 20 分鐘還沒結束。請在工作管理員確認 WeaselDeployer 的狀態。'
+        }
+    }
+    $code = $proc.ExitCode
     Write-Host ("      部署完成（{0:N1} 秒，exit={1}）" -f $sw.Elapsed.TotalSeconds, $code)
     if ($code -ne 0) {
-        Write-Host '      ⚠ 部署回傳非 0，服務仍會啟動，但設定可能沒套用。' -ForegroundColor Yellow
-        Write-Host '        看部署日誌：%TEMP%\rime.weasel.*.WARNING' -ForegroundColor Yellow
+        Write-Host '      ⚠ 部署回傳非 0，設定可能沒套用。' -ForegroundColor Yellow
+        Write-Host '        看部署日誌：%TEMP%\rime.weasel\*.WARNING' -ForegroundColor Yellow
     }
 } else {
-    Write-Host '      只有 lua 變更，不需要部署（lua 在服務啟動時載入）。'
+    Write-Host '[3/4] 只有 lua 變更，不需要部署（lua 在服務啟動時載入）。'
 }
 Write-Host ''
 
-# ── [4/4] 啟動並確認 ──────────────────────────────────────────────────
-Write-Host '[4/4] 啟動 WeaselServer…'
-Start-Process $server
-$sw = [Diagnostics.Stopwatch]::StartNew()
-while (-not (Get-Process WeaselServer -ErrorAction SilentlyContinue) -and $sw.Elapsed.TotalSeconds -lt 10) {
-    Start-Sleep -Milliseconds 100
-}
-$proc = Get-Process WeaselServer -ErrorAction SilentlyContinue
-if (-not $proc) { Fail-Exit "WeaselServer 沒有起來。手動啟動：`"$server`"" }
-Write-Host ("      已啟動（PID {0}）" -f $proc.Id)
-
-# ⚠ 不能把「deployer 回傳」當成編譯完成：實測過它有時 0.0 秒就 exit 0，
-#   真正的重編是啟動後的 WeaselServer 做的（build\ 在那之後才變動）。
-#   所以這裡等 build\ 真的不再變動 —— 這段時間 IME 本來就還不能用，
-#   與其讓使用者以為好了卻打不出字（那就是「卡死」的感覺），不如明講還在忙。
-if ($needDeploy) {
-    Write-Host '      等待編譯完成…'
-    $sw = [Diagnostics.Stopwatch]::StartNew()
-    $last = (Get-ChildItem "$RimeDir\build" -File -ErrorAction SilentlyContinue |
-             Measure-Object LastWriteTime -Maximum).Maximum
-    $stable = 0
-    while ($sw.Elapsed.TotalSeconds -lt 180 -and $stable -lt 4) {
-        Start-Sleep -Milliseconds 500
-        $now = (Get-ChildItem "$RimeDir\build" -File -ErrorAction SilentlyContinue |
-                Measure-Object LastWriteTime -Maximum).Maximum
-        if ($now -ne $last) { $last = $now; $stable = 0 } else { $stable++ }
-    }
-    if ($stable -ge 4) {
-        Write-Host ("      build 已穩定（{0:N1} 秒）" -f $sw.Elapsed.TotalSeconds)
-    } else {
-        Write-Host '      ⚠ 180 秒後 build 仍在變動，可能是大型詞典首次編譯，請再等一下。' -ForegroundColor Yellow
-    }
+# ── [4/4] 重啟服務（部署器已經結束，這時候停、啟都安全）──────────────
+if ($needRestart) {
+    Write-Host '[4/4] 重啟 WeaselServer（讓 lua 的變更生效）…'
+    # 部署器剛通知服務「恢復」，服務正在重新載入設定；這時候送 /quit 它會不理
+    # （實測連送三次、等了 15 秒都沒退出，最後只能強殺）。等它安靜下來再送就是 0.1 秒的事。
+    if ($needDeploy) { Wait-ServerIdle }
+    Stop-Server
+    if (-not (Start-Server)) { Fail-Exit "WeaselServer 沒有起來。手動啟動：`"$server`"" }
+    $srv = Get-Process WeaselServer -ErrorAction SilentlyContinue | Select-Object -First 1
+    Write-Host ("      已啟動（PID {0}）" -f $srv.Id)
+} else {
+    Write-Host '[4/4] 沒有 lua 變更，不需要重啟服務（設定已由部署器通知服務重新載入）。'
+    if (-not (Test-ServerRunning)) { [void](Start-Server) }
 }
 
 Write-Host ''
