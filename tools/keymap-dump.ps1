@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   掃出「哪個鍵／哪個代碼被誰用掉了」，產生 docs/KEYMAP.md。
 
@@ -22,14 +22,19 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$RimeDir = 'C:\RIME',
+  [string]$RimeDir = '',     # RIME 使用者資料夾（讀它的 build\）；預設讀小狼毫的設定
+  [string]$Repo = (Split-Path $PSScriptRoot -Parent),   # 設定 repo（讀 rime\lua、寫 docs\）
   [string]$Schema  = 'bopomo_onionplus',
   [string]$OutFile = '',
   [switch]$Stdout
 )
 
 $ErrorActionPreference = 'Stop'
-if (-not $OutFile) { $OutFile = Join-Path $RimeDir 'docs\KEYMAP.md' }
+if (-not $RimeDir) {
+  $r = Get-ItemProperty 'HKCU:\Software\Rime\Weasel' -ErrorAction SilentlyContinue
+  if ($r -and $r.RimeUserDir) { $RimeDir = $r.RimeUserDir } else { $RimeDir = Join-Path $env:APPDATA 'Rime' }
+}
+if (-not $OutFile) { $OutFile = Join-Path $Repo 'docs\KEYMAP.md' }
 
 $build = Join-Path $RimeDir "build\$Schema.schema.yaml"
 $defBuild = Join-Path $RimeDir 'build\default.yaml'
@@ -200,7 +205,7 @@ W '新增代碼前先在這張表查一下，不然會靜默蓋掉別人的。'
 W ''
 W '| 代碼 | 用途 | 註冊於 |'
 W '|---|---|---|'
-$luaDir = Join-Path $RimeDir 'lua\mf_components'
+$luaDir = Join-Path $Repo 'rime\lua\mf_components'
 foreach ($f in (Get-ChildItem $luaDir -Filter '*.lua' | Sort-Object Name)) {
   foreach ($l in (Get-Content $f.FullName -Encoding UTF8)) {
     if ($l -match 'reg\.register_exact\(\s*"([^"]*)"\s*,') {
@@ -227,7 +232,7 @@ foreach ($f in (Get-ChildItem $luaDir -Filter 'dt_specs_*.lua')) {
 $dtHeads = ($dtCodes | ForEach-Object { $_.Substring(0, 1) } | Sort-Object -Unique) -join ' '
 W ("| ``'/`` ＋ 日期時間碼（共 $($dtCodes.Count) 個，開頭字母：$dtHeads） | 年月日週時分秒／節氣／月相／時區 | ``lua/mf_components/dt_specs_*.lua`` |")
 # devkit
-$devkit = Join-Path $RimeDir 'lua\translator_devkit.lua'
+$devkit = Join-Path $Repo 'rime\lua\translator_devkit.lua'
 if (Test-Path $devkit) {
   # 同一個代碼會出現在多行 string.match（判斷式一行、取值一行），要去重
   $dkSeen = [ordered]@{}
