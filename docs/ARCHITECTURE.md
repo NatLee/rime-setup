@@ -3,23 +3,38 @@
 ## 全景
 
 ```
-C:\RIME\  ← RIME 使用者資料夾 ＝ git repo
+repo（設定的來源；一般使用者在 ~/.na-plus）
 │
-├─ CLAUDE.md              AI 助手操作指南（每次載入）
-├─ cheatsheet.html        使用者速查表（'/h ＋空格）
+├─ install.ps1 / install.sh   一行安裝的入口
+├─ CLAUDE.md                  AI 助手操作指南（每次載入）
 │
-├─ *.custom.yaml          ★ 我們的所有設定改動都在這裡（patch 上游）
-├─ *.schema.yaml          上游方案定義（盡量不改）
-├─ *.dict.yaml            詞典（大檔）
-├─ element_bopomo.yaml    主方案的選單／按鍵／編輯器設定（被 schema include）
-├─ punct_bopomo.yaml      標點定義
+├─ rime/                      ★ 會被裝進 RIME 使用者資料夾的全部內容，按功能分類
+│  ├─ core/                   default.custom.yaml、rime.lua、na_options.yaml、cheatsheet.html
+│  ├─ theme/                  weasel.custom.yaml、squirrel.custom.yaml
+│  ├─ bopomofo/               主方案 bopomo_onionplus*、中文詞庫、語言模型、注音文、符號、倉頡反查
+│  │    ├─ *.custom.yaml         ★ 我們的設定改動都寫成 patch（不直接改上游檔）
+│  │    ├─ *.schema.yaml         上游方案定義（盡量不改）
+│  │    ├─ element_bopomo.yaml   主方案的選單／按鍵／編輯器設定（被 schema include）
+│  │    └─ punct_bopomo.yaml     標點定義
+│  ├─ japanese/ korean/ english/ european/ fullshape/   各語言的方案與詞庫
+│  ├─ lua/                    見下方
+│  └─ opencc/                 簡繁／emoji／標註轉換表
 │
-├─ lua/                   見下方
-├─ opencc/                簡繁／emoji／標註轉換表
-├─ tools/rime-test.ps1    ★ 回歸測試框架（librime C API 直測）
-├─ scripts/               雙機同步與 macOS 安裝腳本
-└─ docs/                  本資料夾
+├─ scripts/                   rime-apply（攤平套用）、rime-update（更新）、rime-sync（維護者同步）
+├─ tools/rime-test.ps1        ★ 回歸測試框架（librime C API 直測）
+└─ docs/                      本資料夾
+
+        │  scripts/rime-apply.*：rime/lua、rime/opencc 保留資料夾，其餘分類攤平到根目錄
+        ▼
+RIME 使用者資料夾（Windows 預設 %APPDATA%\Rime／macOS ~/Library/Rime）
+├─ *.schema.yaml *.custom.yaml *.dict.yaml lua/ opencc/ …   ← 從 repo 複製來，更新時會被覆蓋
+├─ na_manifest.txt、na-update.*、na-setup.cmd               ← 套用時產生（清單與啟動器）
+└─ *.userdb/、bopomo_onionplus_phrase.txt、na_options.custom.yaml、build/ …  ← 使用者自己的，不在 repo
 ```
+
+RIME 只認使用者資料夾根目錄的方案與設定檔，所以 repo 的分類結構不能直接給引擎用；
+本文後面提到 `lua/…`、`xxx.custom.yaml` 這類路徑時，指的是使用者資料夾裡的位置，
+在 repo 裡對應 `rime/lua/…`、`rime/<分類>/xxx.custom.yaml`。
 
 ## 方案分層
 
@@ -92,6 +107,10 @@ specs["fq"] = { { function() return os.date("%Y!%m!%d") end, "〔自訂〕" } }
 
 **加一個 `'/` 新功能** → 在 `lua/translator_devkit.lua` 加分支（或新建模組後在 `rime.lua` 註冊、在 `*.custom.yaml` 的 `engine/translators` 掛載）。
 
-**加一個自訂詞** → `bopomo_onionplus_phrase.txt` 加「文字 <TAB> 編碼 <TAB> 權重」→ 部署。
+**加一個自訂詞** → `bopomo_onionplus_phrase.txt`（個人檔，不進版控；範本是 `bopomo_onionplus_phrase.sample.txt`）加「文字 <TAB> 編碼 <TAB> 權重」→ 部署。
+
+**加一個安裝選項**（讓使用者安裝時自己選的設定）→ `rime/core/na_options.yaml` 加預設值 →
+用到的 `*.custom.yaml` 寫 `{ __include: "na_options:/<鍵>" }` → `install.ps1` 與 `install.sh` 加詢問與寫檔。
+原理與注意事項見 [GOTCHAS](GOTCHAS.md)「安裝腳本與安裝選項」。
 
 改完一律跑 `pwsh tools\rime-test.ps1 -Sync -Mode basic`。
