@@ -5,8 +5,6 @@ schema:
   schema_id: easy_en_lower
   name: "英文"
   version: "202305"
-  author:
-    - 洋蔥
   description:
     Easy English Lower
 

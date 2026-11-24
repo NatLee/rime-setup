@@ -234,6 +234,9 @@ docs/                       架構、鍵位總表、踩過的坑
 
 ## 來源與致謝
 
+- **洋蔥注音**（[Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files)，oniondelta）：
+  這套設定是從它出發的。`rime/` 底下各語言的方案檔、鍵位設計、碼表與增補詞庫，以及 `rime/lua/` 裡
+  多數元件的原始版本都來自它；這裡在其上做了重整、刪減與改寫。
 - 輸入法引擎：[RIME／中州韻](https://rime.im)、[librime-lua](https://github.com/hchunhui/librime-lua)
 - 語言模型：[rime-octagram-data](https://github.com/lotem/rime-octagram-data)
 - 日文釋義：[JMdict/EDICT](https://www.edrdg.org/jmdict/j_jmdict.html)（EDRDG，CC BY-SA 4.0）、

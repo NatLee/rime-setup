@@ -5,8 +5,6 @@ schema:
   schema_id: easy_en_upper
   name: "英文（大寫）"
   version: "202301"
-  author:
-    - 洋蔥
   description:
     Easy English Upper
 

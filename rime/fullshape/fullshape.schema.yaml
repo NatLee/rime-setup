@@ -1,12 +1,10 @@
 # Rime schema settings
 # encoding: utf-8
-# 《全形輸出（洋蔥形碼鍵位）設定頁》
+# 《全形輸出（形碼鍵位）設定頁》
 schema:
   schema_id: fullshape
   name: "全形字元"
   version: "202301"
-  author:
-    - 『洋蔥』
   description: |
     英數全形
 
