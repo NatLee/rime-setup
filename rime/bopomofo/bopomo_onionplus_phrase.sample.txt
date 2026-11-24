@@ -1,0 +1,21 @@
+# Rime table
+# coding: utf-8
+#@/db_name  bopomo_onionplus_phrase.txt
+#@/db_type	tabledb
+#
+# 自訂短語「範本」。安裝／更新腳本會在第一次把它複製成
+#   bopomo_onionplus_phrase.txt   ← 你自己的那一份（不進版控，更新不會被覆蓋）
+# 要加詞請改那一份（輸入法內打 '/phrase 可直接開啟），不要改這個範本。
+#
+# 格式：文字 <Tab> 編碼 <Tab> 權重（權重可省略，決定同碼時的順序）
+# 編碼用鍵盤上的英數鍵；注音模式下直接打編碼就會出現在候選裡。
+# 行首「#」＝註解，該行不生效。改完要「重新部署」。
+#
+🌏【 ✦ 注音Na+ ✦ 】📡	11
+#
+# ===== 自訂詞條 =====
+# ↓ 把這行換成你自己的信箱，之後打 email 再按 ⇧1 就能上屏
+your.name@example.com	email	3
+https://www.youtube.com/	yt
+# \n 代表換行，可一次上屏多行文字
+花間一壺酒，\n獨酌無相親。\n舉杯邀明月，\n對影成三人。	wg
