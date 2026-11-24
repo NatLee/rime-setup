@@ -1,11 +1,11 @@
 # 注音Na+ —— RIME 注音輸入法設定
 
 一套開箱即用的 [RIME](https://rime.im) 注音輸入法設定，Windows（小狼毫 Weasel）與 macOS（鼠鬚管 Squirrel）共用同一份。
-基於 [Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files) 二次開發。
 
 - **整句連打**：內建語言模型，長句選字更準
 - **`Shift+1`～`6` 選字**：數字鍵留給注音，選字不必移動手
 - **一個方案打多國語言**：注音之外，用前綴直接打英文、日文、韓文、拉丁、希臘、俄文
+- **單按右 Shift 換語言**：注音 → 日文 → 韓文 → 英文，像系統內建輸入法一樣按一下就換
 - **候選釋義**：日文／英文候選旁邊直接顯示中、英、日文解釋
 - **`'/` 多功能選單**：日期時間、計算機、Unicode、UUID、時間戳、色碼轉換…
 - **emoji 候選**、自訂短語（打 `email` 出信箱）、四套配色主題
@@ -45,8 +45,10 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 
 | 選項 | 可選的值 | 預設 |
 |---|---|---|
-| 主題 `theme` | `matcha` 抹茶奶油／`light` 明亮／`dark` 深色／`auto` 跟隨系統深淺色／`classic` 經典 | `matcha` |
+| 主題 `theme` | `matcha` 抹茶奶油／`light` 明亮／`dark` 深色／`classic` 經典 | `matcha` |
+| 系統深色模式 `dark` | `auto` 系統切到深色模式時自動換成深色主題／`off` 永遠用上面選的主題 | `auto` |
 | 候選排列 `layout` | `vertical` 直排／`horizontal` 橫排 | `vertical` |
+| 候選字級 `size` | `small`／`medium`／`large` | `medium` |
 | 候選附帶 emoji `emoji` | `on`／`off` | `on` |
 | 方案選單裡的語言 `langs` | `ja` 日文、`ko` 韓文、`en` 英文、`extra`（注音文、全形、符號…）任意組合；`none` 只留注音 | 全部 |
 | 釋義語言 `gloss` | `zh`／`en`／`ja` | `zh` |
@@ -80,7 +82,7 @@ NA_THEME=dark NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL https://raw.githubuser
 bash ~/.na-plus/install.sh --local --theme dark --langs ja,en --yes
 ```
 
-環境變數：`NA_THEME` `NA_LAYOUT` `NA_EMOJI` `NA_LANGS` `NA_GLOSS`，`NA_YES=1`＝不詢問（沒指定的沿用上次）。
+環境變數：`NA_THEME` `NA_DARK` `NA_LAYOUT` `NA_SIZE` `NA_EMOJI` `NA_LANGS` `NA_GLOSS`，`NA_YES=1`＝不詢問（沒指定的沿用上次）。
 
 ### 更新
 
@@ -106,6 +108,7 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
    patch:
      theme: NatLight        # NatMatcha／NatLight／NatDark／NatLee
      theme_dark: NatDark    # 系統深色模式時用的主題
+     font_point: 20         # 候選字級（macOS 是 mac_font_point）
      emoji: 0               # 1 開／0 關
    ```
 5. （選用）把 `bopomo_onionplus_phrase.sample.txt` 複製成 `bopomo_onionplus_phrase.txt`，寫入自己的短語
@@ -148,6 +151,7 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
 |---|---|
 | 選字 | `Shift+1`～`Shift+6`（候選標籤 ⇧1～⇧6） |
 | 中英切換 | `Shift` 或 `Caps Lock` |
+| 換下一個語言 | 單按**右 Shift**（注音 → 日文 → 韓文 → 英文 → 回到注音；正在組字時不切） |
 | 方案選單（切語言、開關 emoji／簡體／釋義語言…） | `Ctrl+` `` ` `` 或 `F4` |
 | 直接切方案 | `Ctrl+Shift+F1~F4`（Windows）／`Ctrl+Opt+1~4`（macOS） |
 | 功能總選單 | 單獨打 `'/` —— 日期、計算機、開發工具、編碼…都有入口，不必背代碼 |
@@ -192,7 +196,7 @@ docs/                       架構、鍵位總表、踩過的坑
 
 ## 來源與致謝
 
-- 方案、詞典與 lua 主體：[Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files)（oniondelta）
+- 方案、詞典與部分 lua 的原始來源：[Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files)（oniondelta）
 - 輸入法引擎：[RIME／中州韻](https://rime.im)、[librime-lua](https://github.com/hchunhui/librime-lua)
 - 語言模型：[rime-octagram-data](https://github.com/lotem/rime-octagram-data)
 - 日文釋義：[JMdict/EDICT](https://www.edrdg.org/jmdict/j_jmdict.html)（EDRDG，CC BY-SA 4.0）、

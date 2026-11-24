@@ -49,7 +49,7 @@ python3 -c "import yaml;print(yaml.safe_load(open('build/bopomo_onionplus.schema
 local ps = env.page_size   -- 讀 menu/page_size，別寫死
 n = ps * math.floor((seg.selected_index or 0) / ps) + n
 ```
-專案內 `processor_zhuyin_space.lua`、`processor_mix_zhs_ltk.lua` 也是同樣寫法（那邊是 9）。
+（上游的 `processor_zhuyin_space.lua`、`processor_mix_zhs_ltk.lua` 也是同樣寫法，那邊是 9；這兩個檔因為沒有方案在用已經移除。）
 
 ### 選單只顯示第一列 → uniquifier 把候選文字相同的列合併了
 `engine/filters` 末端掛著 `uniquifier`，它**以候選文字去重**。
@@ -382,10 +382,44 @@ Linux 沙盒測過不代表 Mac 會過。→ 中文字串裡的變數一律加�
 （歷史：repo 還是 private 時 HTTPS 會卡在帳密輸入，
 `could not read Username for 'https://github.com'`，當時才一律走 SSH。）
 
+## 方案切換
+
+### `select: .next` 不是「循環」，只會在兩個方案之間來回
+key_binder 的 `select: .next` 選的是方案選單的第 2 項，而選單永遠把「目前的方案」排第 1，
+所以 A→B 之後再按一次是 B→A，到不了 C。想要「按一下換下一個語言」要自己算下一個：
+`lua/processor_schema_cycle.lua` 讀 `build/default.yaml` 的 `schema_list`，
+用 `env.engine:apply_schema(Schema(id))` 切過去。
+
+### 單按修飾鍵只能用 lua 接
+key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得單按 Shift 但只能切中英。
+`schema_cycle` 的判定：右 Shift 按下記一筆 → 中間按了別的鍵就取消 → 放開時那筆還在才算單按。
+`switch_key` 的 `Shift_R` 要設 `noop`，否則同一下會順便切中英。
+
+### `apply_schema` 之後不可以再碰 `env`
+它會把整條 processor 鏈換掉，包含正在執行的那個 lua 元件。呼叫後直接 `return 1`（kAccepted）。
+另外切過去之後是**新方案自己的** processor 鏈接手，所以 `schema_cycle` 要掛在每一個選單方案上，
+漏掛的方案「切得進去、切不出來」。回歸：`pwsh tools\rime-test.ps1 -Mode cycle`。
+
+### lua 不是打字延遲的來源
+沙盒實測（`-Mode bench`，逐鍵送 35 鍵長句、每鍵取回第一頁候選）：每鍵 2.5～3.5 ms，
+量測本身的抖動就有 1 ms。把 6 個 lua filter 全部拿掉、或把 lua processor 全部拿掉，都落在同一個範圍。
+→ 不要為了效能去改寫 filter。真正有感的是啟動與部署：`rime.lua` 少掛沒人用的元件、少放沒人用的詞典。
+
+### 重構 lua 之前先存快照
+`pwsh tools\rime-test.ps1 -Sync -Mode snapshot > before.txt` 會把九十幾組輸入的「全部候選＋註解」
+和二十幾組按鍵序列的上屏結果倒出來（一千三百多行，兩次執行逐字相同）。改完再跑一次 diff。
+基本回歸只看每組的第一個結果，重構時不夠 —— 例如字母樣式有二十幾種，回歸只會看到第一種。
+會隨時間變的輸出（日期、uuid、隨機密碼）和會真的執行動作的序列（`'/h` 空白）不可以放進快照清單。
+
+### `'/j<代碼>` 已經退役，行為跟其他未知代碼一樣
+舊版的指令命名空間（`'/jh`、`'/jgit`）拿掉之後，`mix_apc_s2rm_ltk` 裡還留著它的開檔分支
+（`'/jh` 按空白其實仍會開速查表、打錯的 `'/jxx` 按空白會清空）。那段已移除：
+現在 `'/j…` 按空白就是一般的「沒有候選 → 上屏原始編碼」。
+
 ## 安裝腳本與安裝選項
 
 ### 安裝選項放在 `na_options.yaml`，不要寫死在 `*.custom.yaml`
-主題、直／橫排、emoji 預設、釋義語言、方案清單是「每個人裝的時候自己選」的東西。
+主題、深色模式、直／橫排、字級、emoji 預設、釋義語言、方案清單是「每個人裝的時候自己選」的東西。
 作法：
 
 - `rime/core/na_options.yaml`（repo 裡）放**預設值**。

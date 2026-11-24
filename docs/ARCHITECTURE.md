@@ -50,7 +50,7 @@ RIME 只認使用者資料夾根目錄的方案與設定檔，所以 repo 的分
 
 ```
 lua/
-├─ rime.lua                        元件註冊表（global = require(...)）
+├─ rime.lua                        元件掛接表（global = require(...)；只掛有方案在用的，在 repo 的 rime/core/）
 │
 ├─ translator_multifunction_translator.lua   '/ 家族主檔（154 行薄調度器）
 ├─ mf_components/                  ★ 資料驅動架構，見該資料夾 README
@@ -62,13 +62,17 @@ lua/
 │
 ├─ translator_devkit.lua           '/ts '/uuid '/pw '/rgb '/cs
 ├─ filter_gloss.lua                候選釋義（中／英／日可切換）
-├─ processor_mix_apc_s2rm_ltk.lua  主方案處理器（標點轉換、上屏修正、快捷開啟）
-├─ processor_p_run_files.lua       '/ 選單的「選中即執行」（⚠ 須排在 processor 鏈首）
+├─ processor_mix_apc_s2rm_ltk.lua  主方案處理器（英文標點、掛接段落上屏修正、計算機小鍵盤）
+├─ processor_schema_cycle.lua      單按右 Shift 循環切換語言（⚠ 每個選單方案都要掛，排最前面）
+├─ processor_p_run_files.lua       '/ 選單的「選中即執行」（⚠ 須排在其餘 processor 之前）
 ├─ processor_p_select_keys.lua     ⇧1~6 選字（⚠ 取代 menu/alternative_select_keys，
 │                                   否則 macOS 標籤會變 !@#$%^；排 recognizer 之後）
 ├─ f_components/                   格式化元件（日期樣式、中文數字、農曆…）
 ├─ filter_cand/                    候選操作小工具（改註解、去重…）
-└─ p_components/p_run_pattern.lua  一級指令清單（'/h '/git '/phrase '/cmd，可自訂）
+│   └─ projector.lua               轉換函式工廠：一串拼寫運算 → function(字串)（Projection 只建一次）
+└─ p_components/
+    ├─ p_run_pattern.lua           一級指令清單（'/h '/git '/phrase '/cmd，可自訂）
+    └─ p_key_util.lua              processor 共用的按鍵判斷（確認鍵、選字鍵序號、當頁起點…）
 ```
 
 ## 一次按鍵的資料流

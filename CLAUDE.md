@@ -15,7 +15,7 @@ RIME 只認使用者資料夾**根目錄**的方案／設定檔，所以中間�
 路徑不可寫死（用腳本所在位置或 `rime_api.get_user_data_dir()`）、Windows 腳本要能在
 PowerShell 5.1 跑、個人資料不可進版控。
 
-主方案：**注音Na+**（`bopomo_onionplus`，基於 [Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files) 二次開發）。
+主方案：**注音Na+**（方案 id 是 `bopomo_onionplus`；id 沿用舊名是因為詞頻資料庫以它命名，改了使用者的用字習慣會歸零）。
 
 ---
 
@@ -37,8 +37,11 @@ PowerShell 5.1 跑、個人資料不可進版控。
 4. **改上游方案檔請用 `*.custom.yaml` patch，不要直接改原檔**
    `bopomo_onionplus.schema.yaml` 等是上游檔案，直接改會在上游更新時衝突。
 
-5. **改 lua 只做最小改動、保留註解掉的歷史程式碼**
-   這套 lua 有大量看似冗餘但有用的分支；重構過三輪，每輪都以逐條回歸擔保行為不變。
+5. **改 lua 要以回歸擔保行為不變；沒人用的東西可以刪**
+   這套 lua 有大量看似冗餘但有用的分支，動之前先確認真的沒人走到（`rime.lua` 沒綁、沒有方案掛、
+   沒有模組 require），刪完跑回歸；重構則先存一份 `-Mode snapshot`，改完 diff 應該一字不差。`rime.lua` 只掛有方案在用的元件 —— 每一行 require 都是啟動成本。
+   ⚠ 別為了「效能」去改 lua filter：實測每個按鍵 2.5～3.5 ms，把 lua filter 全拿掉也量不出差別
+   （`pwsh tools\rime-test.ps1 -Mode bench`）。
 
 6. **`rime/` 裡不同分類之間檔名不能重複；新增檔案要放進對的分類**
    除了 `lua/`、`opencc/`，其他分類都會被攤平到同一層，撞名的話 `rime-apply` 會直接報錯。
@@ -71,6 +74,11 @@ PowerShell 5.1 跑、個人資料不可進版控。
 | 配色定義、字型、視窗排版（Windows） | `rime/theme/weasel.custom.yaml` |
 | 配色、字型（macOS） | `rime/theme/squirrel.custom.yaml`（**格式與 Weasel 不同，勿互抄**） |
 | 全域快捷鍵、方案清單 | `rime/core/default.custom.yaml` |
+| 單按右 Shift 循環切換語言 | `rime/lua/processor_schema_cycle.lua`；跳過哪些方案：`default.custom.yaml` 的 `schema_cycle/skip`；**每個選單方案**的 `*.custom.yaml` 都要掛 `lua_processor@schema_cycle` 在 processors 最前面 |
+| 「把文字換成另一套字型／符號」的轉換（英文字母樣式、數字樣式） | 用 `rime/lua/filter_cand/projector.lua` 的工廠：`local x = projector("xlit|…|…|", …)`，不要再手寫「建 Projection → apply」的樣板 |
+| processor 裡判斷按鍵（該略過？確認鍵？第幾個選字鍵？當頁起點？） | `rime/lua/p_components/p_key_util.lua`，不要各寫各的 |
+| 注音主方案的按鍵調度（英文標點、掛接段落上屏修正、計算機小鍵盤） | `rime/lua/processor_mix_apc_s2rm_ltk.lua`；新增一種前綴掛接語言在檔頭的 `PREFIXED_SEGMENTS` 加一列 |
+| 新增／移除一個 lua 元件 | `rime/core/rime.lua`（掛接表）＋方案的 `engine/*`＋ `rime/lua/` 的模組，三處一起 |
 | 主方案行為（選字鍵、開關、filter/translator 掛載） | `rime/bopomofo/bopomo_onionplus.custom.yaml` |
 | ⇧1~6 選字的按鍵與標籤 | 鍵：`p_select_keys/keys` ＋ `rime/lua/processor_p_select_keys.lua`；標籤：`menu/alternative_select_labels`（**別設** `alternative_select_keys`，macOS 標籤會壞） |
 | 方案顯示名稱 | 各 `*.custom.yaml` 的 `"schema/name"` |
@@ -106,6 +114,9 @@ scripts\rime-setup.cmd -Theme dark -Langs ja,en -Yes
 # 回歸測試（改任何行為後）
 pwsh tools\rime-test.ps1 -Sync -Mode basic     # 黃金樣本須全 PASS
 pwsh tools\rime-test.ps1 -Mode gloss           # 三語釋義
+pwsh tools\rime-test.ps1 -Mode cycle           # 單按右 Shift 循環切換語言
+pwsh tools\rime-test.ps1 -Mode bench           # 每個按鍵的處理時間
+pwsh tools\rime-test.ps1 -Sync -Mode snapshot > before.txt   # 重構護欄：全候選＋上屏快照，改完再跑一次 diff
 pwsh tools\rime-test.ps1 -Mode cands  -InputSeq "6sakura"    # 看全部候選＋註解
 pwsh tools\rime-test.ps1 -Mode commit -InputSeq "'/uuid "    # 看上屏結果
 
@@ -155,4 +166,5 @@ ls -t /tmp/rime.squirrel.* | head; tail -50 "$(ls -t /tmp/rime.squirrel.ERROR* |
 - 溝通用**繁體中文**。
 - 這個 repo 是**公開**的，文件與腳本的讀者是不認識維護者環境的一般使用者。
 - 重視**先驗證再上線**：使用者說過「請驗證後再做」。做完要能拿出實測輸出，不要只說「應該可以」。
-- 不喜歡「洋蔥」字眼出現在使用者可見處（上游品牌），但 README 保留出處連結。
+- 上游品牌「洋蔥」不出現在使用者可見處（方案名、候選、速查表、README 開頭）。README 最後的
+  「來源與致謝」留一行出處；各檔案開頭的著作／來源聲明不要動。
