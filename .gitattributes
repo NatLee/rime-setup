@@ -10,3 +10,4 @@
 # 二進位檔
 *.gram binary
 *.bin binary
+*.ocd2 binary

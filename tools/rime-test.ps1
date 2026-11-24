@@ -11,6 +11,7 @@
   pwsh tools\rime-test.ps1 -Mode gloss            # 三語釋義檢查
   pwsh tools\rime-test.ps1 -Mode cycle            # 單按右 Shift 循環切換語言
   pwsh tools\rime-test.ps1 -Mode bench            # 量每個按鍵的處理時間
+  pwsh tools\rime-test.ps1 -Mode load             # 量切換到某個方案要多久
   pwsh tools\rime-test.ps1 -Mode snapshot > a.txt # 全候選快照（重構前後 diff 用）
   pwsh tools\rime-test.ps1 -Mode cands -Input "6sakura"   # 列出某輸入的全部候選
   pwsh tools\rime-test.ps1 -Mode commit -Input "'/uuid "  # 看某按鍵序列上屏什麼
@@ -22,7 +23,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples', 'cycle', 'bench', 'snapshot')]
+  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples', 'cycle', 'bench', 'load', 'snapshot')]
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
@@ -465,6 +466,7 @@ switch ($Mode) {
       "'/rgb1a73e8", "'/cshello.world",
       '3hello', '3hello;', '3hello;;', '3app', '3hello.world;', '4cafe', '66privet', '77alpha',
       '6sakura', '6arigatou', '6sakura;', '6sakura;;', '7gksrmf',
+      'al ', 'vul4', 'g0 ', 'u ', 'ul4', 'xu4', '5j/ ', 'e04', 'm,4', 'su3wj/ ',   # emoji 聯想、罕用字過濾、標註（opencc 字典）
       'su3', 'su3cl3', 'ji3g4', '=oiar', "';su3", "${g}1f", 'email', 'abc@def.com', 'www.abc.com'
     )
     $commitSeqs = @(
@@ -485,6 +487,25 @@ switch ($Mode) {
     [RimeT]::RimeSetOption($session, 'ascii_punct', $true) | Out-Null
     foreach ($s in @('{Shift+less}', '{Shift+greater}', 'su3{Shift+less}', 'su3{Shift+greater}', 'su3 ')) { "## [$s] => " + ((Get-Commit $s) -replace "`r?`n", '\n') }
     [RimeT]::RimeSetOption($session, 'ascii_punct', $false) | Out-Null
+  }
+
+  'load' {
+    # 量「切到某個方案要多久」：切換方案時引擎要重建整條元件鏈（開詞典、開使用者詞庫、
+    # 初始化 opencc、跑各 lua 元件的 init）。每鍵延遲看 -Mode bench，這個看的是
+    # 「按右 Shift 繞回注音那一下」和「在新視窗第一次用輸入法」的停頓。
+    # 用法：pwsh tools\rime-test.ps1 -Mode load                  # 量 -Schema（預設注音主方案）
+    #       pwsh tools\rime-test.ps1 -Mode load -Schema jpnin1
+    $other = if ($Schema -eq 'easy_en_lower') { 'fullshape' } else { 'easy_en_lower' }
+    $rounds = 12; $times = @()
+    for ($r = 0; $r -lt $rounds + 2; $r++) {
+      [RimeT]::RimeSelectSchema($session, $other) | Out-Null     # 先切走，讓目標方案的元件全部釋放
+      $sw = [Diagnostics.Stopwatch]::StartNew()
+      [RimeT]::RimeSelectSchema($session, $Schema) | Out-Null
+      $sw.Stop()
+      if ($r -ge 2) { $times += $sw.Elapsed.TotalMilliseconds }   # 前兩輪暖機（檔案快取）
+    }
+    $sorted = $times | Sort-Object
+    "載入 {0} × {1} 次｜中位數 {2:N0} ms｜最快 {3:N0}｜最慢 {4:N0}" -f $Schema, $rounds, $sorted[[int]($rounds / 2)], $sorted[0], $sorted[-1]
   }
 
   'labels' {
