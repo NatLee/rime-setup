@@ -7,7 +7,7 @@
   修改 lua/yaml 後，用 -Sync 同步到沙盒再測。
 
 .EXAMPLE
-  pwsh tools\rime-test.ps1 -Sync -Mode basic      # 23 條基本回歸（最常用）
+  pwsh tools\rime-test.ps1 -Sync -Mode basic      # 黃金樣本回歸（最常用）
   pwsh tools\rime-test.ps1 -Mode gloss            # 三語釋義檢查
   pwsh tools\rime-test.ps1 -Mode cycle            # 單按右 Shift 循環切換語言
   pwsh tools\rime-test.ps1 -Mode bench            # 量每個按鍵的處理時間
@@ -18,6 +18,9 @@
   pwsh tools\rime-test.ps1 -Mode labels -Input "su3"      # 看前端會拿到的選字鍵／標籤
 
 .NOTES
+  測試不會真的開檔案／跑腳本：沙盒裡有 na_test_open.log，lua 的 generic_open 看到它就只記錄、不執行
+  （見 rime\lua\p_components\p_generic_open.lua）。所以「選中即執行」的列可以放心按，再用 Get-Opened 驗它開了什麼。
+
   ⚠ PowerShell 單引號字串裡「反引號」不是跳脫字元：'``1f' 送出的是【兩個】反引號。
     要送單一反引號請用：$g = [char]0x60; "${g}1f "
 #>
@@ -57,6 +60,16 @@ if ($Sync -or -not (Test-Path "$Sandbox\build")) {
   Get-ChildItem $Sandbox -Directory -Filter '*.userdb*' -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -Confirm:$false
 }
+# ---------------------------------------------------------------- 動作一律空轉
+# 沙盒裡有 na_test_open.log，lua 的 generic_open 就只把「本來要開的東西」記進去、不真的開。
+# 每次測試都重建這個檔。以前沒有這道保險：T19 選到主選單第一列（速查表），每跑一次測試就開一次瀏覽器。
+$OpenLog = Join-Path $Sandbox 'na_test_open.log'
+[IO.File]::WriteAllText($OpenLog, '')
+$openGuard = Join-Path $Sandbox 'lua\p_components\p_generic_open.lua'
+if (-not ((Test-Path $openGuard) -and (Select-String -LiteralPath $openGuard -SimpleMatch 'na_test_open.log' -Quiet))) {
+  throw "沙盒裡的 p_generic_open.lua 沒有空轉保險（找不到 na_test_open.log 的判斷），測試會真的開檔案／跑更新，先停下來。加 -Sync 重新套用後再試。"
+}
+
 # ---------------------------------------------------------------- P/Invoke
 if (-not ([System.Management.Automation.PSTypeName]'RimeT').Type) {
   Add-Type -TypeDefinition @"
@@ -117,6 +130,7 @@ public static class RimeT {
     [DllImport("rime.dll")] public static extern bool RimeCandidateListBegin(ulong s, ref RimeCandListIterT it);
     [DllImport("rime.dll")] public static extern bool RimeCandidateListNext(ref RimeCandListIterT it);
     [DllImport("rime.dll")] public static extern void RimeCandidateListEnd(ref RimeCandListIterT it);
+
 }
 "@ -CompilerOptions "/unsafe"
 }
@@ -180,9 +194,14 @@ function Get-Cands([string]$seq, [int]$max = 16) {
   return $rows
 }
 
+# 按下一串按鍵，回傳 lua「本來要開」的東西（每行一筆）。沙盒裡只記錄、不會真的開（見檔頭）。
+function Get-Opened([string]$seq) {
+  [IO.File]::WriteAllText($OpenLog, '')
+  $null = Get-Commit $seq
+  return ([IO.File]::ReadAllText($OpenLog)).Trim()
+}
+
 # 取編碼列（含段落提示標籤，如《英》▶、【指令與快捷開啟】）。
-# 選單類的驗證要用這個，不能用 Get-Commit —— 指令選單每一列選中都會真的
-# 開檔案／跑腳本（'/jgit 會 git pull ＋部署＋重啟服務）。
 function Get-Preedit([string]$seq) {
   [RimeT]::RimeClearComposition($session) | Out-Null
   [RimeT]::RimeSimulateKeySequence($session, $seq) | Out-Null
@@ -227,15 +246,13 @@ switch ($Mode) {
       # p_run_files 沒在 rime.lua bind、或排在 mix_apc_s2rm_ltk／selector 之後時，
       # 空白與 ⇧1~6 會先被別人吃掉，畫面上就是吐出 '/dt、'/jh 這種字面字串。
       # 正確行為是「跳到子選單」或「執行動作」，兩者都不上屏。
-      # ⚠ 別拿 '/j 那一頁的列當樣本：它每一列選中都會真的開檔案／瀏覽器。
+      # T19 選到的是主選單第一列「速查表」（會執行動作）；沙盒裡動作只記錄不執行，A01 驗它開了什麼。
       'T19 選單空白選中'    = @("'/ ", '(no commit)')
       'T20 devkit /uuid'    = @("'/uuid ", '????????-????-????-????-????????????')
       'T21 devkit /ts'      = @("'/ts ", '##########')
       'T22 切日文+sakura'   = @('{Control+Shift+F2}sakura ', 'さくら')
       'T23 切回注音+su3'    = @('{Control+Shift+F1}su3 ', '你')
-      # ⚠ 主選單 ⇧1 是 '/j（進子選單，安全）、⇧2 是「更新設定」——後者選中會**真的**
-      #   跑 scripts/rime-update.ps1（git pull → 部署 → 重啟）。測試一律避開 ⇧2，
-      #   改用 ⇧3（'/dt，純跳轉無副作用）。
+      # 主選單 ⇧3 是 '/dt（純跳轉到子選單）。
       'T24 選單⇧3 選中'     = @("'/{Shift+numbersign}", '(no commit)')
       'T25 子選單⇧1 選中'   = @("'/dt{Shift+exclam}", '(no commit)')
       # T26~T29 釘住「⇧1~6 選字」這條鏈。本方案**不設** menu/alternative_select_keys
@@ -277,8 +294,7 @@ switch ($Mode) {
       else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
     }
 
-    # ── 選單／前綴搜尋：只驗編碼列，不按下去 ──
-    # 指令選單每一列選中都會真的執行動作，所以這幾條一律用 preedit 驗證。
+    # ── 選單／前綴搜尋：驗編碼列 ──
     $pcases = [ordered]@{
       'P01 功能總覽'        = @("'/",     '*《功能總覽》*')
       # 一級指令代碼（'/j 命名空間已移除）：打得出提示＝掛上了
@@ -327,6 +343,24 @@ switch ($Mode) {
       $seq, $want = $ccases[$k]
       $rows = Get-Cands $seq 1
       $got = if ($rows.Count) { $rows[0].text } else { '(no cand)' }
+      if ($got -like $want) { $pass++; Write-Host ("  PASS {0,-22} [{1}]" -f $k, $got) -ForegroundColor DarkGray }
+      else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
+    }
+
+    # ── 選中即執行：按下去之後 lua 要開的是什麼 ──
+    # 沙盒裡 generic_open 只記錄不執行（見檔頭），所以可以真的按下去，再比對它「本來要開」的東西。
+    # 這幾條釘住：選單列的 run、一級指令代碼、p_run_pattern 的 open 三者有接起來。
+    $acases = [ordered]@{
+      'A01 主選單空白＝速查表' = @("'/ ",                 '*cheatsheet.html*')
+      'A02 /h 直接開速查表'    = @("'/h ",                '*cheatsheet.html*')
+      'A03 /set ⇧1＝選項畫面'  = @("'/set{Shift+exclam}", '*na-setup.*')
+      'A04 /setup 直接開'      = @("'/setup ",            '*na-setup.*')
+      'A05 /git 直接跑更新'    = @("'/git ",              '*na-update.*')
+      'A06 純跳轉不開東西'     = @("'/dt ",               '')
+    }
+    foreach ($k in $acases.Keys) {
+      $seq, $want = $acases[$k]
+      $got = Get-Opened $seq
       if ($got -like $want) { $pass++; Write-Host ("  PASS {0,-22} [{1}]" -f $k, $got) -ForegroundColor DarkGray }
       else { $fail++; Write-Host ("  FAIL {0,-22} want=[{1}] got=[{2}]" -f $k, $want, $got) -ForegroundColor Red }
     }
@@ -454,7 +488,6 @@ switch ($Mode) {
     #   （改程式）
     #   pwsh tools\rime-test.ps1 -Sync -Mode snapshot > after.txt ; git diff --no-index before.txt after.txt
     # 會隨時間變的輸出（日期時間、uuid、隨機密碼、記憶體用量）不放進來。
-    # ⚠ 上屏清單不可以放會「執行動作」的序列（'/h␣、'/git␣ 之類會真的開檔／跑更新）。
     $g = [char]0x60
     $candSeqs = @(
       "'/", "'//", "'/;", "'/'", "'/x", "'/u", "'/c", "'/o", "'/i",
@@ -536,6 +569,7 @@ switch ($Mode) {
     }
     [RimeT]::RimeClearComposition($session) | Out-Null
   }
+
 }
 
 [RimeT]::RimeDestroySession($session) | Out-Null

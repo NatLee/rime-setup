@@ -28,7 +28,28 @@ local function succeeded(a, _, code)
   return false
 end
 
+-- 測試用的保險：使用者資料夾裡有 na_test_open.log 這個檔，就只把「本來要開的東西」記進去，
+-- 不真的開。沙盒回歸測試（tools/rime-test.ps1）每次都會建這個檔 —— 以前沒有這道保險，
+-- 測「選單選中即執行」只要選到速查表那一列，每跑一次測試就真的開一次瀏覽器；
+-- 選到「更新設定」那一列更會真的跑 git pull＋部署。正式的使用者資料夾不會有這個檔。
+-- 用檔案而不是環境變數：Lua 的 os.getenv 讀的是 C 執行階段啟動時的快照，
+-- 測試行程中途才設的環境變數它不一定看得到。
+local dry_run_log = ((rime_api and rime_api.get_user_data_dir()) or ".") .. "/na_test_open.log"
+
+local function dry_run(dest)
+  local probe = io.open(dry_run_log, "r")
+  if not probe then return false end
+  probe:close()
+  local log = io.open(dry_run_log, "a")
+  if log then
+    log:write(dest, "\n")
+    log:close()
+  end
+  return true
+end
+
 local function generic_open(dest)
+  if dry_run(dest) then return true end
   local cmd = launchers[get_os_name()]
   if cmd then
     return succeeded(os.execute(cmd .. dest))
