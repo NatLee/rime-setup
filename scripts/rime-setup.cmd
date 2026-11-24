@@ -15,3 +15,5 @@ set "NA_LOCAL=1"
 set "NA_INSTALL=%~dp0..\install.ps1"
 %NA_PS% -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create([IO.File]::ReadAllText($env:NA_INSTALL, [Text.Encoding]::UTF8))) %*"
 pause
+rem Launched from the IME via start this runs under cmd /K; exit closes the window.
+exit
