@@ -2,4 +2,5 @@
 patch:
   # 方案選單顯示名稱
   "schema/name": "韓文"
-
+  # 單按右 Shift 循環切換語言：每個選單方案都要掛，而且要在最前面（見 lua/processor_schema_cycle.lua）
+  "engine/processors/@before 0": lua_processor@schema_cycle

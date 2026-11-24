@@ -21,4 +21,5 @@ patch:
     - options: [ gloss_zh, gloss_en, gloss_ja ]
       states: [ 釋中, 釋英, 釋日 ]
       reset: { __include: "na_options:/gloss" }
-
+  # 單按右 Shift 循環切換語言：每個選單方案都要掛，而且要在最前面（見 lua/processor_schema_cycle.lua）
+  "engine/processors/@before 0": lua_processor@schema_cycle

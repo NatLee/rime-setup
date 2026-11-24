@@ -28,6 +28,8 @@ p_run_files = require("processor_p_run_files")
 mix_apc_s2rm_ltk = require("processor_mix_apc_s2rm_ltk")
 -- ⇧1~⇧6 選字（不用 alternative_select_keys 的原因見該檔開頭）
 p_select_keys = require("processor_p_select_keys")
+-- 單按右 Shift 循環切換語言方案
+schema_cycle = require("processor_schema_cycle")
 
 --------------------------------------------------------------------------
 -- translator

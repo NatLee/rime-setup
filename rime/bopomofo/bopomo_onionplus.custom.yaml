@@ -152,7 +152,9 @@ patch:
   #     「小鍵盤打數字」塞進 '/ 計算機的輸入，選字反而失效。
   # ⚠ 元件名 p_run_files／p_select_keys 必須在 rime.lua 有 bind（`x = require(...)`），
   #   否則這幾行等於沒寫：librime-lua 建不出元件，整段功能靜默失效。
+  # schema_cycle（單按右 Shift 循環切換語言）放最前面：它只認右 Shift，其他鍵一律放行。
   "engine/processors":
+    - lua_processor@schema_cycle
     - lua_processor@p_run_files
     - lua_processor@mix_apc_s2rm_ltk
     - ascii_composer
