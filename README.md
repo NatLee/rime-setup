@@ -97,7 +97,12 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
   輸入編號 1-8 修改那一項；直接按 Enter 套用
 ```
 
-想改哪一項就輸入它的編號，都不改直接按 Enter。套用後自動重新部署。
+想改哪一項就輸入它的編號，都不改直接按 Enter。有改才會重新部署，沒改一秒內結束；視窗會自己關。
+
+Windows 上也可以用小狼毫自己的對話框：工作列的輸入法圖示按右鍵 →「輸入法設定」，可以勾選要哪些方案、
+選配色。那邊選的會留著，更新不會蓋掉；之後在 `'/setup` 重選同一項，就改以 `'/setup` 為準。
+（系統在深色模式、而且第 2 項是「跟隨系統」時，候選窗固定顯示 Nat Dark，這時換主題要等系統切回淺色才看得到；
+想在深色模式也用自己選的主題，把第 2 項改成「不跟隨」。）
 
 再跑一次安裝指令也是同一個畫面，差別是它會先更新到最新版。裝過的機器不會再備份一次。
 
@@ -140,10 +145,24 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
 3. 複製檔案：
    - `rime/lua/` 與 `rime/opencc/` → 整個資料夾複製過去（變成 `<使用者資料夾>/lua/`、`<使用者資料夾>/opencc/`）
    - `rime/` 底下**其他每個資料夾裡的檔案** → 全部直接放到使用者資料夾根目錄（不要帶子資料夾）
+   - 在使用者資料夾建立兩個檔，把這套的全域設定與候選窗設定接進來（已經有這兩個檔的話，把 `__include` 那一行加到 `patch:` 底下）。
+     **少了這一步，快捷鍵、方案清單、主題都不會生效**：
 
-   不想手動搬可以用 repo 內附的腳本，只複製、不動輸入法：
+     ```yaml
+     # default.custom.yaml
+     patch:
+       __include: na_default:/patch
+     ```
+     ```yaml
+     # weasel.custom.yaml（只有 Windows 需要）
+     patch:
+       __include: na_weasel:/patch
+     ```
+
+   不想手動搬可以用 repo 內附的腳本（上面三件事它都會做），只複製、不動輸入法：
    `powershell -ExecutionPolicy Bypass -File scripts\rime-apply.ps1`（Windows）／`bash scripts/rime-apply.sh`（macOS）
-4. （選用）調整選項：在使用者資料夾新增 `na_options.custom.yaml`，只寫想改的鍵，可用的鍵與值見 [rime/core/na_options.yaml](rime/core/na_options.yaml)：
+4. （選用）調整選項：在使用者資料夾新增 `na_style.custom.yaml`（候選窗的長相），只寫想改的鍵，可用的鍵與值見 [rime/core/na_style.yaml](rime/core/na_style.yaml)。
+   emoji 與釋義語言在 `na_input.custom.yaml`（鍵見 [na_input.yaml](rime/core/na_input.yaml)），方案選單裡的語言在 `na_menu.custom.yaml`（鍵見 [na_menu.yaml](rime/core/na_menu.yaml)），寫法相同：
 
    ```yaml
    patch:
@@ -178,11 +197,21 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
 |---|---|
 | `*.userdb/`、`sync/` | 打字詞頻（你的用字習慣） |
 | `bopomo_onionplus_phrase.txt` | 自訂短語。輸入法裡打 `'/phrase` 開啟編輯，改完重新部署 |
-| `na_options.custom.yaml` | 安裝時選的選項 |
+| `na_style.custom.yaml`、`na_input.custom.yaml`、`na_menu.custom.yaml` | 你選的選項：候選窗長相／emoji 與釋義語言／選單裡的語言 |
+| `weasel.custom.yaml`、`default.custom.yaml` | 小狼毫「輸入法設定」對話框選的配色與方案清單；也可以自己在裡面加設定（見下） |
 | `installation.yaml`、`user.yaml`、`build/` | RIME 自己產生的機器狀態與編譯結果 |
 
-其餘從 repo 複製過來的檔案（方案、詞典、lua、`*.custom.yaml`）**每次更新都會被 repo 的版本蓋掉**，
+其餘從 repo 複製過來的檔案（方案、詞典、lua、`na_*.yaml`、各方案的 `*.custom.yaml`）**每次更新都會被 repo 的版本蓋掉**，
 要長期修改請改 repo（fork）裡的來源。
+
+想自己微調候選窗或全域設定又不想 fork：寫在 `weasel.custom.yaml`／`default.custom.yaml` 裡 `__include` 那一行的**底下**，
+會蓋過這套設定的值，更新也不會動它（`__include` 那一行請留著，那是把這套設定接進來的地方）：
+
+```yaml
+patch:
+  __include: na_weasel:/patch
+  "style/layout/max_width": 640     # 例：候選窗最寬放到 640
+```
 
 ## 常用操作
 

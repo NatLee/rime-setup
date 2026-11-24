@@ -1,9 +1,15 @@
-customization:
-  distribution_code_name: Weasel
-  distribution_version: 0.15.0.0
-  generator: "Rime::SwitcherSettings"
-  modified_time: "Tue Jan 16 00:16:33 2024"
-  rime_version: 1.8.5
+# na_default.yaml — 全域設定（快捷鍵、方案清單、中英切換鍵）：這套設定要對 default.yaml 做的 patch
+#
+# 為什麼不叫 default.custom.yaml：那個檔是「使用者的」。小狼毫的「方案選單設定」對話框會把
+# 勾選的方案寫進去，而且每次都把整個檔重寫。repo 的內容如果也放在那裡，下次更新一複製就把
+# 使用者在對話框的選擇蓋掉。所以 repo 的內容放這個檔，使用者資料夾的 default.custom.yaml 只有一行
+#
+#     patch:
+#       __include: na_default:/patch
+#
+# 由 scripts/rime-apply.* 在第一次套用時建立，之後永遠不覆蓋。寫在那一行底下的鍵會蓋過這裡的值
+# （對話框選的方案清單就是這樣生效的），想自己加設定也寫在那裡。原委見 docs/GOTCHAS.md
+# 「小狼毫設定對話框與 *.custom.yaml」。
 patch:
   # false＝小狼毫接管 Caps 鍵：按下只切換中英、不點亮 LED。
   # 修正「LED 亮著時被強制英文、Shift 切回中文又馬上彈回英文」（weasel issue #1736）
@@ -65,10 +71,11 @@ patch:
     - {accept: "Control+period", toggle: full_shape, when: always}
     - {accept: "Control+semicolon", toggle: simplification, when: always}
     - {accept: "Control+slash", toggle: ascii_punct, when: always}
-  # 方案清單是安裝選項（裝哪些語言），預設值與說明見 na_options.yaml；
-  # 個人選擇由安裝腳本寫進 na_options.custom.yaml。順序即 F4 選單編號。
+  # 方案清單是安裝選項（裝哪些語言），預設值與說明見 na_menu.yaml；
+  # 個人選擇由安裝腳本寫進 na_menu.custom.yaml；在小狼毫「方案選單設定」對話框勾選的
+  # 則寫在使用者資料夾的 default.custom.yaml，會蓋過這裡（見檔頭）。順序即 F4 選單編號。
   # ⚠ Ctrl+Shift+F1~F4 直達鍵寫死方案 id，不隨這份清單變動。
-  schema_list: { __include: "na_options:/schema_list" }
+  schema_list: { __include: "na_menu:/schema_list" }
   # 單按右 Shift 循環切換語言（lua_processor@schema_cycle）時要跳過的方案：
   # 偶爾才用的不排進循環，否則要按很多下才繞得回注音。它們仍可從方案選單（Ctrl+`）選。
   schema_cycle:

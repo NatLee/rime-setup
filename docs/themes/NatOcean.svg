@@ -1,28 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="340" height="340" viewBox="0 0 340 340" role="img" aria-label="Nat Ocean 主題預覽">
+<svg xmlns="http://www.w3.org/2000/svg" width="308" height="284" viewBox="0 0 308 284" role="img" aria-label="Nat Ocean 主題預覽">
   <title>Nat Ocean</title>
-  <defs><filter id="s" x="-25%" y="-20%" width="150%" height="160%"><feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.16"/></filter></defs>
+  <defs><filter id="s" x="-25%" y="-20%" width="150%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity="0.16"/></filter></defs>
   <g transform="translate(20,16)" font-family="'Microsoft JhengHei','PingFang TC','Noto Sans CJK TC','Noto Sans TC',sans-serif">
-    <rect width="300" height="296" rx="12" fill="#F3F9FC" stroke="#C9DFEA" stroke-width="1" filter="url(#s)"/>
-    <text x="20" y="30" font-size="15" fill="#2B3F4A">ㄋㄧˇ</text>
-    <rect x="62" y="12" width="56" height="24" rx="6" fill="#DDEEF6"/>
-    <text x="69" y="30" font-size="15" fill="#0B6FA4">ㄏㄠˇ</text>
-    <text x="252" y="30" font-size="15" font-weight="600" fill="#2B3F4A" opacity="0.55">&lt;</text>
-    <text x="272" y="30" font-size="15" font-weight="600" fill="#0B6FA4">&gt;</text>
-    <rect x="10" y="50" width="280" height="36" rx="8" fill="#1479B8"/>
-    <rect x="11" y="59" width="4" height="18" rx="2" fill="#FFFFFF"/>
-    <text x="24" y="74" font-size="13" font-weight="600" fill="#CFE8F7">⇧1</text>
-    <text x="56" y="74" font-size="17" font-weight="700" fill="#FFFFFF">你好</text>
-    <text x="24" y="114" font-size="13" font-weight="600" fill="#7F9AA8">⇧2</text>
-    <text x="56" y="114" font-size="17" font-weight="700" fill="#1F2F38">妳好</text>
-    <text x="24" y="154" font-size="13" font-weight="600" fill="#7F9AA8">⇧3</text>
-    <text x="56" y="154" font-size="17" font-weight="700" fill="#1F2F38">你</text>
-    <text x="24" y="194" font-size="13" font-weight="600" fill="#7F9AA8">⇧4</text>
-    <text x="56" y="194" font-size="17" font-weight="700" fill="#1F2F38">擬好</text>
-    <text x="24" y="234" font-size="13" font-weight="600" fill="#7F9AA8">⇧5</text>
-    <text x="56" y="234" font-size="17" font-weight="700" fill="#1F2F38">さくら</text>
-    <text x="138" y="234" font-size="13" fill="#2F7FA6">櫻花；櫻樹</text>
-    <text x="24" y="274" font-size="13" font-weight="600" fill="#7F9AA8">⇧6</text>
-    <text x="56" y="274" font-size="17" font-weight="700" fill="#1F2F38">hello</text>
-    <text x="138" y="274" font-size="13" fill="#2F7FA6">int. 喂；哈囉</text>
+    <rect width="268" height="240" rx="10" fill="#F3F9FC" stroke="#C9DFEA" stroke-width="1" filter="url(#s)"/>
+    <text x="16" y="25" font-size="15" fill="#2B3F4A">ㄋㄧˇ</text>
+    <rect x="58" y="8" width="54" height="23" rx="5" fill="#DDEEF6"/>
+    <text x="64" y="25" font-size="15" fill="#0B6FA4">ㄏㄠˇ</text>
+    <text x="222" y="25" font-size="15" font-weight="600" fill="#2B3F4A" opacity="0.55">&lt;</text>
+    <text x="242" y="25" font-size="15" font-weight="600" fill="#0B6FA4">&gt;</text>
+    <rect x="8" y="38" width="252" height="31" rx="6" fill="#1479B8"/>
+    <rect x="9" y="46" width="4" height="15" rx="2" fill="#FFFFFF"/>
+    <text x="22" y="59" font-size="13" font-weight="600" fill="#CFE8F7">⇧1</text>
+    <text x="54" y="59" font-size="17" font-weight="700" fill="#FFFFFF">你好</text>
+    <text x="22" y="92" font-size="13" font-weight="600" fill="#7F9AA8">⇧2</text>
+    <text x="54" y="92" font-size="17" font-weight="700" fill="#1F2F38">妳好</text>
+    <text x="22" y="125" font-size="13" font-weight="600" fill="#7F9AA8">⇧3</text>
+    <text x="54" y="125" font-size="17" font-weight="700" fill="#1F2F38">你</text>
+    <text x="22" y="158" font-size="13" font-weight="600" fill="#7F9AA8">⇧4</text>
+    <text x="54" y="158" font-size="17" font-weight="700" fill="#1F2F38">擬好</text>
+    <text x="22" y="191" font-size="13" font-weight="600" fill="#7F9AA8">⇧5</text>
+    <text x="54" y="191" font-size="17" font-weight="700" fill="#1F2F38">さくら</text>
+    <text x="136" y="191" font-size="13" fill="#2F7FA6">櫻花；櫻樹</text>
+    <text x="22" y="224" font-size="13" font-weight="600" fill="#7F9AA8">⇧6</text>
+    <text x="54" y="224" font-size="17" font-weight="700" fill="#1F2F38">hello</text>
+    <text x="136" y="224" font-size="13" fill="#2F7FA6">int. 喂；哈囉</text>
   </g>
 </svg>

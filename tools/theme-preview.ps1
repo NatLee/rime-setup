@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  從 rime/theme/weasel.custom.yaml 的配色產生每個主題的預覽圖（SVG），給 README 用。
+  從 rime/theme/na_weasel.yaml 的配色產生每個主題的預覽圖（SVG），給 README 用。
 
 .DESCRIPTION
   預覽圖是「照配色畫出來的示意圖」，不是螢幕截圖：圓角、間距、光棒形狀照小狼毫的設定畫，
@@ -22,7 +22,7 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 # ── 讀配色：preset_color_schemes 底下「四格縮排的名稱」→「六格縮排的 key: 0x……」──
 $schemes = [ordered]@{}
 $cur = $null; $inPreset = $false
-foreach ($ln in (Get-Content (Join-Path $Repo 'rime\theme\weasel.custom.yaml') -Encoding UTF8)) {
+foreach ($ln in (Get-Content (Join-Path $Repo 'rime\theme\na_weasel.yaml') -Encoding UTF8)) {
   if ($ln -match '^  preset_color_schemes:') { $inPreset = $true; continue }
   if (-not $inPreset) { continue }
   if ($ln -match '^    ([A-Za-z0-9_]+):\s*$') { $cur = $Matches[1]; $schemes[$cur] = @{}; continue }
@@ -69,40 +69,40 @@ foreach ($name in $schemes.Keys) {
   $shadowA = Alpha $c.shadow_color 0.16
   $title   = if ($c.name) { $c.name } else { $name }
 
-  # 排版數字對應 weasel.custom.yaml 的 layout：margin 10、視窗圓角 12、光棒圓角 8、
-  # 光棒內距 10/7、候選列距 4、編碼列與候選間距 12。改了那邊記得回來對一下。
+  # 排版數字對應 na_weasel.yaml 的 layout：margin 8/6、視窗圓角 10、光棒圓角 6、
+  # 光棒內距 8/4、候選列距 2、編碼列與候選間距 6、不設最小寬度。改了那邊記得回來對一下。
   $mark    = Css $c.hilited_mark_color ''
   $pageCol = Css $c.prevpage_color ''
-  $W = 300; $pad = 10; $rowH = 36; $gap = 4; $preH = 28
-  $H = $pad + $preH + 12 + ($rowH + $gap) * $cands.Count - $gap + $pad
+  $W = 268; $pad = 8; $padY = 6; $rowH = 31; $gap = 2; $preH = 26
+  $H = $padY + $preH + 6 + ($rowH + $gap) * $cands.Count - $gap + $padY
   $svgW = $W + 40; $svgH = $H + 44
   $sb = New-Object Text.StringBuilder
   [void]$sb.AppendLine("<svg xmlns=`"http://www.w3.org/2000/svg`" width=`"$svgW`" height=`"$svgH`" viewBox=`"0 0 $svgW $svgH`" role=`"img`" aria-label=`"$title 主題預覽`">")
   [void]$sb.AppendLine("  <title>$title</title>")
-  [void]$sb.AppendLine("  <defs><filter id=`"s`" x=`"-25%`" y=`"-20%`" width=`"150%`" height=`"160%`"><feDropShadow dx=`"0`" dy=`"4`" stdDeviation=`"8`" flood-color=`"#000`" flood-opacity=`"$shadowA`"/></filter></defs>")
+  [void]$sb.AppendLine("  <defs><filter id=`"s`" x=`"-25%`" y=`"-20%`" width=`"150%`" height=`"160%`"><feDropShadow dx=`"0`" dy=`"3`" stdDeviation=`"6`" flood-color=`"#000`" flood-opacity=`"$shadowA`"/></filter></defs>")
   [void]$sb.AppendLine("  <g transform=`"translate(20,16)`" font-family=`"$font`">")
-  [void]$sb.AppendLine("    <rect width=`"$W`" height=`"$H`" rx=`"12`" fill=`"$back`" stroke=`"$border`" stroke-width=`"1`" filter=`"url(#s)`"/>")
+  [void]$sb.AppendLine("    <rect width=`"$W`" height=`"$H`" rx=`"10`" fill=`"$back`" stroke=`"$border`" stroke-width=`"1`" filter=`"url(#s)`"/>")
   # 編碼列：已確定的部分＋高亮段；右側是翻頁箭頭（第一頁時 < 用一般文字色＝不能往前）
-  $y = $pad
-  [void]$sb.AppendLine("    <text x=`"$($pad + 10)`" y=`"$($y + 20)`" font-size=`"15`" fill=`"$text`">ㄋㄧˇ</text>")
-  [void]$sb.AppendLine("    <rect x=`"$($pad + 52)`" y=`"$($y + 2)`" width=`"56`" height=`"24`" rx=`"6`" fill=`"$hBack`"/>")
-  [void]$sb.AppendLine("    <text x=`"$($pad + 59)`" y=`"$($y + 20)`" font-size=`"15`" fill=`"$hText`">ㄏㄠˇ</text>")
+  $y = $padY
+  [void]$sb.AppendLine("    <text x=`"$($pad + 8)`" y=`"$($y + 19)`" font-size=`"15`" fill=`"$text`">ㄋㄧˇ</text>")
+  [void]$sb.AppendLine("    <rect x=`"$($pad + 50)`" y=`"$($y + 2)`" width=`"54`" height=`"23`" rx=`"5`" fill=`"$hBack`"/>")
+  [void]$sb.AppendLine("    <text x=`"$($pad + 56)`" y=`"$($y + 19)`" font-size=`"15`" fill=`"$hText`">ㄏㄠˇ</text>")
   if ($pageCol) {
-    [void]$sb.AppendLine("    <text x=`"$($W - $pad - 38)`" y=`"$($y + 20)`" font-size=`"15`" font-weight=`"600`" fill=`"$text`" opacity=`"0.55`">&lt;</text>")
-    [void]$sb.AppendLine("    <text x=`"$($W - $pad - 18)`" y=`"$($y + 20)`" font-size=`"15`" font-weight=`"600`" fill=`"$pageCol`">&gt;</text>")
+    [void]$sb.AppendLine("    <text x=`"$($W - $pad - 38)`" y=`"$($y + 19)`" font-size=`"15`" font-weight=`"600`" fill=`"$text`" opacity=`"0.55`">&lt;</text>")
+    [void]$sb.AppendLine("    <text x=`"$($W - $pad - 18)`" y=`"$($y + 19)`" font-size=`"15`" font-weight=`"600`" fill=`"$pageCol`">&gt;</text>")
   }
-  $y += $preH + 12
+  $y += $preH + 6
   for ($i = 0; $i -lt $cands.Count; $i++) {
     $isHi = ($i -eq 0)
     $lc = if ($isHi) { $hcLabel } else { $label }
     $tc = if ($isHi) { $hcText } else { $cand }
     $cc = if ($isHi) { $hcCmt } else { $comment }
     if ($isHi) {
-      [void]$sb.AppendLine("    <rect x=`"$pad`" y=`"$y`" width=`"$($W - 2 * $pad)`" height=`"$rowH`" rx=`"8`" fill=`"$hcBack`"/>")
+      [void]$sb.AppendLine("    <rect x=`"$pad`" y=`"$y`" width=`"$($W - 2 * $pad)`" height=`"$rowH`" rx=`"6`" fill=`"$hcBack`"/>")
       # 高亮列左側的圓角色條（mark_text 留空時小狼毫畫的那一條）
-      if ($mark) { [void]$sb.AppendLine("    <rect x=`"$($pad + 1)`" y=`"$($y + 9)`" width=`"4`" height=`"$($rowH - 18)`" rx=`"2`" fill=`"$mark`"/>") }
+      if ($mark) { [void]$sb.AppendLine("    <rect x=`"$($pad + 1)`" y=`"$($y + 8)`" width=`"4`" height=`"$($rowH - 16)`" rx=`"2`" fill=`"$mark`"/>") }
     }
-    $by = $y + 24
+    $by = $y + 21
     [void]$sb.AppendLine("    <text x=`"$($pad + 14)`" y=`"$by`" font-size=`"13`" font-weight=`"600`" fill=`"$lc`">⇧$($i + 1)</text>")
     [void]$sb.AppendLine("    <text x=`"$($pad + 46)`" y=`"$by`" font-size=`"17`" font-weight=`"700`" fill=`"$tc`">$($cands[$i][0])</text>")
     if ($cands[$i][1]) {

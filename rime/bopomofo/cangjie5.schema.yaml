@@ -10,7 +10,7 @@
 #   在乾淨環境（例如 macOS 首次 clone 部署）就會直接壞掉。
 #
 # 注意：
-#   - 本方案不列入 default.custom.yaml 的 schema_list，只作為反查掛載。
+#   - 本方案不列入方案清單（na_menu.yaml 的 schema_list），只作為反查掛載。
 #   - speller/alphabet 必須保留，否則 prism 為空、用倉頡碼反查會查不到。
 #     （不可套用 jpnin1_gloss 那種 `erase/^.+$/` 的縮 prism 寫法）
 #   - 上游原版還有一段用 luna_pinyin 的 reverse_lookup，本 repo 沒有 luna_pinyin 詞典，

@@ -1,0 +1,17 @@
+# na_menu.yaml — 安裝選項的預設值：方案選單裡有哪些輸入方案
+#
+# 個人選擇在使用者資料夾的 na_menu.custom.yaml（'/setup 會寫）。說明與「為什麼分三個檔」見 na_style.yaml。
+# ⚠ 讀這個檔的是 default.custom.yaml，而每個輸入方案都會讀 default —— 所以這個檔一變，
+#   所有方案都要重編（約十秒）。它因此獨立一個檔：只有真的改了語言清單才付這個代價。
+
+# 順序＝選單編號。第一個必須是 bopomo_onionplus（主方案）
+schema_list:
+  - { schema: bopomo_onionplus } # 注音Na+
+  - { schema: jpnin1 } # 日文
+  - { schema: hangeul_hnc } # 韓文
+  - { schema: easy_en_lower } # 英文
+  - { schema: allbpm } # 注音文
+  - { schema: fullshape } # 全形
+  - { schema: easy_en_upper } # 英文（大寫）
+  - { schema: easy_en_lcomment } # 英文（附釋義）
+  - { schema: symbols_bpmf } # 符號

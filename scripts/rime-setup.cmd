@@ -13,7 +13,11 @@ rem Use this checkout as the source and skip the network (NA_LOCAL).
 set "NA_HOME=%~dp0.."
 set "NA_LOCAL=1"
 set "NA_INSTALL=%~dp0..\install.ps1"
-%NA_PS% -NoProfile -ExecutionPolicy Bypass -Command "& ([scriptblock]::Create([IO.File]::ReadAllText($env:NA_INSTALL, [Text.Encoding]::UTF8))) %*"
-pause
+rem NA_AUTOCLOSE: on success install.ps1 counts down a few seconds and returns,
+rem so this window closes by itself. It sets $global:NaSetupOk only when it got
+rem to the end; anything else exits 1 and we pause so the message can be read.
+set "NA_AUTOCLOSE=1"
+%NA_PS% -NoProfile -ExecutionPolicy Bypass -Command "$global:NaSetupOk = $false; & ([scriptblock]::Create([IO.File]::ReadAllText($env:NA_INSTALL, [Text.Encoding]::UTF8))) %*; if (-not $global:NaSetupOk) { exit 1 }"
+if errorlevel 1 pause
 rem Launched from the IME via start this runs under cmd /K; exit closes the window.
 exit

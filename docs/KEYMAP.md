@@ -3,7 +3,7 @@
 > ⚠ **這份檔案由 `tools/keymap-dump.ps1` 產生，不要手改** —— 下次重跑會被覆蓋。
 > 要改行為請改對應的來源檔（每一節都標了來源），改完重新部署再跑一次這支腳本。
 >
-> 產生時間：2026-08-26 01:22　方案：`bopomo_onionplus`
+> 產生時間：2026-11-25 03:36　方案：`bopomo_onionplus`
 
 這份表要回答的問題：**「這個鍵／這個代碼，現在是誰在用？」**
 資料直接取自部署後的 `build/`（patch 與 `__include` 都已合併）與 lua 原始碼，
@@ -14,17 +14,18 @@
 排在前面的先看到按鍵，`return kAccepted` 之後就輪不到後面的。
 「某個鍵沒反應」或「按了跑出別的東西」，九成是這條鏈的順序問題。
 
-1. `lua_processor@p_run_files`
-2. `lua_processor@mix_apc_s2rm_ltk`
-3. `ascii_composer`
-4. `recognizer`
-5. `key_binder`
-6. `lua_processor@p_select_keys`
-7. `speller`
-8. `selector`
-9. `punctuator`
-10. `navigator`
-11. `express_editor`
+1. `lua_processor@schema_cycle`
+2. `lua_processor@p_run_files`
+3. `lua_processor@mix_apc_s2rm_ltk`
+4. `ascii_composer`
+5. `recognizer`
+6. `key_binder`
+7. `lua_processor@p_select_keys`
+8. `speller`
+9. `selector`
+10. `punctuator`
+11. `navigator`
+12. `express_editor`
 
 來源：`bopomo_onionplus.custom.yaml` 的 `engine/processors`。
 ⚠ `lua_processor@x` 需要 `rime.lua` 有 `x = require(...)`，否則靜默失效。
@@ -163,52 +164,52 @@
 | `Control+Shift+underscore` | unset_option: unicode_comment | always | 方案（element_bopomo ＋ custom） |
 | `Control+Shift+plus` | unset_option: en_sort | always | 方案（element_bopomo ＋ custom） |
 | `Control+Shift+F5` | toggle: en_sort | always | 方案（element_bopomo ＋ custom） |
-| `Control+p` | send: Up | composing | 全域（default.custom.yaml） |
-| `Control+n` | send: Down | composing | 全域（default.custom.yaml） |
-| `Control+b` | send: Left | composing | 全域（default.custom.yaml） |
-| `Control+f` | send: Right | composing | 全域（default.custom.yaml） |
-| `Control+a` | send: Home | composing | 全域（default.custom.yaml） |
-| `Control+e` | send: End | composing | 全域（default.custom.yaml） |
-| `Control+d` | send: Delete | composing | 全域（default.custom.yaml） |
-| `Control+k` | send: Shift+Delete | composing | 全域（default.custom.yaml） |
-| `Control+h` | send: BackSpace | composing | 全域（default.custom.yaml） |
-| `Control+g` | send: Escape | composing | 全域（default.custom.yaml） |
-| `Alt+v` | send: Page_Up | composing | 全域（default.custom.yaml） |
-| `Control+v` | send: Page_Down | composing | 全域（default.custom.yaml） |
-| `ISO_Left_Tab` | send: Shift+Left | composing | 全域（default.custom.yaml） |
-| `Shift+Tab` | send: Shift+Left | composing | 全域（default.custom.yaml） |
-| `Tab` | send: Shift+Right | composing | 全域（default.custom.yaml） |
-| `minus` | send: Page_Up | has_menu | 全域（default.custom.yaml） |
-| `equal` | send: Page_Down | has_menu | 全域（default.custom.yaml） |
-| `comma` | send: Page_Up | paging | 全域（default.custom.yaml） |
-| `period` | send: Page_Down | has_menu | 全域（default.custom.yaml） |
-| `Control+Shift+1` | select: .next | always | 全域（default.custom.yaml） |
-| `Control+Shift+2` | toggle: ascii_mode | always | 全域（default.custom.yaml） |
-| `Control+Shift+3` | toggle: full_shape | always | 全域（default.custom.yaml） |
-| `Control+Shift+4` | toggle: ascii_punct | always | 全域（default.custom.yaml） |
-| `Control+Shift+5` | toggle: simplification | always | 全域（default.custom.yaml） |
-| `Control+Shift+6` | toggle: extended_charset | always | 全域（default.custom.yaml） |
-| `Control+Shift+exclam` | select: .next | always | 全域（default.custom.yaml） |
-| `Control+Shift+at` | toggle: ascii_mode | always | 全域（default.custom.yaml） |
-| `Control+Shift+numbersign` | toggle: full_shape | always | 全域（default.custom.yaml） |
-| `Control+Shift+dollar` | toggle: ascii_punct | always | 全域（default.custom.yaml） |
-| `Control+Shift+percent` | toggle: simplification | always | 全域（default.custom.yaml） |
-| `Control+Shift+asciicircum` | toggle: extended_charset | always | 全域（default.custom.yaml） |
-| `Shift+space` | toggle: ascii_mode | always | 全域（default.custom.yaml） |
-| `Control+comma` | toggle: ascii_mode | always | 全域（default.custom.yaml） |
-| `Control+Shift+F1` | select: bopomo_onionplus | always | 全域（default.custom.yaml） |
-| `Control+Shift+F2` | select: jpnin1 | always | 全域（default.custom.yaml） |
-| `Control+Shift+F3` | select: hangeul_hnc | always | 全域（default.custom.yaml） |
-| `Control+Shift+F4` | select: easy_en_lower | always | 全域（default.custom.yaml） |
-| `Control+Alt+1` | select: bopomo_onionplus | always | 全域（default.custom.yaml） |
-| `Control+Alt+2` | select: jpnin1 | always | 全域（default.custom.yaml） |
-| `Control+Alt+3` | select: hangeul_hnc | always | 全域（default.custom.yaml） |
-| `Control+Alt+4` | select: easy_en_lower | always | 全域（default.custom.yaml） |
-| `Control+period` | toggle: full_shape | always | 全域（default.custom.yaml） |
-| `Control+semicolon` | toggle: simplification | always | 全域（default.custom.yaml） |
-| `Control+slash` | toggle: ascii_punct | always | 全域（default.custom.yaml） |
+| `Control+p` | send: Up | composing | 全域（na_default.yaml） |
+| `Control+n` | send: Down | composing | 全域（na_default.yaml） |
+| `Control+b` | send: Left | composing | 全域（na_default.yaml） |
+| `Control+f` | send: Right | composing | 全域（na_default.yaml） |
+| `Control+a` | send: Home | composing | 全域（na_default.yaml） |
+| `Control+e` | send: End | composing | 全域（na_default.yaml） |
+| `Control+d` | send: Delete | composing | 全域（na_default.yaml） |
+| `Control+k` | send: Shift+Delete | composing | 全域（na_default.yaml） |
+| `Control+h` | send: BackSpace | composing | 全域（na_default.yaml） |
+| `Control+g` | send: Escape | composing | 全域（na_default.yaml） |
+| `Alt+v` | send: Page_Up | composing | 全域（na_default.yaml） |
+| `Control+v` | send: Page_Down | composing | 全域（na_default.yaml） |
+| `ISO_Left_Tab` | send: Shift+Left | composing | 全域（na_default.yaml） |
+| `Shift+Tab` | send: Shift+Left | composing | 全域（na_default.yaml） |
+| `Tab` | send: Shift+Right | composing | 全域（na_default.yaml） |
+| `minus` | send: Page_Up | has_menu | 全域（na_default.yaml） |
+| `equal` | send: Page_Down | has_menu | 全域（na_default.yaml） |
+| `comma` | send: Page_Up | paging | 全域（na_default.yaml） |
+| `period` | send: Page_Down | has_menu | 全域（na_default.yaml） |
+| `Control+Shift+1` | select: .next | always | 全域（na_default.yaml） |
+| `Control+Shift+2` | toggle: ascii_mode | always | 全域（na_default.yaml） |
+| `Control+Shift+3` | toggle: full_shape | always | 全域（na_default.yaml） |
+| `Control+Shift+4` | toggle: ascii_punct | always | 全域（na_default.yaml） |
+| `Control+Shift+5` | toggle: simplification | always | 全域（na_default.yaml） |
+| `Control+Shift+6` | toggle: extended_charset | always | 全域（na_default.yaml） |
+| `Control+Shift+exclam` | select: .next | always | 全域（na_default.yaml） |
+| `Control+Shift+at` | toggle: ascii_mode | always | 全域（na_default.yaml） |
+| `Control+Shift+numbersign` | toggle: full_shape | always | 全域（na_default.yaml） |
+| `Control+Shift+dollar` | toggle: ascii_punct | always | 全域（na_default.yaml） |
+| `Control+Shift+percent` | toggle: simplification | always | 全域（na_default.yaml） |
+| `Control+Shift+asciicircum` | toggle: extended_charset | always | 全域（na_default.yaml） |
+| `Shift+space` | toggle: ascii_mode | always | 全域（na_default.yaml） |
+| `Control+comma` | toggle: ascii_mode | always | 全域（na_default.yaml） |
+| `Control+Shift+F1` | select: bopomo_onionplus | always | 全域（na_default.yaml） |
+| `Control+Shift+F2` | select: jpnin1 | always | 全域（na_default.yaml） |
+| `Control+Shift+F3` | select: hangeul_hnc | always | 全域（na_default.yaml） |
+| `Control+Shift+F4` | select: easy_en_lower | always | 全域（na_default.yaml） |
+| `Control+Alt+1` | select: bopomo_onionplus | always | 全域（na_default.yaml） |
+| `Control+Alt+2` | select: jpnin1 | always | 全域（na_default.yaml） |
+| `Control+Alt+3` | select: hangeul_hnc | always | 全域（na_default.yaml） |
+| `Control+Alt+4` | select: easy_en_lower | always | 全域（na_default.yaml） |
+| `Control+period` | toggle: full_shape | always | 全域（na_default.yaml） |
+| `Control+semicolon` | toggle: simplification | always | 全域（na_default.yaml） |
+| `Control+slash` | toggle: ascii_punct | always | 全域（na_default.yaml） |
 
-來源：`default.custom.yaml`（全域）＋ `element_bopomo.yaml`（方案內建）＋
+來源：`na_default.yaml`（全域）＋ `element_bopomo.yaml`（方案內建）＋
 `bopomo_onionplus.custom.yaml` 的 `key_binder/bindings/+`。
 
 ## 4. 輸入前綴（打這幾個字元會切到別的語言／功能段落）

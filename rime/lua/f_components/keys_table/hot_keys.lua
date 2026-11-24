@@ -99,17 +99,17 @@ local function hotkeys(n)
       , { "　［control］+［shift］+［  -  ］切換 Unicode 編碼注釋為無", "➌➐" }
       , { "　［control］+［shift］+［  =  ］切換《Easy》英文排序為個排", "➌➑" }
       , { "　────────────  ", "➌➒" }
-      , { "　※ 以上某些鍵位須用內附的 default.custom.yaml 檔", "➍🄌" }
+      , { "　※ 以上某些鍵位須用內附的 na_default.yaml 檔", "➍🄌" }
       }
     -- , { "　＊基本功能鍵", "🄋" }
     -- , { "　（［ QAZWSX ］和［ YHNUJM ］在鍵盤上為同樣形狀區塊，只是左邊移到右邊。）", "➃➂" }
     -- , { "　（［ QAZWSX ］方便單手選字；［ YHNUJM ］方便雙手選字。）", "➃➃" }
-    -- , { "　（須使用內附的 default.custom.yaml 檔）", "➂➇" }
-    -- , { "　（↑ 使用內附的 default.custom.yaml 檔才有效）", "➀➃" }
+    -- , { "　（須使用內附的 na_default.yaml 檔）", "➂➇" }
+    -- , { "　（↑ 使用內附的 na_default.yaml 檔才有效）", "➀➃" }
     -- , { "　預設功能快捷鍵多在上排，增設下排手順較好位置。", "➃➅" }
     -- , { "　以下快捷鍵切換不循環，使所切換之項目能完全肯定，含［ shift ］為初始設定。", "➃➆" }
     -- , { "　欲循環切換可使用［ control ］ +［ shift ］+［ 1～9 ］", "➃➇" }
-    -- , { "• 以下八個快捷鍵，須使用內附的 default.custom.yaml 檔：", "➃➈" }
+    -- , { "• 以下八個快捷鍵，須使用內附的 na_default.yaml 檔：", "➃➈" }
     -- , { "＊翻頁和選字", "➀🄋" }
     -- , { "　（↑ Rime 官方預設為［4］）", "➃➅" }
     -- , { "　　（↑ 整個字的注音，非單一個注音符號）", "➈" }
@@ -197,7 +197,7 @@ local function hotkeys(n)
       , { "　［control］+［shift］+［  -  ］切換 Unicode 編碼注釋為無", "➋➒" }
       , { "　［control］+［shift］+［  =  ］切換 Enter 上屏中文", "➌🄌" }
       , { "　────────────  ", "➌➊" }
-      , { "　※ 以上某些鍵位須用內附的 default.custom.yaml 檔", "➌➋" }
+      , { "　※ 以上某些鍵位須用內附的 na_default.yaml 檔", "➌➋" }
       }
 
   elseif s_4 then
@@ -272,7 +272,7 @@ local function hotkeys(n)
       , { "　［control］+［shift］+［  -  ］切換 w 符號 space 為上屏", "➌➏" }
       , { "　［control］+［shift］+［  =  ］切換 Enter 上屏原始輸入", "➌➐" }
       , { "　────────────  ", "➌➑" }
-      , { "　※ 以上某些鍵位須用內附的 default.custom.yaml 檔", "➌➒" }
+      , { "　※ 以上某些鍵位須用內附的 na_default.yaml 檔", "➌➒" }
       }
       -- , { "　［shift］+［BackSpace］刪除一個輸入碼", "➀➀" }
       -- , { " • 游標移位", "➀➅" }
@@ -372,7 +372,7 @@ local function hotkeys(n)
       , { "　［control］+［shift］+［  -  ］切換 Unicode 編碼注釋為無", "➌➒" }
       , { "　［control］+［shift］+［  =  ］切換《Easy》英文排序為個排", "➍🄌" }
       , { "　────────────  ", "➍➊" }
-      , { "　※ 以上某些鍵位須用內附的 default.custom.yaml 檔", "➍➋" }
+      , { "　※ 以上某些鍵位須用內附的 na_default.yaml 檔", "➍➋" }
       }
 
   else

@@ -3,7 +3,7 @@
 #   irm https://raw.githubusercontent.com/NatLee/rime-setup/main/install.ps1 | iex
 #
 # 第一次跑＝安裝；之後再跑同一行＝更新到最新版＋重新選一次選項。
-# 已經裝好的人也可以不連網重選：雙擊 RIME 使用者資料夾裡的 na-setup.cmd
+# 已經裝好的人也可以不連網重選：輸入法內打 '/setup（或雙擊 RIME 使用者資料夾裡的 na-setup.cmd）
 #
 # 不想被問（自動化／固定選項）：先設環境變數再跑，或直接帶參數
 #   $env:NA_THEME='light'; $env:NA_EMOJI='off'; $env:NA_YES='1'; irm <網址> | iex
@@ -319,7 +319,8 @@ function Install-NaPlus {
             Copy-Item -LiteralPath $db.FullName -Destination $RimeDir -Recurse -Force; $n++
         }
         if (Test-Path (Join-Path $backup 'sync')) { Copy-Item -LiteralPath (Join-Path $backup 'sync') -Destination $RimeDir -Recurse -Force }
-        foreach ($f in 'installation.yaml', 'user.yaml', 'bopomo_onionplus_phrase.txt', 'na_options.custom.yaml') {
+        foreach ($f in 'installation.yaml', 'user.yaml', 'bopomo_onionplus_phrase.txt',
+                            'na_style.custom.yaml', 'na_input.custom.yaml', 'na_menu.custom.yaml', 'na_options.custom.yaml') {
             $src = Join-Path $backup $f
             if (Test-Path $src) { Copy-Item -LiteralPath $src -Destination $RimeDir -Force }
         }
@@ -328,11 +329,16 @@ function Install-NaPlus {
     }
 
     # ── [5b] 選項 ─────────────────────────────────────────────────────
-    $optFile = Join-Path $RimeDir 'na_options.custom.yaml'
+    # 選項分三個檔（原因見 rime\core\na_style.yaml 檔頭）：長相 na_style、輸入行為 na_input、方案清單 na_menu。
+    # 上次的選擇記在各檔檔頭那行「# na-options: k=v k=v」。na_options.custom.yaml 是舊版的單一檔，
+    # 先讀它、再讓新檔蓋過去（舊檔之後由 rime-apply.ps1 收掉）。
+    $styleFile = Join-Path $RimeDir 'na_style.custom.yaml'
+    $inputFile = Join-Path $RimeDir 'na_input.custom.yaml'
+    $menuFile  = Join-Path $RimeDir 'na_menu.custom.yaml'
     $prev = @{}
-    if (Test-Path $optFile) {
-        # 上次的選擇記在檔頭那行「# na-options: k=v k=v」
-        $line = Get-Content -LiteralPath $optFile -Encoding UTF8 | Where-Object { $_ -match '^#\s*na-options:' } | Select-Object -First 1
+    foreach ($pf in (Join-Path $RimeDir 'na_options.custom.yaml'), $styleFile, $inputFile, $menuFile) {
+        if (-not (Test-Path -LiteralPath $pf)) { continue }
+        $line = Get-Content -LiteralPath $pf -Encoding UTF8 | Where-Object { $_ -match '^#\s*na-options:' } | Select-Object -First 1
         if ($line) {
             foreach ($kv in (($line -replace '^#\s*na-options:', '').Trim() -split '\s+')) {
                 $p = $kv -split '=', 2
@@ -340,14 +346,43 @@ function Install-NaPlus {
             }
         }
     }
+    # ── 小狼毫自己的「輸入法設定」對話框選的東西 ──
+    # 那個對話框把配色寫進 weasel.custom.yaml 的 "style/color_scheme"、把勾選的方案寫進
+    # default.custom.yaml 的 schema_list。這兩個檔是使用者的（見 scripts\rime-apply.ps1），寫在裡面的鍵
+    # 會蓋過這裡選的選項。所以：選項畫面要把它當成「目前的值」顯示；在這裡重選時把那一筆拿掉，
+    # 之後以選項檔為準。誰最後動手就聽誰的，兩邊不會各說各話。
+    $weaselUser  = Join-Path $RimeDir 'weasel.custom.yaml'
+    $defaultUser = Join-Path $RimeDir 'default.custom.yaml'
+    $reTheme  = '(?m)^  "?style/color_scheme"?:[ \t]*"?([^"\s#{]+)"?[ \t]*(#[^\r\n]*)?\r?$\n?'
+    $reSchema = '(?m)^  "?schema_list"?:[^\r\n]*\r?\n?(?:(?:[ \t]{3,}|  -)[^\r\n]*\r?\n?)*'   # 那一行＋底下縮排更深的清單
+    $guiTheme = ''; $guiThemeKnown = $false; $guiSchemas = 0
+    if (Test-Path -LiteralPath $weaselUser) {
+        $dm = [regex]::Match([IO.File]::ReadAllText($weaselUser), $reTheme)
+        if ($dm.Success) { $guiTheme = $dm.Groups[1].Value }
+    }
+    if (Test-Path -LiteralPath $defaultUser) {
+        $dt = [IO.File]::ReadAllText($defaultUser)
+        # 只認新格式的檔（接上 na_default 的）；舊版面的 default.custom.yaml 整個是 repo 的內容，套用時會換掉
+        if ($dt -match '(?m)^[^#\r\n]*na_default:/patch') {
+            $sm = [regex]::Match($dt, $reSchema)
+            if ($sm.Success) { $guiSchemas = [regex]::Matches($sm.Value, 'schema:').Count }
+        }
+    }
+    # 對話框選的是這套的主題 → 當成上次的選擇；選的是別的配色（使用者自己加的）→ 原樣留著，除非這次重選
+    foreach ($k in $themeMap.Keys) { if ($guiTheme -and $themeMap[$k] -eq $guiTheme) { $prev['theme'] = $k; $guiThemeKnown = $true } }
+
     $opt = @{}
     $given = @{ theme = (Pick $Theme 'NA_THEME'); dark = (Pick $Dark 'NA_DARK'); size = (Pick $Size 'NA_SIZE'); font = (Pick $Font 'NA_FONT'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
                 langs = (Pick $Langs 'NA_LANGS'); gloss = (Pick $Gloss 'NA_GLOSS') }
+    $edited = @{}   # 這次明確指定過的項目（參數／環境變數／在選項畫面改過）
     foreach ($k in $defaults.Keys) {
-        if ($given[$k])     { $opt[$k] = $given[$k].ToLower() }
+        if ($given[$k])     { $opt[$k] = $given[$k].ToLower(); $edited[$k] = $true }
         elseif ($prev[$k])  { $opt[$k] = $prev[$k] }
         else                { $opt[$k] = $defaults[$k] }
     }
+    # 系統現在是不是深色模式（跟小狼毫看的是同一個登錄值）：選項畫面用來提示「為什麼換了主題沒變」
+    $sysDark = $false
+    try { $sysDark = ((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -ErrorAction Stop).AppsUseLightTheme -eq 0) } catch { }
 
     # 舊值相容：以前「跟隨系統」是主題的一個選項（auto），現在拆成獨立的 dark 選項
     if ($opt.theme -eq 'auto') { $opt.theme = 'light'; if (-not $given.dark) { $opt.dark = 'auto' } }
@@ -367,6 +402,13 @@ function Install-NaPlus {
         )
         function Show-Value($row) {
             $v = $opt[$row.key]
+            # 對話框那邊的自訂還在生效（這次沒在這裡重選）→ 照實顯示，不要假裝是選項檔的值
+            if ($row.key -eq 'theme' -and $guiTheme -and -not $guiThemeKnown -and -not $edited.theme) {
+                return "自訂配色 $guiTheme（在小狼毫「輸入法設定」選的；改這一項會取代它）"
+            }
+            if ($row.key -eq 'langs' -and $guiSchemas -and -not $edited.langs) {
+                return "自訂的 $guiSchemas 個方案（在小狼毫「方案選單設定」勾的；改這一項會取代它）"
+            }
             if ($row.multi) {
                 $picked = @($row.items | Where-Object { ($v -split ',') -contains $_[0] } | ForEach-Object { ($_[1] -split '：')[0] })
                 if ($picked.Count) { return ($picked -join '、') } else { return '只有注音' }
@@ -379,11 +421,18 @@ function Install-NaPlus {
             Write-Host ''
             Write-Host '目前的設定' -ForegroundColor Cyan
             for ($i = 0; $i -lt $rows.Count; $i++) { Write-Host ("  {0}) {1}　{2}" -f ($i + 1), $rows[$i].title, (Show-Value $rows[$i])) }
+            # 最常見的「換了主題怎麼沒變」：系統在深色模式＋跟隨系統，看到的一直是 Nat Dark。
+            # 小狼毫的對話框只改得到淺色那一格，在這個狀態下換配色同樣看不出來。
+            if ($sysDark -and $opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) {
+                Write-Host '  ※ 系統現在是深色模式，所以候選窗顯示的是 Nat Dark；第 1 項的主題要等系統切回淺色才看得到。' -ForegroundColor DarkGray
+                Write-Host '    想在深色模式也用第 1 項的主題：把第 2 項改成「不跟隨」。' -ForegroundColor DarkGray
+            }
             $ans = (Read-Host ("  輸入編號 1-{0} 修改那一項；直接按 Enter 套用" -f $rows.Count)).Trim()
             if (-not $ans) { break }
             $n = 0
             if (-not ([int]::TryParse($ans, [ref]$n) -and $n -ge 1 -and $n -le $rows.Count)) { Write-Host '  請輸入清單上的數字。' -ForegroundColor Yellow; continue }
             $row = $rows[$n - 1]
+            $edited[$row.key] = $true
             if ($row.multi) {
                 $curLangs = @($opt.langs -split ',' | Where-Object { $_ -and $_ -ne 'none' })
                 $sel = Ask-Many $row.ask $row.items $curLangs
@@ -467,60 +516,116 @@ function Install-NaPlus {
     if ($opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) { $schemeDark = 'NatDark' }
     $sz = $sizeMap[$opt.size]
 
-    $y = New-Object System.Collections.Generic.List[string]
-    $y.Add('# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）')
-    $y.Add('# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。')
-    $y.Add('# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。')
-    $y.Add("# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) font=$($opt.font) emoji=$($opt.emoji) langs=$($opt.langs) gloss=$($opt.gloss)")
-    $y.Add('patch:')
-    $y.Add("  theme: $scheme")
-    $y.Add("  theme_dark: $schemeDark")
-    $y.Add("  font_point: $($sz[0])")
-    $y.Add("  label_font_point: $($sz[1])")
-    $y.Add("  mac_font_point: $($sz[2])")
-    $y.Add("  mac_label_font_point: $($sz[3])")
-    $y.Add("  font_face: `"$fontFace`"")
-    $y.Add("  comment_font_face: `"$commentFace`"")
-    if ($opt.font -eq 'huninn') {
-        $y.Add('  mac_font_face: "jf-openhuninn-2.1, PingFangTC-Semibold"')
-        $y.Add('  mac_comment_font_face: "jf-openhuninn-2.1, PingFangTC-Regular"')
-    } else {
-        $y.Add('  mac_font_face: "PingFangTC-Semibold"')
-        $y.Add('  mac_comment_font_face: "PingFangTC-Regular"')
+    # 只重寫內容真的變了的檔：RIME 是看檔案時間決定要不要重編的，沒變卻重寫等於白白重編一輪。
+    # 不帶 BOM、LF：這些檔是給 librime 讀的。
+    $script:optChanged = 0
+    function Write-Option([string]$path, [string[]]$lines) {
+        $text = ($lines -join "`n") + "`n"
+        if ((Test-Path -LiteralPath $path) -and ([IO.File]::ReadAllText($path) -eq $text)) { return }
+        [IO.File]::WriteAllText($path, $text, (New-Object Text.UTF8Encoding $false))
+        $script:optChanged++
     }
-    $y.Add("  horizontal: $horizontal")
-    $y.Add("  candidate_list_layout: $mac")
-    $y.Add("  emoji: $emojiNum")
-    $y.Add("  gloss: $($glossMap[$opt.gloss])")
-    $y.Add('  schema_list:')
-    $y.Add('    - { schema: bopomo_onionplus } # 注音Na+')
-    foreach ($l in $langSchemas.Keys) {
-        if ($langs -contains $l) { foreach ($s in $langSchemas[$l]) { $y.Add("    - { schema: $($s[0]) } # $($s[1])") } }
+    # 把對話框寫的那一筆從使用者的 *.custom.yaml 拿掉（只刪那個鍵，其他內容原樣留著）
+    function Remove-Override([string]$path, [string]$pattern) {
+        $text = [IO.File]::ReadAllText($path)
+        $new = ([regex]$pattern).Replace($text, '', 1)
+        if ($new -ne $text) {
+            [IO.File]::WriteAllText($path, $new, (New-Object Text.UTF8Encoding $false))
+            $script:optChanged++
+        }
     }
-    # 不帶 BOM、LF：這個檔是給 librime 讀的
-    [IO.File]::WriteAllText($optFile, (($y -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
-    Step '已寫入選項'
-    Say "    主題 $($opt.theme)｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜字型 $($opt.font)｜emoji $($opt.emoji)｜語言 $($opt.langs)｜釋義 $($opt.gloss)"
+    # 主題：對話框選的是這套的主題 → 上面已經當成這次的值寫進選項檔，那一筆可以拿掉；
+    #       選的是別的配色 → 這次有重選主題才拿掉。方案清單：這次有重選語言才拿掉。
+    if ($guiTheme -and ($guiThemeKnown -or $edited.theme)) { Remove-Override $weaselUser $reTheme }
+    if ($guiSchemas -and $edited.langs) { Remove-Override $defaultUser $reSchema }
 
-    # ── [6] 套用檔案＋部署＋重啟 ──────────────────────────────────────
-    # 交給 repo 裡的 rime-update.ps1：它會把 rime\ 攤平複製到使用者資料夾、部署、重啟。
+    $note = '# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。'
+    $macFont = '"PingFangTC-Semibold"'; $macComment = '"PingFangTC-Regular"'
+    if ($opt.font -eq 'huninn') { $macFont = '"jf-openhuninn-2.1, PingFangTC-Semibold"'; $macComment = '"jf-openhuninn-2.1, PingFangTC-Regular"' }
+    Write-Option $styleFile @(
+        "# na_style.custom.yaml — 個人選項：候選窗的長相（由 '/setup 產生，不進版控）",
+        "# 想換：輸入法裡打 '/setup；或手動改下面的值後重新部署。各鍵說明見 na_style.yaml。",
+        $note,
+        "# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) font=$($opt.font)",
+        'patch:',
+        "  theme: $scheme",
+        "  theme_dark: $schemeDark",
+        "  font_point: $($sz[0])",
+        "  label_font_point: $($sz[1])",
+        "  mac_font_point: $($sz[2])",
+        "  mac_label_font_point: $($sz[3])",
+        "  font_face: `"$fontFace`"",
+        "  comment_font_face: `"$commentFace`"",
+        "  mac_font_face: $macFont",
+        "  mac_comment_font_face: $macComment",
+        "  horizontal: $horizontal",
+        "  candidate_list_layout: $mac"
+    )
+    Write-Option $inputFile @(
+        "# na_input.custom.yaml — 個人選項：輸入時的行為（由 '/setup 產生，不進版控）",
+        "# 想換：輸入法裡打 '/setup；或手動改下面的值後重新部署。各鍵說明見 na_input.yaml。",
+        $note,
+        "# na-options: emoji=$($opt.emoji) gloss=$($opt.gloss)",
+        'patch:',
+        "  emoji: $emojiNum",
+        "  gloss: $($glossMap[$opt.gloss])"
+    )
+    $m = New-Object System.Collections.Generic.List[string]
+    $m.Add("# na_menu.custom.yaml — 個人選項：方案選單裡的語言（由 '/setup 產生，不進版控）")
+    $m.Add("# 想換：輸入法裡打 '/setup；或手動改下面的清單後重新部署。說明見 na_menu.yaml。")
+    $m.Add($note)
+    $m.Add("# na-options: langs=$($opt.langs)")
+    $m.Add('patch:')
+    $m.Add('  schema_list:')
+    $m.Add('    - { schema: bopomo_onionplus } # 注音Na+')
+    foreach ($l in $langSchemas.Keys) {
+        if ($langs -contains $l) { foreach ($sc in $langSchemas[$l]) { $m.Add("    - { schema: $($sc[0]) } # $($sc[1])") } }
+    }
+    Write-Option $menuFile $m.ToArray()
+    if ($script:optChanged) { Step '已寫入選項' } else { Step '選項沒有變動' }
+    # 對話框那邊的自訂還在生效的項目，摘要也照實寫（不然會印出一個其實沒在用的值）
+    $themeShown = $opt.theme; $langsShown = $opt.langs
+    if ($guiTheme -and -not $guiThemeKnown -and -not $edited.theme) { $themeShown = "$guiTheme（小狼毫對話框選的）" }
+    if ($guiSchemas -and -not $edited.langs) { $langsShown = "自訂的 $guiSchemas 個方案（小狼毫對話框勾的）" }
+    Say "    主題 $themeShown｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜字型 $($opt.font)｜emoji $($opt.emoji)｜語言 $langsShown｜釋義 $($opt.gloss)"
+
+    # ── [6] 套用檔案＋部署 ────────────────────────────────────────────
+    # 交給 repo 裡的 rime-update.ps1：它會把 rime\ 攤平複製到使用者資料夾，並自己判斷要不要
+    # 部署、要不要重啟服務（lua 有變才需要重啟）。這裡只補它看不到的事：
+    #   第一次安裝          → -Force（整輪部署＋重啟）
+    #   只是選項檔變了      → -Deploy（部署就會生效，不必重啟服務）
+    #   什麼都沒變          → 不加，rime-update 發現沒事可做就直接結束
+    # 以前不管有沒有變都 -Force，所以只是進來看一眼選項也要等上一輪部署加重啟。
     # 另開一個行程並帶 -ExecutionPolicy Bypass：Windows 預設政策不准直接執行 .ps1 檔。
     if ($NoDeploy) { Step '套用檔案（-NoDeploy：不部署、不動輸入法服務）' }
-    else { Step '套用檔案、部署並重啟小狼毫（第一次要編譯詞典，約 2～5 分鐘，請等它跑完）' }
+    elseif (-not $ours) { Step '套用檔案、部署並重啟小狼毫（第一次要編譯詞典，約 2～5 分鐘，請等它跑完）' }
+    else { Step '套用檔案（有變動才重新部署）' }
     $psExe = (Get-Process -Id $PID).Path
     $upArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $SrcDir 'scripts\rime-update.ps1'),
-                '-Force', '-SkipPull', '-NoPause', '-CloseAfter', '0', '-RimeDir', $RimeDir)
+                '-SkipPull', '-NoPause', '-CloseAfter', '0', '-RimeDir', $RimeDir)
+    if (-not $ours) { $upArgs += '-Force' } elseif ($script:optChanged) { $upArgs += '-Deploy' }
     if ($NoDeploy) { $upArgs += '-NoDeploy' }
     & $psExe @upArgs
     if ($LASTEXITCODE -ne 0) { Die '套用／部署沒有成功，請看上面的訊息。' }
 
     Say ''
     Write-Host '✓ 完成。' -ForegroundColor Green
-    Say '  ‧ 切到小狼毫後按 Ctrl+` 開方案選單；打 ''/h 再按空白鍵可開速查表'
-    Say "  ‧ 想重選主題／語言／emoji：再跑一次同一行安裝指令（或雙擊 $RimeDir\na-setup.cmd）"
-    Say "  ‧ 之後更新：輸入法內打 '/git 再按空白鍵"
-    Say "  ‧ 設定來源放在 $SrcDir（更新靠它，請不要刪）"
+    if ($ours) {
+        # 已經裝過、只是進來改選項：不必再把安裝完的說明整段印一次
+        Say "  ‧ 之後想再改：輸入法內打 '/setup 再按空白鍵"
+    } else {
+        Say '  ‧ 切到小狼毫後按 Ctrl+` 開方案選單；打 ''/h 再按空白鍵可開速查表'
+        Say "  ‧ 想重選主題／語言／emoji：輸入法內打 '/setup 再按空白鍵（或再跑一次同一行安裝指令）"
+        Say "  ‧ 之後更新：輸入法內打 '/git 再按空白鍵"
+        Say "  ‧ 設定來源放在 $SrcDir（更新靠它，請不要刪）"
+    }
     Say ''
+    # 給 scripts\rime-setup.cmd 看的：成功就讓視窗自己關，失敗才停下來等人看（它用 NA_AUTOCLOSE 告訴這裡）
+    $global:NaSetupOk = $true
+    if (Pick '' 'NA_AUTOCLOSE') {
+        Say '  視窗 2 秒後自動關閉…'
+        Start-Sleep -Seconds 2
+    }
 }
 
 try {
