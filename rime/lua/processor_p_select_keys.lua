@@ -31,6 +31,8 @@
 ⚠ 元件名 p_select_keys 必須在 rime.lua 有 bind，否則 yaml 那行等於沒寫（靜默失效）。
 --]]
 
+local key_util = require("p_components/p_key_util")
+
 local function init(env)
   local config = env.engine.schema.config
   -- 選字鍵字串，第 n 個字元 = 該頁第 n 列。namespace 即 yaml 的 lua_processor@p_select_keys
@@ -42,14 +44,12 @@ end
 local function processor(key, env)
   if env.keys == "" then return 2 end
   --- pass release ctrl alt super（Shift 不能排除：選字鍵本身就是 Shift+數字）
-  if key:release() or key:ctrl() or key:alt() or key:super() then return 2 end
+  if not key_util.is_plain_press(key) then return 2 end
 
   local context = env.engine.context
   if not context:has_menu() then return 2 end          -- 沒候選就不動作，'!' 照常上屏「！」
 
-  local kc = key.keycode
-  local ch = (kc and kc >= 0x20 and kc < 0x7f) and string.char(kc) or nil
-  local n = ch and string.find(env.keys, ch, 1, true)  -- plain find：$ ^ 不當正規符號
+  local n = key_util.select_index(key, env.keys)
   if not n then return 2 end
 
   local comp = context.composition
@@ -58,8 +58,7 @@ local function processor(key, env)
   if seg:has_tag("raw") then return 2 end              -- 與 librime selector 的判斷一致
 
   -- ⇧1 是「這一頁的第 1 列」；翻到第 2 頁要補上該頁起始的絕對序號
-  local base = env.page_size * math.floor((seg.selected_index or 0) / env.page_size)
-  if context:select(base + n - 1) then
+  if context:select(key_util.page_base(seg, env.page_size) + n - 1) then
     return 1  -- kAccepted（select 會觸發 engine 的 OnSelect，該上屏就上屏）
   end
   return 2    -- 該頁沒有第 n 列（最後一頁不滿），交還給後面的 processor
