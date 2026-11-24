@@ -131,8 +131,6 @@ local k_keys_table = {
       --   , { "  ~rw 〔 Rime 詳解 〕", "❺" }
       --   , { "  ~l   〔 librime-lua 官方 GitHub 〕", "❻" }
       --   , { "  ~lw 〔 librime-lua 腳本開發指南 〕", "❼" }
-      --   , { "  ~o   〔 Onion 洋蔥 GitHub 〕", "❽" }
-      --   , { "  ~ow 〔 Onion 洋蔥 GitHub Wiki 〕", "❾" }
       --   , { "═══  結束  ═══  ", "❿" }
       --   , { "", "⓫" }
       --   , { "", "⓬" }

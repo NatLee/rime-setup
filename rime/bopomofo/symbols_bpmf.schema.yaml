@@ -3,7 +3,7 @@
 # 《符號分類集（by注音）設定頁》
 schema:
   schema_id: symbols_bpmf
-  name: 系列符號(注音)
+  name: "符號集"
   version: "202009"
   description: |
     由Unicode中「Emoticons」部份和「Miscellaneous Symbols and Pictographs」部份合成。

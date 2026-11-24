@@ -3,7 +3,7 @@
 # 《反查掛載專用 英翻中 設定頁》
 schema:
   schema_id: easy_en_lcomment
-  name: "提示碼_英翻中"
+  name: "英文（附釋義）"
   version: "202301"
   author:
     - Onion

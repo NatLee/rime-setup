@@ -3,7 +3,7 @@
 # 《西里爾字母（洋蔥形碼鍵位）設定頁》
 schema:
   schema_id: cyrillic
-  name: ❃西里爾字母❃
+  name: "西里爾字母"
   version: "202301"
   author:
     - 『洋蔥』

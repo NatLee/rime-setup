@@ -50,7 +50,7 @@ patch:
     - {accept: "Control+comma", toggle: ascii_mode, when: always}
     # ── 一鍵切換語言方案（長文用原生體驗；短句用 3/4/6/7 前綴即可）──
     # 編號對應 F4 選單順序；Ctrl+Alt 是 Windows AltGr 保留組合小狼毫不轉送，
-    # Ctrl+Shift+字母 易與 VSCode 等衝突、Ctrl+Shift+6~0 被洋蔥開關佔用，故用 Ctrl+Shift+F 區
+    # Ctrl+Shift+字母 易與 VSCode 等衝突、Ctrl+Shift+6~0 被方案內建的開關佔用，故用 Ctrl+Shift+F 區
     - {accept: "Control+Shift+F1", select: bopomo_onionplus, when: always}
     - {accept: "Control+Shift+F2", select: jpnin1, when: always}
     - {accept: "Control+Shift+F3", select: hangeul_hnc, when: always}
