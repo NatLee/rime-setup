@@ -17,7 +17,9 @@
 # NatMatcha 抹茶奶油｜NatLight 明亮｜NatDark 深色｜NatLee 經典
 # 配色定義在 weasel.custom.yaml（Windows）／squirrel.custom.yaml（macOS）
 theme: NatMatcha
-theme_dark: NatDark # 系統深色模式時用的主題（預設跟隨系統換成深色）；與 theme 相同＝不跟隨
+theme_dark: NatDark # 系統深色模式時用的主題（預設跟隨系統換成深色）。不想跟隨：在個人檔寫 theme_dark: ~
+# ⚠ 「不跟隨」不要寫成跟 theme 同一個名稱 —— 那會把深色模式釘死在那個主題，
+#   之後從小狼毫自己的「輸入法設定」換配色，在深色模式下會沒反應。
 
 # ── 字級（pt）──
 # 標籤與註釋共用 label_font_point，比候選字小一截，候選字才突出。

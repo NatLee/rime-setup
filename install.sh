@@ -356,8 +356,10 @@ main() {
     local scheme scheme_dark pts
     scheme="$(theme_scheme "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light sakura ocean latte dark midnight classic）"; return 1; }
     # 本身就是深色的主題：系統深色模式時不必再換
-    case "${THEME}" in dark|midnight) [ "${DARK}" = "auto" ] && scheme_dark="${scheme}" ;; esac
-    case "${DARK}" in auto) scheme_dark="${scheme_dark:-NatDark}" ;; off) scheme_dark="${scheme}" ;; *) die "不認得的深色模式設定：${DARK}（可用：auto off）"; return 1 ;; esac
+    # 不跟隨、或主題本身就是深色 → theme_dark 留空（~），深色模式直接沿用 color_scheme。
+    # 不可以寫成跟 theme 同名：那會把深色模式釘死在安裝當下的主題（原委見 rime-apply.ps1）。
+    case "${THEME}" in dark|midnight) [ "${DARK}" = "auto" ] && scheme_dark="~" ;; esac
+    case "${DARK}" in auto) scheme_dark="${scheme_dark:-NatDark}" ;; off) scheme_dark="~" ;; *) die "不認得的深色模式設定：${DARK}（可用：auto off）"; return 1 ;; esac
     pts="$(size_points "${SIZE}")" || { die "不認得的字級：${SIZE}（可用：small medium large）"; return 1; }
     case "${LAYOUT}" in vertical|horizontal) ;; *) die "不認得的排列：${LAYOUT}（可用：vertical horizontal）"; return 1 ;; esac
     case "${EMOJI}" in on|off) ;; *) die "不認得的 emoji 設定：${EMOJI}（可用：on off）"; return 1 ;; esac

@@ -405,7 +405,10 @@ function Install-NaPlus {
     $emojiNum = 1
     if ($opt.emoji -eq 'off') { $emojiNum = 0 }
     $scheme = $themeMap[$opt.theme]
-    $schemeDark = $scheme
+    # 不跟隨系統深色模式 → theme_dark 留空（~）。不可以寫成跟 theme 同名：那會把深色模式
+    # 釘死在這個主題，之後從小狼毫自己的「輸入法設定」換配色，在深色模式下會完全沒反應。
+    # 本身就是深色的主題也一樣留空（深色模式直接沿用它）。
+    $schemeDark = '~'
     if ($opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) { $schemeDark = 'NatDark' }
     $sz = $sizeMap[$opt.size]
 

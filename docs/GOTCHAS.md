@@ -202,13 +202,6 @@ translator 的提示候選（`mf_open_menu.register_direct`）、processor 的�
 → `rime-test.ps1` 的 robocopy 已加 `/PURGE`（`*.userdb` 等 `/XD` 排除項不受影響）。
 刪檔之後務必 `-Sync` 重跑一次。
 
-### 部署會讓 IME「卡死」——那是服務還活著時在編譯
-`WeaselDeployer /deploy` 是**同步**的（實測單一方案重編 1.6 秒、大改動 10~13 秒，
-動到詞典更久）。服務還活著的時候，這段時間 IME 收得到按鍵卻回不了字 ——
-使用者體感就是卡死。
-→ 更新流程改成**先 `/quit` 停服務、再部署、最後啟動**：中斷期間是乾淨的
-「暫時沒有輸入法」，不是「有但沒反應」，也沒有人跟編譯搶 `build\` 檔案。
-
 ### 停服務用 `WeaselServer.exe /quit`，不要 `Stop-Process -Force`
 強殺會讓正在連線的應用程式卡在具名管線上 —— 卡的正是使用者當下在打字的視窗。
 `/quit` 是官方開關，閒置時實測 100~200ms 就乾淨退出。
@@ -219,13 +212,47 @@ translator 的提示候選（`mf_open_menu.register_direct`）、processor 的�
 `WeaselServer.exe` → `/quit` `/deploy` `/dict` `/sync` `/userdir` `/weaseldir`
 `WeaselDeployer.exe` → `/deploy` `/dict` `/sync` `/install` `/help`
 
-### `deployer` 回傳 ≠ 編譯完成
-實測遇過 `WeaselDeployer /deploy` **0.0 秒就 exit 0**，真正的重編是之後啟動的
-WeaselServer 做的（`build\` 在那之後才變動）。所以不能拿它的回傳或 exit code
-當「做完了」的訊號。
-→ `rime-update.ps1` 啟動服務後會等 `build\` 的最新 mtime 連續數次不再變動才報完成。
-沒有這一步，腳本會在編譯還在跑的時候說「✓ 完成」，使用者一打字發現沒反應，
-又是一次「卡死」。
+### ⚠⚠ 部署時不可以先把服務停掉 —— 會讓所有用輸入法的程式一起沒回應
+出過兩次事：使用者打 `'/git` 更新，之後 Chrome、編輯器全部被 Windows 判定無回應。
+現場是 `WeaselDeployer.exe` 起來之後 **CPU 一直是 0**（log 只有 262 bytes，停在第一行），
+旁邊有一個同時啟動的 `WeaselServer.exe`。兩個互等。
+
+**原因是「先 `/quit` 停服務 → 部署 → 啟動」這個順序本身。**
+服務一消失，任何開著輸入法的程式都會自動把它叫回來；叫回來的時機如果撞上部署器剛啟動
+（部署器一開始會去連服務、通知它進維護模式），兩邊就鎖死。更新要重編詞典時視窗期拉長，幾乎必中。
+
+小狼毫自己的「重新部署」不是這樣做的。部署器的流程（`Configurator::UpdateWorkspace`）是：
+連上服務 → `StartMaintenance` → 編譯 → `EndMaintenance`，服務全程活著。
+→ `rime-update.ps1` 現在照這個順序：**確定服務在跑而且就緒 → 部署（等部署器結束）→ lua 有變才重啟服務**。
+→ 保險：部署器啟動 20 秒仍完全沒吃 CPU 就判定互鎖，腳本會結束它、把服務重新叫起來，不讓整台卡著。
+→ 救援方式：工作管理員結束 `WeaselDeployer` 和 `WeaselServer`，從開始功能表按「重新部署」等它跑完。
+→ 這種錯沙盒抓不到（沙盒直接呼叫 librime，不經過部署器與服務）。**改更新流程一定要對實機跑**，
+  而且要跑三種：沒變動、只有 yaml 變動、`-Force`。
+
+查這件事的過程中連帶找到三個各自獨立的錯，都是實機才看得出來：
+
+**① `& $deployer /deploy` 不會等。** `WeaselDeployer.exe` 是視窗程式，PowerShell 的 `&` 對視窗程式
+不會等待，馬上往下跑。以前註解寫「deployer 有時 0.0 秒就 exit 0，真正的重編是之後啟動的服務做的」，
+那是誤判：0.0 秒是根本沒等它。→ 用 `[Diagnostics.Process]::Start(...)` 拿到行程再 `WaitForExit`。
+
+**② Windows PowerShell 5.1 的 `Start-Process -ArgumentList '/quit'` 會讓 `/quit` 失效。**
+5.1 組出來的命令列結尾多一個空白（`"…WeaselServer.exe" /quit␠`）。小狼毫是整串比對，認不出這是
+`/quit`，就把它當成「啟動一個新的服務」—— 新的把舊的擠掉、自己留下來。從外面看就是「送了 /quit
+但 WeaselServer 還在」，重送幾次都一樣，最後落到強殺。pwsh 7 沒有這個問題，所以只在 5.1 測才會發現。
+→ 參數一律用 `[Diagnostics.Process]::Start($exe, '/quit')` 給。
+→ 順帶知道的事：**再啟動一個 `WeaselServer.exe` 不會被擋掉，而是取代舊的。**
+
+**③ 部署器剛結束時服務正在重新載入設定，這時送 `/quit` 它不理。**
+→ 等它的 CPU 時間連續 1.5 秒不再增加再送，就是 0.1 秒的事。
+
+### 部署會讓 IME 暫時不能用 —— 那是維護模式，不是卡死
+部署器通知服務進維護模式的那段時間，輸入法不出字，但**其他程式不會被拖住**。
+以前為了避開這段「有輸入法但沒反應」而改成先停服務，結果換來更糟的整台卡死（見上一條）。
+兩害相權取其輕：就讓它進維護模式。
+### 套用檔案要比內容，不能只比修改時間
+`rime-apply` 原本用「大小＋修改時間」判斷檔案有沒有變。換一份 clone 來套用、或 git 重新簽出時，
+內容沒變但修改時間全都不同 → 一百多個檔全部重新複製 → RIME 整輪重新編譯（實測 170 秒）。
+→ 大小相同、時間不同時再比 SHA256，內容一樣就不動。全部比一輪不到 2 秒。
 
 ### 更新流程：沒變更就別動輸入法
 以前不管 `git pull` 有沒有拉到東西，都照樣部署＋重啟 —— 光是「確認一下有沒有
@@ -438,6 +465,27 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
 舊版的指令命名空間（`'/jh`、`'/jgit`）拿掉之後，`mix_apc_s2rm_ltk` 裡還留著它的開檔分支
 （`'/jh` 按空白其實仍會開速查表、打錯的 `'/jxx` 按空白會清空）。那段已移除：
 現在 `'/j…` 按空白就是一般的「沒有候選 → 上屏原始編碼」。
+
+## 主題與小狼毫自己的設定對話框
+
+### 在小狼毫「輸入法設定」換配色沒反應 → 深色模式被釘住
+小狼毫的做法是先套 `style/color_scheme`，系統在深色模式時再看 `style/color_scheme_dark`
+**讀不讀得到字串**，讀得到就蓋過去（`RimeWithWeasel.cpp`）。
+舊版安裝腳本在「不跟隨系統」時把 `theme_dark` 寫成跟 `theme` 同名 —— 等於把深色模式釘死在
+安裝當下的主題。對話框只改 `color_scheme`，於是在深色模式下怎麼換都看不出來。
+→ 「不跟隨」現在寫成 `theme_dark: ~`（空值），而且 `*.custom.yaml` 用選用式的
+  `{ __include: "na_options:/theme_dark?" }`：值是空的時候那個鍵解析成空節點，
+  `config_get_string` 回 false，小狼毫就退回 `color_scheme`。沙盒用同一支 rime.dll 的同一個 API 驗過。
+→ `rime-apply` 會把舊格式的 `na_options.custom.yaml` 自動改過來。
+→ 「跟隨系統」時深色模式固定用 Nat Dark，這時在對話框換配色只影響淺色模式，這是預期行為。
+
+### 對話框選的配色會被更新蓋掉
+對話框把選擇寫進使用者資料夾的 `weasel.custom.yaml`（`patch` 底下多一個 `"style/color_scheme"`，
+而且整個檔案被它重新排版）。那是從 repo 複製來的檔，照一般規則下次套用就整個蓋回去。
+→ `rime-apply.ps1` 對這個檔特別處理：套用前記下對話框的選擇，蓋完補回檔尾；
+  「應有內容＝repo 版本＋那幾行」，跟現況一樣就不動，不會每次更新都觸發部署。
+→ 誰比較新聽誰的：之後用 `'/setup` 重選主題會重寫 `na_options.custom.yaml`，它比
+  `weasel.custom.yaml` 新的話，對話框的舊選擇就不再保留。
 
 ## 安裝腳本與安裝選項
 

@@ -92,6 +92,19 @@ fi
     cat "${TMP}/new"
 } > "${MANIFEST}"
 
+# ── 舊格式的個人選項：「不跟隨系統深色模式」原本寫成 theme_dark 跟 theme 同名 ──
+# 那等於把深色模式釘死在安裝當下的主題。現在寫成 theme_dark: ~（空值），
+# 前端讀不到就退回用 color_scheme。這裡把舊檔改過來（原委見 rime-apply.ps1）。
+OPT_FILE="${RIME_DIR}/na_options.custom.yaml"
+if [ -f "${OPT_FILE}" ]; then
+    opt_theme="$(sed -n 's/^  theme:[[:space:]]*\([^[:space:]]*\).*/\1/p' "${OPT_FILE}" | head -1)"
+    opt_dark="$(sed -n 's/^  theme_dark:[[:space:]]*\([^[:space:]]*\).*/\1/p' "${OPT_FILE}" | head -1)"
+    if [ -n "${opt_theme}" ] && [ "${opt_dark}" = "${opt_theme}" ]; then
+        sed 's/^  theme_dark:[[:space:]]*[^[:space:]]*/  theme_dark: ~/' "${OPT_FILE}" > "${TMP}/opt" && cat "${TMP}/opt" > "${OPT_FILE}"
+        build=$(( build + 1 ))   # 選項檔變了，要重新部署才會生效
+    fi
+fi
+
 # ── 個人短語檔：第一次從範本複製（之後永遠不覆蓋）──────────────────────
 if [ ! -f "${RIME_DIR}/bopomo_onionplus_phrase.txt" ] && [ -f "${RIME_DIR}/bopomo_onionplus_phrase.sample.txt" ]; then
     cp "${RIME_DIR}/bopomo_onionplus_phrase.sample.txt" "${RIME_DIR}/bopomo_onionplus_phrase.txt"
