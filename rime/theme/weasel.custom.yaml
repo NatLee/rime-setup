@@ -105,6 +105,82 @@ patch:
       hilited_comment_text_color: 0xC08163 # #6381C0
       hilited_mark_color: 0xF2A55C # #5CA5F2
 
+    # 櫻花：粉白底＋莓紅光棒
+    NatSakura:
+      name: Nat Sakura
+      author: NatLee
+      back_color: 0xF7F6FF # 底色 #FFF6F7
+      border_color: 0xD3CDF2 # 邊框 #F2CDD3
+      text_color: 0x38334A # 編碼列文字 #4A3338
+      hilited_text_color: 0x6B45C2 # 編碼列高亮段文字 #C2456B
+      hilited_back_color: 0xE8E3FB # 編碼列高亮段底色 #FBE3E8
+      label_color: 0x938AB5 # 候選標籤 #B58A93
+      candidate_text_color: 0x2E2A3B # 候選字 #3B2A2E
+      comment_text_color: 0x6F56B5 # 註釋 #B5566F
+      hilited_candidate_back_color: 0x7E57D9 # 高亮候選底色 #D9577E
+      hilited_candidate_text_color: 0xFFFFFF # 高亮候選文字 #FFFFFF
+      hilited_candidate_label_color: 0xE2D9FF # 高亮候選標籤 #FFD9E2
+      hilited_comment_text_color: 0xECE6FF # 高亮候選註釋 #FFE6EC
+      shadow_color: 0x28000000 # 陰影
+      hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
+
+    # 海洋：霧白底＋海藍光棒
+    NatOcean:
+      name: Nat Ocean
+      author: NatLee
+      back_color: 0xFCF9F3 # 底色 #F3F9FC
+      border_color: 0xEADFC9 # 邊框 #C9DFEA
+      text_color: 0x4A3F2B # 編碼列文字 #2B3F4A
+      hilited_text_color: 0xA46F0B # 編碼列高亮段文字 #0B6FA4
+      hilited_back_color: 0xF6EEDD # 編碼列高亮段底色 #DDEEF6
+      label_color: 0xA89A7F # 候選標籤 #7F9AA8
+      candidate_text_color: 0x382F1F # 候選字 #1F2F38
+      comment_text_color: 0xA67F2F # 註釋 #2F7FA6
+      hilited_candidate_back_color: 0xB87914 # 高亮候選底色 #1479B8
+      hilited_candidate_text_color: 0xFFFFFF # 高亮候選文字 #FFFFFF
+      hilited_candidate_label_color: 0xF7E8CF # 高亮候選標籤 #CFE8F7
+      hilited_comment_text_color: 0xFAF0DD # 高亮候選註釋 #DDF0FA
+      shadow_color: 0x28000000 # 陰影
+      hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
+
+    # 拿鐵：奶泡底＋咖啡光棒
+    NatLatte:
+      name: Nat Latte
+      author: NatLee
+      back_color: 0xECF4FA # 底色 #FAF4EC
+      border_color: 0xBED3E3 # 邊框 #E3D3BE
+      text_color: 0x2E3B4A # 編碼列文字 #4A3B2E
+      hilited_text_color: 0x2B5B9A # 編碼列高亮段文字 #9A5B2B
+      hilited_back_color: 0xCFE2F0 # 編碼列高亮段底色 #F0E2CF
+      label_color: 0x7C93A8 # 候選標籤 #A8937C
+      candidate_text_color: 0x1D2733 # 候選字 #33271D
+      comment_text_color: 0x3A67A0 # 註釋 #A0673A
+      hilited_candidate_back_color: 0x3C5E8B # 高亮候選底色 #8B5E3C
+      hilited_candidate_text_color: 0xEEF8FF # 高亮候選文字 #FFF8EE
+      hilited_candidate_label_color: 0xBCD5EB # 高亮候選標籤 #EBD5BC
+      hilited_comment_text_color: 0xCFE3F3 # 高亮候選註釋 #F3E3CF
+      shadow_color: 0x28000000 # 陰影
+      hilited_mark_color: 0xEEF8FF # 高亮候選前的小標記
+
+    # 午夜：深藍底＋靛藍光棒（深色）
+    NatMidnight:
+      name: Nat Midnight
+      author: NatLee
+      back_color: 0x2B1B15 # 底色 #151B2B
+      border_color: 0x50332A # 邊框 #2A3350
+      text_color: 0xE8D2C9 # 編碼列文字 #C9D2E8
+      hilited_text_color: 0xFFB48F # 編碼列高亮段文字 #8FB4FF
+      hilited_back_color: 0x472C23 # 編碼列高亮段底色 #232C47
+      label_color: 0xA37C6F # 候選標籤 #6F7CA3
+      candidate_text_color: 0xF7E9E3 # 候選字 #E3E9F7
+      comment_text_color: 0xC29B8E # 註釋 #8E9BC2
+      hilited_candidate_back_color: 0xDB5B3B # 高亮候選底色 #3B5BDB
+      hilited_candidate_text_color: 0xFFFFFF # 高亮候選文字 #FFFFFF
+      hilited_candidate_label_color: 0xFFD4C5 # 高亮候選標籤 #C5D4FF
+      hilited_comment_text_color: 0xFFE0D6 # 高亮候選註釋 #D6E0FF
+      shadow_color: 0x60000000 # 陰影
+      hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
+
     # 經典主題
     NatLee:
       name: Nat x Theme
