@@ -1,0 +1,385 @@
+#!/bin/bash
+# install.sh — 注音Na+ 一行安裝／重新設定（macOS 鼠鬚管）
+#
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/NatLee/rime-setup/main/install.sh)"
+#
+# 第一次跑＝安裝；之後再跑同一行＝更新到最新版＋重新選一次選項。
+# 已經裝好的人也可以不連網重選：bash ~/.na-plus/install.sh --local
+#
+# 不想被問（自動化／固定選項）：用環境變數或參數
+#   NA_THEME=light NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL <網址>)"
+#   bash ~/.na-plus/install.sh --local --theme light --emoji off --langs ja,en --yes
+#
+#   --theme   matcha | light | dark | auto | classic
+#   --layout  vertical | horizontal
+#   --emoji   on | off
+#   --langs   ja,ko,en,extra 任意組合；none＝只留注音
+#   --gloss   zh | en | ja
+#   --yes     不詢問：沿用上次的選擇（第一次則用預設值）
+#   --local   用這支腳本所在的那份 repo，不連網（不 clone、不 pull）
+#   --no-deploy  只複製檔案與寫設定，不重新部署（測試用）
+#
+# 其他環境變數：NA_HOME（repo 放哪，預設 ~/.na-plus）、NA_RIME_DIR（使用者資料夾）、
+#   NA_REPO／NA_BRANCH（來源）、NA_SQUIRREL（鼠鬚管執行檔，測試用）
+#
+# 這支腳本會：
+#   確認 git／鼠鬚管 → 把設定 repo 下載到 ~/.na-plus（已有就更新）
+#   → 第一次：備份既有的 ~/Library/Rime，並還原你的打字詞頻與個人短語
+#   → 問選項 → 把檔案套用到使用者資料夾 → 重新部署
+#
+# ⚠ 寫給維護者：
+#   ‧ macOS 內建 bash 是 3.2：沒有關聯陣列、沒有 ${var,,}、沒有 mapfile。
+#   ‧ 3.2 底下 `$VAR` 後面緊接中文會把中文吃進變數名 → 一律寫 ${VAR}。
+#   ‧ 全部包在 main() 裡、最後一行才呼叫：curl 下載到一半斷線時不會執行半支腳本。
+#   ‧ `bash -c "$(curl …)"` 時 stdin 仍是終端機；但保險起見提問一律讀 /dev/tty。
+
+set -u
+
+main() {
+    local REPO="${NA_REPO:-https://github.com/NatLee/rime-setup.git}"
+    local BRANCH="${NA_BRANCH:-main}"
+    local RIME_DIR="${NA_RIME_DIR:-${HOME}/Library/Rime}"
+    local SRC_DIR="${NA_HOME:-${HOME}/.na-plus}"      # 設定 repo 放這裡，跟使用者資料夾分開
+    local USE_LOCAL="${NA_LOCAL:-}"                    # 用 SRC_DIR 那份、不連網
+    local SQUIRREL_APP="/Library/Input Methods/Squirrel.app"
+    local SQUIRREL="${NA_SQUIRREL:-${SQUIRREL_APP}/Contents/MacOS/Squirrel}"
+    local YES="${NA_YES:-}" NO_DEPLOY="${NA_NO_DEPLOY:-}"
+    local G_THEME="${NA_THEME:-}" G_LAYOUT="${NA_LAYOUT:-}" G_EMOJI="${NA_EMOJI:-}"
+    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}"
+    local BACKUP=""
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --theme|--layout|--emoji|--langs|--gloss)
+                [ $# -ge 2 ] || { echo "✗ $1 後面要接一個值" >&2; return 2; }
+                case "$1" in
+                    --theme)  G_THEME="$2" ;;
+                    --layout) G_LAYOUT="$2" ;;
+                    --emoji)  G_EMOJI="$2" ;;
+                    --langs)  G_LANGS="$2" ;;
+                    --gloss)  G_GLOSS="$2" ;;
+                esac
+                shift 2 ;;
+            --yes|-y)    YES=1; shift ;;
+            --no-deploy) NO_DEPLOY=1; shift ;;
+            --local)     USE_LOCAL=1; shift ;;
+            *) echo "✗ 不認得的參數：$1" >&2; return 2 ;;
+        esac
+    done
+
+    # --local 且沒指定 NA_HOME：用「這支腳本所在的那份 repo」（開發用的 clone 也適用）
+    if [ -n "${USE_LOCAL}" ] && [ -z "${NA_HOME:-}" ] && [ -f "$0" ] && [ -d "$(dirname "$0")/rime" ]; then
+        SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
+    fi
+
+    say()  { printf '%s\n' "$*"; }
+    step() { printf '\n\033[36m→ %s\033[0m\n' "$*"; }
+    warn() { printf '  \033[33m⚠ %s\033[0m\n' "$*"; }
+    ok()   { printf '  \033[32m✓ %s\033[0m\n' "$*"; }
+    die()  { printf '\n\033[31m✗ %s\033[0m\n\n' "$*" >&2; return 1; }
+    lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+    # 兩個 remote 是不是同一個 repo：只比最後兩段（owner/repo），
+    # https://github.com/a/b.git 與 git@github.com:a/b.git 視為相同。
+    repo_key() {
+        printf '%s' "$1" | sed -e 's/\.git$//' -e 's:/*$::' | tr ':\\' '//' | awk -F/ '{ if (NF>=2) print tolower($(NF-1) "/" $NF); else print tolower($0) }'
+    }
+
+    # 能不能問問題：有 --yes 就不問；否則要有終端機可讀
+    local INTERACTIVE=0 TTY=/dev/tty
+    if [ -z "${YES}" ]; then
+        if [ -n "${NA_FORCE_INTERACTIVE:-}" ]; then INTERACTIVE=1; TTY=/dev/stdin   # 測試用：從 stdin 餵答案
+        elif { : < /dev/tty; } 2>/dev/null; then INTERACTIVE=1
+        fi
+    fi
+    ask() { # ask <提示>  → 結果放在 REPLY
+        printf '%s' "$1"
+        IFS= read -r REPLY < "${TTY}" || REPLY=""
+    }
+
+    # ── 選項定義 ──────────────────────────────────────────────────────
+    theme_pair() { # 值 → "color_scheme color_scheme_dark"
+        case "$1" in
+            matcha)  echo "NatMatcha NatMatcha" ;;
+            light)   echo "NatLight NatLight" ;;
+            dark)    echo "NatDark NatDark" ;;
+            auto)    echo "NatLight NatDark" ;;
+            classic) echo "NatLee NatLee" ;;
+            *) return 1 ;;
+        esac
+    }
+    lang_schemas() { # 值 → 多行「方案id<TAB>名稱」
+        case "$1" in
+            ja) printf 'jpnin1\t日文\n' ;;
+            ko) printf 'hangeul_hnc\t韓文\n' ;;
+            en) printf 'easy_en_lower\t英文\n' ;;
+            extra) printf 'allbpm\t注音文\nfullshape\t全形\neasy_en_upper\t英文（大寫）\neasy_en_lcomment\t英文（附釋義）\nsymbols_bpmf\t符號\n' ;;
+            *) return 1 ;;
+        esac
+    }
+    gloss_num() { case "$1" in zh) echo 0 ;; en) echo 1 ;; ja) echo 2 ;; *) return 1 ;; esac; }
+
+    # choose_one <標題> <目前值> <值1> <文字1> <值2> <文字2> …  → 結果放在 CHOICE
+    choose_one() {
+        local title="$1" current="$2"; shift 2
+        local n=$(( $# / 2 )) i=1 cur=1 v t
+        printf '\n\033[36m%s\033[0m\n' "${title}"
+        while [ ${i} -le ${n} ]; do
+            eval "v=\${$(( i * 2 - 1 ))}; t=\${$(( i * 2 ))}"
+            if [ "${v}" = "${current}" ]; then cur=${i}; printf '  * %d) %s\n' "${i}" "${t}"
+            else printf '    %d) %s\n' "${i}" "${t}"; fi
+            i=$(( i + 1 ))
+        done
+        while :; do
+            ask "  選擇 1-${n}（直接按 Enter＝${cur}）："
+            [ -z "${REPLY}" ] && REPLY=${cur}
+            case "${REPLY}" in
+                ''|*[!0-9]*) ;;
+                *) if [ "${REPLY}" -ge 1 ] && [ "${REPLY}" -le ${n} ]; then
+                       eval "CHOICE=\${$(( REPLY * 2 - 1 ))}"; return 0
+                   fi ;;
+            esac
+            say '  請輸入清單上的數字。'
+        done
+    }
+
+    # ── 開始 ──────────────────────────────────────────────────────────
+    say ''
+    say '════════ 注音Na+ 安裝／設定（macOS 鼠鬚管）════════'
+
+    # ── [1] git ───────────────────────────────────────────────────────
+    step '檢查 git'
+    command -v git >/dev/null 2>&1 || { die '需要 git。請先執行：xcode-select --install，裝完再跑一次這行指令。'; return 1; }
+    ok "$(git --version)"
+
+    # ── [2] 鼠鬚管 ────────────────────────────────────────────────────
+    step '檢查鼠鬚管（Squirrel）'
+    if [ ! -x "${SQUIRREL}" ] && [ -z "${NO_DEPLOY}" ]; then
+        if command -v brew >/dev/null 2>&1 && [ ${INTERACTIVE} = 1 ]; then
+            ask '  找不到鼠鬚管。要用 Homebrew 安裝嗎？[Y/n] '
+            case "${REPLY}" in
+                n|N) ;;
+                *) brew install --cask squirrel-app || brew install --cask squirrel || true ;;
+            esac
+        fi
+        if [ ! -x "${SQUIRREL}" ]; then
+            die "找不到鼠鬚管（${SQUIRREL_APP}）。請先安裝 https://rime.im/download/ ，
+  安裝後登出再登入、到「系統設定 → 鍵盤 → 輸入方式」加入「鼠鬚管」，再跑一次這行指令。"
+            return 1
+        fi
+    fi
+    if [ -x "${SQUIRREL}" ]; then ok "${SQUIRREL}"; else warn '找不到鼠鬚管（--no-deploy，略過）'; fi
+
+    step "RIME 使用者資料夾：${RIME_DIR}"
+
+    # ── [3] 設定來源（repo）──────────────────────────────────────────
+    # repo 與使用者資料夾是分開的：repo 裡的 rime/ 按功能分類，使用者資料夾必須是攤平的
+    # （RIME 只認根目錄的方案檔），中間靠 scripts/rime-apply.sh 複製。
+    local origin=""
+    if [ -n "${USE_LOCAL}" ]; then
+        [ -d "${SRC_DIR}/rime" ] || { die "${SRC_DIR} 裡找不到 rime/ 資料夾。"; return 1; }
+        step "使用本機的設定（不連網）：${SRC_DIR}"
+    elif [ -e "${SRC_DIR}/.git" ]; then
+        origin="$(git -C "${SRC_DIR}" remote get-url origin 2>/dev/null || true)"
+        if [ -z "${origin}" ] || [ "$(repo_key "${origin}")" != "$(repo_key "${REPO}")" ]; then
+            die "${SRC_DIR} 已經是另一個 git repo（${origin}）。請把它移走，或用 NA_HOME 指定別的位置。"; return 1
+        fi
+        step "更新設定到最新版：${SRC_DIR}"
+        if ! git -C "${SRC_DIR}" pull --ff-only; then
+            warn 'git pull 失敗（改過裡面的檔案，或上游重寫過歷史），沿用目前的版本繼續。'
+            warn "想強制對齊上游：刪掉 ${SRC_DIR} 後重跑這行指令。"
+        fi
+    elif [ -d "${SRC_DIR}" ] && [ -n "$(ls -A "${SRC_DIR}" 2>/dev/null)" ]; then
+        die "${SRC_DIR} 已經存在而且不是這份設定的 repo。請把它移走，或用 NA_HOME 指定別的位置。"; return 1
+    else
+        step "下載設定到 ${SRC_DIR}（約 100 MB，視網速需要一點時間）"
+        [ -d "${SRC_DIR}" ] && rmdir "${SRC_DIR}"
+        if ! git clone --depth 1 --branch "${BRANCH}" "${REPO}" "${SRC_DIR}" || [ ! -d "${SRC_DIR}/rime" ]; then
+            die 'git clone 失敗。請檢查網路後再試（還沒有動到你的輸入法設定）。'; return 1
+        fi
+    fi
+
+    # ── [3b] 使用者資料夾：裝過就直接更新，否則先備份 ─────────────────
+    # 判斷「裝過」看 na_manifest.txt（rime-apply.sh 留下的清單）。
+    # 沒有清單但有東西＝別的方案，或舊版安裝（資料夾本身是 git clone）→ 整個搬去備份，
+    # 再把屬於「你」的東西搬回來。
+    if [ -f "${RIME_DIR}/na_manifest.txt" ]; then
+        step '這台已經裝過 → 更新檔案並重新設定選項'
+    elif [ -d "${RIME_DIR}" ] && [ -n "$(ls -A "${RIME_DIR}" 2>/dev/null)" ]; then
+        BACKUP="${RIME_DIR}.backup.$(date +%Y%m%d%H%M%S)"
+        step "備份既有設定 → ${BACKUP}"
+        mv "${RIME_DIR}" "${BACKUP}" || { die "搬不動 ${RIME_DIR}"; return 1; }
+    fi
+    mkdir -p "${RIME_DIR}" || { die "建立不了 ${RIME_DIR}"; return 1; }
+
+    if [ -n "${BACKUP}" ]; then
+        # 詞頻資料庫（*.userdb）、同步資料、機器識別檔、個人短語、上次的選項 —— 這些是
+        # 「你的」東西，不在 repo 裡，要從備份搬回來，否則等於把打字習慣歸零。
+        local restored=0 db f
+        for db in "${BACKUP}"/*.userdb; do
+            [ -d "${db}" ] || continue
+            cp -R "${db}" "${RIME_DIR}/" && restored=$(( restored + 1 ))
+        done
+        [ -d "${BACKUP}/sync" ] && cp -R "${BACKUP}/sync" "${RIME_DIR}/"
+        for f in installation.yaml user.yaml bopomo_onionplus_phrase.txt na_options.custom.yaml; do
+            [ -f "${BACKUP}/${f}" ] && cp "${BACKUP}/${f}" "${RIME_DIR}/"
+        done
+        ok "已從備份還原 ${restored} 個詞頻資料庫與個人檔案"
+        say "    備份留在 ${BACKUP}，確認一切正常後可自行刪除。"
+    fi
+
+    # ── [4] 選項 ──────────────────────────────────────────────────────
+    local OPT_FILE="${RIME_DIR}/na_options.custom.yaml"
+    local P_THEME="" P_LAYOUT="" P_EMOJI="" P_LANGS="" P_GLOSS="" line kv
+    if [ -f "${OPT_FILE}" ]; then
+        # 上次的選擇記在檔頭那行「# na-options: k=v k=v」
+        line="$(grep -m1 '^#[[:space:]]*na-options:' "${OPT_FILE}" 2>/dev/null | sed 's/^#[[:space:]]*na-options://' || true)"
+        for kv in ${line}; do
+            case "${kv}" in
+                theme=*)  P_THEME="${kv#theme=}" ;;
+                layout=*) P_LAYOUT="${kv#layout=}" ;;
+                emoji=*)  P_EMOJI="${kv#emoji=}" ;;
+                langs=*)  P_LANGS="${kv#langs=}" ;;
+                gloss=*)  P_GLOSS="${kv#gloss=}" ;;
+            esac
+        done
+    fi
+    # 參數／環境變數 > 上次的選擇 > 預設值
+    local THEME LAYOUT EMOJI LANGS GLOSS
+    THEME="$(lower "${G_THEME:-${P_THEME:-matcha}}")"
+    LAYOUT="$(lower "${G_LAYOUT:-${P_LAYOUT:-vertical}}")"
+    EMOJI="$(lower "${G_EMOJI:-${P_EMOJI:-on}}")"
+    LANGS="$(lower "${G_LANGS:-${P_LANGS:-ja,ko,en,extra}}")"
+    GLOSS="$(lower "${G_GLOSS:-${P_GLOSS:-zh}}")"
+
+    if [ ${INTERACTIVE} = 1 ]; then
+        step '選項（之後想改，重跑同一行安裝指令即可）'
+        local CHOICE=""
+        if [ -z "${G_THEME}" ]; then
+            choose_one '[1/5] 主題（候選窗配色）' "${THEME}" \
+                matcha 'Nat Matcha   抹茶奶油色（預設）' light 'Nat Light    明亮白底' dark 'Nat Dark     深色' \
+                auto '跟隨系統     淺色模式 Nat Light／深色模式 Nat Dark' classic 'Nat Classic  經典黃綠'
+            THEME="${CHOICE}"
+        fi
+        if [ -z "${G_LAYOUT}" ]; then
+            choose_one '[2/5] 候選排列' "${LAYOUT}" vertical '直排（預設）' horizontal '橫排'
+            LAYOUT="${CHOICE}"
+        fi
+        if [ -z "${G_EMOJI}" ]; then
+            choose_one '[3/5] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' "${EMOJI}" \
+                on '開：候選裡附帶對應的 emoji（預設）' off '關'
+            EMOJI="${CHOICE}"
+        fi
+        if [ -z "${G_LANGS}" ]; then
+            local cur_nums="" i=1 l mark picked tok bad
+            printf '\n\033[36m%s\033[0m\n' '[4/5] 方案選單要放哪些語言（注音一定有）'
+            for l in ja ko en extra; do
+                case ",${LANGS}," in *",${l},"*) mark='*'; cur_nums="${cur_nums}${cur_nums:+ }${i}" ;; *) mark=' ' ;; esac
+                case "${l}" in
+                    ja) printf '  %s %d) %s\n' "${mark}" ${i} '日文' ;;
+                    ko) printf '  %s %d) %s\n' "${mark}" ${i} '韓文' ;;
+                    en) printf '  %s %d) %s\n' "${mark}" ${i} '英文' ;;
+                    extra) printf '  %s %d) %s\n' "${mark}" ${i} '其他：注音文、全形、英文大寫、英文附釋義、符號' ;;
+                esac
+                i=$(( i + 1 ))
+            done
+            while :; do
+                ask "  可複選，用空白隔開，例如 1 3；0＝都不要（直接按 Enter＝${cur_nums:-都不要}）："
+                [ -z "${REPLY}" ] && break
+                if [ "${REPLY}" = "0" ]; then LANGS="none"; break; fi
+                picked=""; bad=0
+                for tok in $(printf '%s' "${REPLY}" | tr ',' ' '); do
+                    case "${tok}" in
+                        1) l=ja ;; 2) l=ko ;; 3) l=en ;; 4) l=extra ;;
+                        *) bad=1; l="" ;;
+                    esac
+                    if [ -n "${l}" ]; then case ",${picked}," in *",${l},"*) ;; *) picked="${picked}${picked:+,}${l}" ;; esac; fi
+                done
+                if [ ${bad} = 0 ] && [ -n "${picked}" ]; then LANGS="${picked}"; break; fi
+                say '  請輸入清單上的數字。'
+            done
+        fi
+        if [ -z "${G_GLOSS}" ]; then
+            choose_one '[5/5] 日文／英文候選的釋義要用哪種語言顯示' "${GLOSS}" zh '中文（預設）' en '英文' ja '日文'
+            GLOSS="${CHOICE}"
+        fi
+    fi
+
+    # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
+    local pair
+    pair="$(theme_pair "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light dark auto classic）"; return 1; }
+    case "${LAYOUT}" in vertical|horizontal) ;; *) die "不認得的排列：${LAYOUT}（可用：vertical horizontal）"; return 1 ;; esac
+    case "${EMOJI}" in on|off) ;; *) die "不認得的 emoji 設定：${EMOJI}（可用：on off）"; return 1 ;; esac
+    local gnum
+    gnum="$(gloss_num "${GLOSS}")" || { die "不認得的釋義語言：${GLOSS}（可用：zh en ja）"; return 1; }
+    # 語言：正規化成固定順序、去重
+    local norm="" l want
+    want=",$(printf '%s' "${LANGS}" | tr ' ' ','),"
+    for l in $(printf '%s' "${LANGS}" | tr ',' ' '); do
+        case "${l}" in ja|ko|en|extra|none) ;; *) die "不認得的語言：${l}（可用：ja ko en extra none）"; return 1 ;; esac
+    done
+    for l in ja ko en extra; do
+        case "${want}" in *",${l},"*) norm="${norm}${norm:+,}${l}" ;; esac
+    done
+    LANGS="${norm:-none}"
+
+    local horizontal=false mac=stacked emoji_num=1
+    [ "${LAYOUT}" = "horizontal" ] && { horizontal=true; mac=linear; }
+    [ "${EMOJI}" = "off" ] && emoji_num=0
+
+    {
+        printf '%s\n' '# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）'
+        printf '%s\n' '# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。'
+        printf '%s\n' '# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。'
+        printf '# na-options: theme=%s layout=%s emoji=%s langs=%s gloss=%s\n' "${THEME}" "${LAYOUT}" "${EMOJI}" "${LANGS}" "${GLOSS}"
+        printf 'patch:\n'
+        printf '  theme: %s\n' "${pair% *}"
+        printf '  theme_dark: %s\n' "${pair#* }"
+        printf '  horizontal: %s\n' "${horizontal}"
+        printf '  candidate_list_layout: %s\n' "${mac}"
+        printf '  emoji: %s\n' "${emoji_num}"
+        printf '  gloss: %s\n' "${gnum}"
+        printf '  schema_list:\n'
+        printf '    - { schema: bopomo_onionplus } # 注音Na+\n'
+        for l in ja ko en extra; do
+            case ",${LANGS}," in *",${l},"*)
+                lang_schemas "${l}" | while IFS="$(printf '\t')" read -r sid sname; do
+                    printf '    - { schema: %s } # %s\n' "${sid}" "${sname}"
+                done ;;
+            esac
+        done
+    } > "${OPT_FILE}" || { die "寫不進 ${OPT_FILE}"; return 1; }
+    step '已寫入選項'
+    say "    主題 ${THEME}｜排列 ${LAYOUT}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
+
+    # ── [5] 套用檔案＋重新部署 ────────────────────────────────────────
+    # 交給 repo 裡的 rime-update.command：把 rime/ 攤平複製到使用者資料夾，再重新部署。
+    if [ -n "${NO_DEPLOY}" ]; then
+        step '套用檔案（--no-deploy：不重新部署）'
+        NA_RIME_DIR="${RIME_DIR}" NA_SQUIRREL="${SQUIRREL}" bash "${SRC_DIR}/scripts/rime-update.command" --skip-pull --no-pause --no-deploy \
+            || { die '套用沒有成功，請看上面的訊息。'; return 1; }
+    else
+        step '套用檔案並重新部署（第一次要編譯詞典，約 2～5 分鐘；期間輸入法可能暫時沒反應）'
+        NA_RIME_DIR="${RIME_DIR}" NA_SQUIRREL="${SQUIRREL}" bash "${SRC_DIR}/scripts/rime-update.command" --skip-pull --no-pause --force \
+            || { die '套用／部署沒有成功，請看上面的訊息。'; return 1; }
+    fi
+
+    say ''
+    printf '\033[32m✓ 完成。\033[0m\n'
+    say "  ‧ 設定來源放在 ${SRC_DIR}（更新靠它，請不要刪）"
+    say "  ‧ 想重選主題／語言／emoji：再跑一次同一行安裝指令（或 bash \"${SRC_DIR}/install.sh\" --local）"
+    cat <<'TIPS'
+  ‧ 切到鼠鬚管後按 Ctrl+` 開方案選單；打 '/h 再按空白鍵可開速查表
+  ‧ 之後更新：輸入法內打 '/git 再按空白鍵
+
+  還有兩件事要手動做（macOS 系統設定，腳本改不到）：
+  1. 系統設定 → 鍵盤 → 輸入方式：關閉「使用大寫鎖定鍵切換輸入法」
+     （否則 Caps Lock 會被系統攔走，中英切換失效）
+  2. 系統設定 → 鍵盤：開啟「將 F1、F2 等按鍵作為標準功能鍵」
+     （否則 F4 叫不出方案選單；不想開的話改用 Ctrl+` 開選單、Ctrl+Opt+1~4 切方案）
+  部署出錯時看日誌：tail -50 "$(ls -t /tmp/rime.squirrel.ERROR* | head -1)"
+
+TIPS
+}
+
+main "$@"
