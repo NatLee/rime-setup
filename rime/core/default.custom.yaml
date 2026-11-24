@@ -13,7 +13,7 @@ patch:
     Control_L: noop
     Control_R: noop
     Shift_L: commit_code
-    Shift_R: commit_code
+    Shift_R: noop # 右 Shift 留給「循環切換語言」（lua_processor@schema_cycle），不切中英
   "key_binder/bindings":
     - {accept: "Control+p", send: Up, when: composing}
     - {accept: "Control+n", send: Down, when: composing}
@@ -69,6 +69,10 @@ patch:
   # 個人選擇由安裝腳本寫進 na_options.custom.yaml。順序即 F4 選單編號。
   # ⚠ Ctrl+Shift+F1~F4 直達鍵寫死方案 id，不隨這份清單變動。
   schema_list: { __include: "na_options:/schema_list" }
+  # 單按右 Shift 循環切換語言（lua_processor@schema_cycle）時要跳過的方案：
+  # 偶爾才用的不排進循環，否則要按很多下才繞得回注音。它們仍可從方案選單（Ctrl+`）選。
+  schema_cycle:
+    skip: [ allbpm, fullshape, easy_en_upper, easy_en_lcomment, symbols_bpmf ]
   "switcher/fix_schema_list_order": true
   "switcher/hotkeys":
     - "Control+grave"
