@@ -40,9 +40,10 @@ patch:
 
   # ── 字型 ──
   "style/font_face": "PingFangTC-Semibold" # 蘋方繁中・半粗（對應 Windows 端的正黑粗體）
-  "style/font_point": 21 # 候選字；Windows 端是 17，Mac 這邊放大兩級
-  "style/label_font_point": 15 # 標籤／註釋維持比候選字小一截的比例
-  "style/comment_font_point": 15
+  # 字級是安裝選項（小 18／中 21／大 24）；同樣的 pt 在 Mac 上看起來比 Windows 小，所以大兩級
+  "style/font_point": { __include: "na_options:/mac_font_point" }
+  "style/label_font_point": { __include: "na_options:/mac_label_font_point" } # 標籤／註釋比候選字小一截
+  "style/comment_font_point": { __include: "na_options:/mac_label_font_point" }
 
   # ── 配色 ──
   # 同樣用路徑鍵逐項加入，才不會蓋掉鼠鬚管內建的 native/solarized 等配色。

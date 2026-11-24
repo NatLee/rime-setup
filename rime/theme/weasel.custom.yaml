@@ -15,7 +15,7 @@ patch:
       ascii_mode: true
 
   style:
-    # ↓ 這三項是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
+    # ↓ 配色、排列、字級是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
     #   na_options.custom.yaml（重跑安裝指令即可重選）。別在這裡直接寫死。
     color_scheme: { __include: "na_options:/theme" }
     color_scheme_dark: { __include: "na_options:/theme_dark" } # 與上面相同＝深色模式也不換
@@ -25,10 +25,10 @@ patch:
     display_tray_icon: true
     label_format: "%s."
     font_face: "Microsoft JhengHei:bold, Segoe UI Emoji" # bold＝字重加粗；後者為 emoji fallback
-    font_point: 17
+    font_point: { __include: "na_options:/font_point" } # 安裝選項（小 15／中 17／大 20）
     label_font_face: "Segoe UI Semibold, Segoe UI Symbol" # 後者確保 ⇧ 符號有字形
-    label_font_point: 13 # 標籤縮小，候選字更突出
-    comment_font_point: 13 # 註釋縮小，與標籤一致
+    label_font_point: { __include: "na_options:/label_font_point" } # 標籤縮小，候選字更突出
+    comment_font_point: { __include: "na_options:/label_font_point" } # 註釋與標籤一致
     layout:
       margin_x: 12
       margin_y: 10
