@@ -468,6 +468,45 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
 
 ## 主題與小狼毫自己的設定對話框
 
+### 字型：粉圓體不放進 repo，名稱要用「電腦上實際裝的那個」
+- jf open 粉圓的家族名稱**帶版本號**（`jf open 粉圓 2.1`），裝的是 2.0 名字就不一樣。
+  所以 Windows 的安裝腳本先列出已安裝的字型、用實際找到的名稱；沒裝才從官方發佈頁下載 2.1。
+- 裝在使用者自己的字型資料夾（Windows：`%LOCALAPPDATA%\Microsoft\Windows\Fonts` ＋ HKCU 登錄檔；
+  macOS：`~/Library/Fonts`），不需要管理員權限。Windows 裝完要 `AddFontResource` ＋廣播
+  `WM_FONTCHANGE`，這次登入階段才馬上認得。
+- 粉圓體只有一種字重，**不要加 `:bold`**（合成粗體會糊）。後面接正黑體／蘋方當後備字型。
+- 鼠鬚管認字型：`名稱-樣式`（如 `PingFangTC-Semibold`）或 PostScript 名稱。粉圓要寫 `jf-openhuninn-2.1`。
+- `na_options.yaml` 的預設值刻意留系統字型：手動安裝、或粉圓下載失敗的人不會拿到一個不存在的字型。
+  下載失敗時安裝腳本自動退回系統字型，不中斷安裝。
+- PowerShell 5.1 的 `Invoke-WebRequest` 不關進度條會慢十倍，下載前要設 `$ProgressPreference = 'SilentlyContinue'`。
+
+### 候選窗樣式：哪些是小狼毫真的支援的
+下面這些都對過小狼毫 0.17.4 的原始碼（`RimeWithWeasel.cpp` 的 `_UpdateUIStyle`、`WeaselPanel.cpp`），
+不是照網路上的範例抄的。寫了不認得的鍵不會報錯，只是沒效果，很難發現。
+- **高亮列左側的圓角色條**：`style/mark_text` 留空，而且配色有 `hilited_mark_color` 才會畫。
+  `mark_text` 填了字就改成畫那個字。
+- **翻頁箭頭 `<` `>`**（編碼列右側，可點）：配色**同時**有 `prevpage_color` 和 `nextpage_color` 才出現，
+  而且只在 `inline_preedit: false` 時畫。不能翻的那個方向用一般文字色。
+- `style/hover_type` 只認 `none`／`semi_hilite`／`hilite`；`style/layout/align_type` 只認 `top`／`center`／`bottom`。
+- `margin_y` 會被自動撐到至少等於 `hilite_padding_y`，設小了沒用。
+- 光棒圓角是 `layout/round_corner`，視窗圓角是 `layout/corner_radius`，兩個名字很像、別寫反。
+- 新增一個會出現在配色裡的顏色鍵，九套主題都要補；`tools/theme-preview.ps1` 畫圖時用的排版數字
+  是寫死在腳本裡對應 `layout` 的，改了排版記得一起改，再重產預覽圖。
+- 鼠鬚管的排版鍵另成一套（對過 `SquirrelTheme.swift`）。對照：
+  | 想要的效果 | 小狼毫 | 鼠鬚管 |
+  |---|---|---|
+  | 標籤不加句點 | `label_format: "%s"` | `candidate_format: "[label] [candidate] [comment]"` |
+  | 視窗圓角／光棒圓角 | `layout/corner_radius`／`layout/round_corner` | `corner_radius`／`hilited_corner_radius` |
+  | 視窗內距 | `layout/margin_x`、`margin_y` | 沒有獨立的鍵：＝`border_width`／`border_height` ＋ `corner_radius` |
+  | 邊框粗細 | `layout/border_width` | `border_width` 與 `border_height` 取小的 |
+  | 候選列距與光棒內距 | `candidate_spacing`、`hilite_padding_*` | `line_spacing` 一個值兼任兩者 |
+  | 編碼列與候選的間距 | `layout/spacing` | `spacing` |
+  | 翻頁箭頭 | 配色的 `prevpage_color`＋`nextpage_color` | `show_paging: true`（畫在左緣，是三角形） |
+  | 註釋字重 | `comment_font_face` | `comment_font_face` |
+  | 高亮列的色條 | `mark_text: ""`＋`hilited_mark_color` | **沒有** |
+  | 視窗陰影 | `layout/shadow_radius` | **沒有**（`shadow_size` 是光棒底下的陰影，不是同一件事） |
+- 鼠鬚管這份排版是照原始碼的算法換算的，沒有在 Mac 上實際看過，上機後可能要微調數值。
+
 ### 在小狼毫「輸入法設定」換配色沒反應 → 深色模式被釘住
 小狼毫的做法是先套 `style/color_scheme`，系統在深色模式時再看 `style/color_scheme_dark`
 **讀不讀得到字串**，讀得到就蓋過去（`RimeWithWeasel.cpp`）。
