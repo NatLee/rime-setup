@@ -105,6 +105,7 @@ PowerShell 5.1 跑、個人資料不可進版控。
 | 一級指令代碼（`'/h` `'/git` `'/phrase` `'/cmd`） | `rime/lua/p_components/p_run_pattern.lua`（提示候選由 `mf_open_menu.register_direct` 產生，動作攔截在 `processor_p_run_files.lua`） |
 | `'/` 分層選單內容（含 `'/dev`、`'/code` 子選單） | `rime/lua/mf_components/mf_menu_data.lua`（新增子選單記得在 `mf_open_menu.lua` `register_exact`） |
 | `'/git` 實際跑的內容 | 使用者資料夾的 `na-update.cmd`／`na-update.command`（安裝時產生的啟動器）→ repo 的 `scripts/rime-update.cmd` → `rime-update.ps1`（Win；`.cmd` 負責挑 pwsh 或 powershell 5.1）／`scripts/rime-update.command`（Mac） |
+| 從 lua 開檔案／程式／網址／批次檔 | 一律呼叫 `rime/lua/p_components/p_generic_open.lua`。**Windows 上不可以自己寫 `os.execute`**：它會等子行程結束，輸入法服務因此卡住五秒（原委與量測方法見 GOTCHAS「不可以用 `os.execute`」） |
 
 ---
 

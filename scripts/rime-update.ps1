@@ -285,7 +285,18 @@ Write-Host "✓ 完成（使用 $(Split-Path $WeaselRoot -Leaf)）。" -Foregrou
 if ($applied.Lua) { Write-Host ("  lua 變更 {0} 個，已隨重啟生效。" -f $applied.Lua) }
 if ($CloseAfter -gt 0) {
     Write-Host ''
-    Write-Host "  ${CloseAfter} 秒後自動關閉（Ctrl+C 可留下視窗）…"
-    Start-Sleep -Seconds $CloseAfter
+    # 想留下視窗看訊息：按任意鍵就好（以前要按 Ctrl+C，那會連腳本一起中斷、視窗反而關掉）。
+    Write-Host "  ${CloseAfter} 秒後自動關閉（按任意鍵可留下視窗）…"
+    $deadline = (Get-Date).AddSeconds($CloseAfter)
+    while ((Get-Date) -lt $deadline) {
+        $pressed = $false
+        try { $pressed = [Console]::KeyAvailable } catch { }   # 輸入被重導向時會丟例外：那就單純等到時間到
+        if ($pressed) {
+            [void][Console]::ReadKey($true)
+            Read-Host '  已留下視窗，按 Enter 關閉…' | Out-Null
+            break
+        }
+        Start-Sleep -Milliseconds 100
+    }
 }
 exit 0
