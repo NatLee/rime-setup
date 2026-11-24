@@ -22,6 +22,7 @@ na_manifest.txt
 na-update.cmd
 na-update.command
 na-setup.cmd
+na-setup.command
 
 # ===== 備份與暫存 =====
 *.bak

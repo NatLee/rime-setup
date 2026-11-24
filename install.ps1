@@ -29,7 +29,7 @@
 #     pwsh 7 則可以直接 pwsh -File install.ps1。
 
 param(
-    [string]$Theme,      # matcha | light | dark | classic
+    [string]$Theme,      # matcha | light | sakura | ocean | latte | dark | midnight | classic
     [string]$Dark,       # auto（系統深色模式時自動換成 Nat Dark）| off
     [string]$Layout,     # vertical | horizontal
     [string]$Size,       # small | medium | large（候選字級）
@@ -130,10 +130,17 @@ function Install-NaPlus {
     $themeItems = @(
         @('matcha',  'Nat Matcha   抹茶奶油色（預設）'),
         @('light',   'Nat Light    明亮白底'),
-        @('dark',    'Nat Dark     深色'),
-        @('classic', 'Nat Classic  經典黃綠')
+        @('sakura',   'Nat Sakura   櫻花粉'),
+        @('ocean',    'Nat Ocean    海洋藍'),
+        @('latte',    'Nat Latte    拿鐵棕'),
+        @('dark',     'Nat Dark     深色'),
+        @('midnight', 'Nat Midnight 午夜藍（深色）'),
+        @('classic',  'Nat Classic  經典黃綠')
     )
-    $themeMap = @{ matcha = 'NatMatcha'; light = 'NatLight'; dark = 'NatDark'; classic = 'NatLee' }   # 值 → color_scheme
+    # 值 → color_scheme。各主題的長相見 README 的預覽圖（docs/themes/）。
+    $themeMap = @{ matcha = 'NatMatcha'; light = 'NatLight'; sakura = 'NatSakura'; ocean = 'NatOcean'; latte = 'NatLatte'
+                   dark = 'NatDark'; midnight = 'NatMidnight'; classic = 'NatLee' }
+    $darkThemes = 'dark', 'midnight'   # 本身就是深色的主題：系統深色模式時不必再換
     $darkItems = @(
         @('auto', '跟隨系統：系統切到深色模式時，候選窗自動換成 Nat Dark（預設）'),
         @('off',  '不跟隨：永遠用上面選的主題')
@@ -343,22 +350,47 @@ function Install-NaPlus {
     if ($opt.theme -eq 'auto') { $opt.theme = 'light'; if (-not $given.dark) { $opt.dark = 'auto' } }
 
     if ($interactive) {
-        Step '選項（之後想改，重跑同一行安裝指令即可）'
-        if (-not $given.theme)  { $opt.theme  = Ask-One '[1/7] 主題（候選窗配色）' $themeItems $opt.theme }
-        if (-not $given.dark)   { $opt.dark   = Ask-One '[2/7] 系統深色模式' $darkItems $opt.dark }
-        if (-not $given.layout) { $opt.layout = Ask-One '[3/7] 候選排列' $layoutItems $opt.layout }
-        if (-not $given.size)   { $opt.size   = Ask-One '[4/7] 候選字級' $sizeItems $opt.size }
-        if (-not $given.emoji)  { $opt.emoji  = Ask-One '[5/7] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' $emojiItems $opt.emoji }
-        if (-not $given.langs) {
-            $curLangs = @($opt.langs -split ',' | Where-Object { $_ -and $_ -ne 'none' })
-            $sel = Ask-Many '[6/7] 方案選單要放哪些語言（注音一定有）' $langItems $curLangs
-            if ($sel.Count) { $opt.langs = ($sel -join ',') } else { $opt.langs = 'none' }
+        # 一個畫面列出全部設定：想改哪一項就輸入它的編號，都不改就直接按 Enter。
+        # （以前是一題一題問完七題才結束，只想換個主題也得按六次 Enter。）
+        $rows = @(
+            @{ key = 'theme';  title = '主題　　　　'; items = $themeItems;  ask = '主題（候選窗配色，長相見 README 的預覽圖）' },
+            @{ key = 'dark';   title = '系統深色模式'; items = $darkItems;   ask = '系統深色模式' },
+            @{ key = 'layout'; title = '候選排列　　'; items = $layoutItems; ask = '候選排列' },
+            @{ key = 'size';   title = '候選字級　　'; items = $sizeItems;   ask = '候選字級' },
+            @{ key = 'emoji';  title = '候選附 emoji'; items = $emojiItems;  ask = '打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' },
+            @{ key = 'langs';  title = '選單裡的語言'; items = $langItems;   ask = '方案選單要放哪些語言（注音一定有）'; multi = $true },
+            @{ key = 'gloss';  title = '釋義語言　　'; items = $glossItems;  ask = '日文／英文候選的釋義要用哪種語言顯示' }
+        )
+        function Show-Value($row) {
+            $v = $opt[$row.key]
+            if ($row.multi) {
+                $picked = @($row.items | Where-Object { ($v -split ',') -contains $_[0] } | ForEach-Object { ($_[1] -split '：')[0] })
+                if ($picked.Count) { return ($picked -join '、') } else { return '只有注音' }
+            }
+            $hit = $row.items | Where-Object { $_[0] -eq $v } | Select-Object -First 1
+            if ($hit) { return (($hit[1] -replace '（預設）', '') -replace '\s{2,}', ' ').Trim() }
+            return $v
         }
-        if (-not $given.gloss)  { $opt.gloss  = Ask-One '[7/7] 日文／英文候選的釋義要用哪種語言顯示' $glossItems $opt.gloss }
+        while ($true) {
+            Write-Host ''
+            Write-Host '目前的設定' -ForegroundColor Cyan
+            for ($i = 0; $i -lt $rows.Count; $i++) { Write-Host ("  {0}) {1}　{2}" -f ($i + 1), $rows[$i].title, (Show-Value $rows[$i])) }
+            $ans = (Read-Host ("  輸入編號 1-{0} 修改那一項；直接按 Enter 套用" -f $rows.Count)).Trim()
+            if (-not $ans) { break }
+            $n = 0
+            if (-not ([int]::TryParse($ans, [ref]$n) -and $n -ge 1 -and $n -le $rows.Count)) { Write-Host '  請輸入清單上的數字。' -ForegroundColor Yellow; continue }
+            $row = $rows[$n - 1]
+            if ($row.multi) {
+                $curLangs = @($opt.langs -split ',' | Where-Object { $_ -and $_ -ne 'none' })
+                $sel = Ask-Many $row.ask $row.items $curLangs
+                if ($sel.Count) { $opt.langs = ($sel -join ',') } else { $opt.langs = 'none' }
+            } else {
+                $opt[$row.key] = Ask-One $row.ask $row.items $opt[$row.key]
+            }
+        }
     }
-
     # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
-    if (-not $themeMap.ContainsKey($opt.theme)) { Die "不認得的主題：$($opt.theme)（可用：matcha light dark classic）" }
+    if (-not $themeMap.ContainsKey($opt.theme)) { Die "不認得的主題：$($opt.theme)（可用：matcha light sakura ocean latte dark midnight classic）" }
     if ('auto', 'off' -notcontains $opt.dark) { Die "不認得的深色模式設定：$($opt.dark)（可用：auto off）" }
     if (-not $sizeMap.ContainsKey($opt.size)) { Die "不認得的字級：$($opt.size)（可用：small medium large）" }
     if ('vertical', 'horizontal' -notcontains $opt.layout) { Die "不認得的排列：$($opt.layout)（可用：vertical horizontal）" }
@@ -374,7 +406,7 @@ function Install-NaPlus {
     if ($opt.emoji -eq 'off') { $emojiNum = 0 }
     $scheme = $themeMap[$opt.theme]
     $schemeDark = $scheme
-    if ($opt.dark -eq 'auto') { $schemeDark = 'NatDark' }
+    if ($opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) { $schemeDark = 'NatDark' }
     $sz = $sizeMap[$opt.size]
 
     $y = New-Object System.Collections.Generic.List[string]

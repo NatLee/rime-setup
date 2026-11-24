@@ -10,7 +10,7 @@
 #   NA_THEME=light NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL <網址>)"
 #   bash ~/.na-plus/install.sh --local --theme light --emoji off --langs ja,en --yes
 #
-#   --theme   matcha | light | dark | classic
+#   --theme   matcha | light | sakura | ocean | latte | dark | midnight | classic
 #   --dark    auto（系統深色模式時自動換成 Nat Dark）| off
 #   --layout  vertical | horizontal
 #   --size    small | medium | large（候選字級）
@@ -106,7 +106,11 @@ main() {
         case "$1" in
             matcha)  echo "NatMatcha" ;;
             light)   echo "NatLight" ;;
+            sakura)  echo "NatSakura" ;;
+            ocean)   echo "NatOcean" ;;
+            latte)   echo "NatLatte" ;;
             dark)    echo "NatDark" ;;
+            midnight) echo "NatMidnight" ;;
             classic) echo "NatLee" ;;
             *) return 1 ;;
         esac
@@ -271,71 +275,89 @@ main() {
     GLOSS="$(lower "${G_GLOSS:-${P_GLOSS:-zh}}")"
 
     if [ ${INTERACTIVE} = 1 ]; then
-        step '選項（之後想改，重跑同一行安裝指令即可）'
-        local CHOICE=""
-        if [ -z "${G_THEME}" ]; then
-            choose_one '[1/7] 主題（候選窗配色）' "${THEME}" \
-                matcha 'Nat Matcha   抹茶奶油色（預設）' light 'Nat Light    明亮白底' dark 'Nat Dark     深色' \
-                classic 'Nat Classic  經典黃綠'
-            THEME="${CHOICE}"
-        fi
-        if [ -z "${G_DARK}" ]; then
-            choose_one '[2/7] 系統深色模式' "${DARK}" \
-                auto '跟隨系統：系統切到深色模式時，候選窗自動換成 Nat Dark（預設）' off '不跟隨：永遠用上面選的主題'
-            DARK="${CHOICE}"
-        fi
-        if [ -z "${G_LAYOUT}" ]; then
-            choose_one '[3/7] 候選排列' "${LAYOUT}" vertical '直排（預設）' horizontal '橫排'
-            LAYOUT="${CHOICE}"
-        fi
-        if [ -z "${G_SIZE}" ]; then
-            choose_one '[4/7] 候選字級' "${SIZE}" small '小' medium '中（預設）' large '大'
-            SIZE="${CHOICE}"
-        fi
-        if [ -z "${G_EMOJI}" ]; then
-            choose_one '[5/7] 打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' "${EMOJI}" \
-                on '開：候選裡附帶對應的 emoji（預設）' off '關'
-            EMOJI="${CHOICE}"
-        fi
-        if [ -z "${G_LANGS}" ]; then
-            local cur_nums="" i=1 l mark picked tok bad
-            printf '\n\033[36m%s\033[0m\n' '[6/7] 方案選單要放哪些語言（注音一定有）'
+        # 一個畫面列出全部設定：想改哪一項就輸入它的編號，都不改就直接按 Enter。
+        # （以前是一題一題問完七題才結束，只想換個主題也得按六次 Enter。）
+        local CHOICE="" pick=""
+        theme_label() { case "$1" in
+            matcha) echo 'Nat Matcha 抹茶奶油色' ;; light) echo 'Nat Light 明亮白底' ;; sakura) echo 'Nat Sakura 櫻花粉' ;;
+            ocean) echo 'Nat Ocean 海洋藍' ;; latte) echo 'Nat Latte 拿鐵棕' ;; dark) echo 'Nat Dark 深色' ;;
+            midnight) echo 'Nat Midnight 午夜藍（深色）' ;; classic) echo 'Nat Classic 經典黃綠' ;; *) echo "$1" ;; esac; }
+        langs_label() {
+            local out="" l
             for l in ja ko en extra; do
-                case ",${LANGS}," in *",${l},"*) mark='*'; cur_nums="${cur_nums}${cur_nums:+ }${i}" ;; *) mark=' ' ;; esac
-                case "${l}" in
-                    ja) printf '  %s %d) %s\n' "${mark}" ${i} '日文' ;;
-                    ko) printf '  %s %d) %s\n' "${mark}" ${i} '韓文' ;;
-                    en) printf '  %s %d) %s\n' "${mark}" ${i} '英文' ;;
-                    extra) printf '  %s %d) %s\n' "${mark}" ${i} '其他：注音文、全形、英文大寫、英文附釋義、符號' ;;
+                case ",$1," in *",${l},"*)
+                    case "${l}" in ja) out="${out}${out:+、}日文" ;; ko) out="${out}${out:+、}韓文" ;; en) out="${out}${out:+、}英文" ;; extra) out="${out}${out:+、}其他" ;; esac ;;
                 esac
-                i=$(( i + 1 ))
             done
-            while :; do
-                ask "  可複選，用空白隔開，例如 1 3；0＝都不要（直接按 Enter＝${cur_nums:-都不要}）："
-                [ -z "${REPLY}" ] && break
-                if [ "${REPLY}" = "0" ]; then LANGS="none"; break; fi
-                picked=""; bad=0
-                for tok in $(printf '%s' "${REPLY}" | tr ',' ' '); do
-                    case "${tok}" in
-                        1) l=ja ;; 2) l=ko ;; 3) l=en ;; 4) l=extra ;;
-                        *) bad=1; l="" ;;
+            echo "${out:-只有注音}"
+        }
+        while :; do
+            printf '\n\033[36m%s\033[0m\n' '目前的設定'
+            printf '  1) 主題　　　　　%s\n' "$(theme_label "${THEME}")"
+            printf '  2) 系統深色模式　%s\n' "$( [ "${DARK}" = "auto" ] && echo '跟隨系統（深色模式時換成 Nat Dark）' || echo '不跟隨' )"
+            printf '  3) 候選排列　　　%s\n' "$( [ "${LAYOUT}" = "horizontal" ] && echo '橫排' || echo '直排' )"
+            printf '  4) 候選字級　　　%s\n' "$( case "${SIZE}" in small) echo '小' ;; large) echo '大' ;; *) echo '中' ;; esac )"
+            printf '  5) 候選附 emoji　%s\n' "$( [ "${EMOJI}" = "off" ] && echo '關' || echo '開' )"
+            printf '  6) 選單裡的語言　%s\n' "$(langs_label "${LANGS}")"
+            printf '  7) 釋義語言　　　%s\n' "$( case "${GLOSS}" in en) echo '英文' ;; ja) echo '日文' ;; *) echo '中文' ;; esac )"
+            ask '  輸入編號 1-7 修改那一項；直接按 Enter 套用：'
+            pick="${REPLY}"
+            [ -z "${pick}" ] && break
+            case "${pick}" in
+            1)  choose_one '主題（候選窗配色，長相見 README 的預覽圖）' "${THEME}" \
+                    matcha 'Nat Matcha   抹茶奶油色（預設）' light 'Nat Light    明亮白底' sakura 'Nat Sakura   櫻花粉' \
+                    ocean 'Nat Ocean    海洋藍' latte 'Nat Latte    拿鐵棕' dark 'Nat Dark     深色' \
+                    midnight 'Nat Midnight 午夜藍（深色）' classic 'Nat Classic  經典黃綠'
+                THEME="${CHOICE}" ;;
+            2)  choose_one '系統深色模式' "${DARK}" \
+                    auto '跟隨系統：系統切到深色模式時，候選窗自動換成 Nat Dark（預設）' off '不跟隨：永遠用上面選的主題'
+                DARK="${CHOICE}" ;;
+            3)  choose_one '候選排列' "${LAYOUT}" vertical '直排（預設）' horizontal '橫排'
+                LAYOUT="${CHOICE}" ;;
+            4)  choose_one '候選字級' "${SIZE}" small '小' medium '中（預設）' large '大'
+                SIZE="${CHOICE}" ;;
+            5)  choose_one '打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' "${EMOJI}" \
+                    on '開：候選裡附帶對應的 emoji（預設）' off '關'
+                EMOJI="${CHOICE}" ;;
+            6)  local cur_nums="" i=1 l mark picked tok bad
+                printf '\n\033[36m%s\033[0m\n' '方案選單要放哪些語言（注音一定有）'
+                for l in ja ko en extra; do
+                    case ",${LANGS}," in *",${l},"*) mark='*'; cur_nums="${cur_nums}${cur_nums:+ }${i}" ;; *) mark=' ' ;; esac
+                    case "${l}" in
+                        ja) printf '  %s %d) %s\n' "${mark}" ${i} '日文' ;;
+                        ko) printf '  %s %d) %s\n' "${mark}" ${i} '韓文' ;;
+                        en) printf '  %s %d) %s\n' "${mark}" ${i} '英文' ;;
+                        extra) printf '  %s %d) %s\n' "${mark}" ${i} '其他：注音文、全形、英文大寫、英文附釋義、符號' ;;
                     esac
-                    if [ -n "${l}" ]; then case ",${picked}," in *",${l},"*) ;; *) picked="${picked}${picked:+,}${l}" ;; esac; fi
+                    i=$(( i + 1 ))
                 done
-                if [ ${bad} = 0 ] && [ -n "${picked}" ]; then LANGS="${picked}"; break; fi
-                say '  請輸入清單上的數字。'
-            done
-        fi
-        if [ -z "${G_GLOSS}" ]; then
-            choose_one '[7/7] 日文／英文候選的釋義要用哪種語言顯示' "${GLOSS}" zh '中文（預設）' en '英文' ja '日文'
-            GLOSS="${CHOICE}"
-        fi
+                while :; do
+                    ask "  可複選，用空白隔開，例如 1 3；0＝都不要（直接按 Enter＝${cur_nums:-都不要}）："
+                    [ -z "${REPLY}" ] && break
+                    if [ "${REPLY}" = "0" ]; then LANGS="none"; break; fi
+                    picked=""; bad=0
+                    for tok in $(printf '%s' "${REPLY}" | tr ',' ' '); do
+                        case "${tok}" in
+                            1) l=ja ;; 2) l=ko ;; 3) l=en ;; 4) l=extra ;;
+                            *) bad=1; l="" ;;
+                        esac
+                        if [ -n "${l}" ]; then case ",${picked}," in *",${l},"*) ;; *) picked="${picked}${picked:+,}${l}" ;; esac; fi
+                    done
+                    if [ ${bad} = 0 ] && [ -n "${picked}" ]; then LANGS="${picked}"; break; fi
+                    say '  請輸入清單上的數字。'
+                done ;;
+            7)  choose_one '日文／英文候選的釋義要用哪種語言顯示' "${GLOSS}" zh '中文（預設）' en '英文' ja '日文'
+                GLOSS="${CHOICE}" ;;
+            *)  say '  請輸入清單上的數字。' ;;
+            esac
+        done
     fi
-
     # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
     local scheme scheme_dark pts
-    scheme="$(theme_scheme "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light dark classic）"; return 1; }
-    case "${DARK}" in auto) scheme_dark=NatDark ;; off) scheme_dark="${scheme}" ;; *) die "不認得的深色模式設定：${DARK}（可用：auto off）"; return 1 ;; esac
+    scheme="$(theme_scheme "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light sakura ocean latte dark midnight classic）"; return 1; }
+    # 本身就是深色的主題：系統深色模式時不必再換
+    case "${THEME}" in dark|midnight) [ "${DARK}" = "auto" ] && scheme_dark="${scheme}" ;; esac
+    case "${DARK}" in auto) scheme_dark="${scheme_dark:-NatDark}" ;; off) scheme_dark="${scheme}" ;; *) die "不認得的深色模式設定：${DARK}（可用：auto off）"; return 1 ;; esac
     pts="$(size_points "${SIZE}")" || { die "不認得的字級：${SIZE}（可用：small medium large）"; return 1; }
     case "${LAYOUT}" in vertical|horizontal) ;; *) die "不認得的排列：${LAYOUT}（可用：vertical horizontal）"; return 1 ;; esac
     case "${EMOJI}" in on|off) ;; *) die "不認得的 emoji 設定：${EMOJI}（可用：on off）"; return 1 ;; esac

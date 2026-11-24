@@ -13,7 +13,7 @@
 # 最後一行固定輸出「NA_APPLY lua=<n> build=<n> removed=<n>」：這次實際變動了幾個 lua 檔／
 # 幾個會進 build 的檔／刪了幾個舊檔。rime-update.command 靠它決定要不要重新部署。
 #
-# 環境變數 NA_NO_LAUNCHERS=1：不產生 na-update.command（測試用）。
+# 環境變數 NA_NO_LAUNCHERS=1：不產生 na-update.command／na-setup.command（測試用）。
 #
 # ⚠ macOS 內建 bash 3.2：`$VAR` 後面緊接中文會被吃進變數名，一律寫 ${VAR}；
 #   沒有關聯陣列、mapfile。檔名一律假設不含換行。
@@ -106,6 +106,13 @@ if [ -z "${NA_NO_LAUNCHERS:-}" ]; then
         printf 'exec bash %q "$@"\n' "${REPO}/scripts/rime-update.command"
     } > "${RIME_DIR}/na-update.command"
     chmod +x "${RIME_DIR}/na-update.command"
+    {
+        echo "#!/bin/bash"
+        echo "# 由 rime-apply.sh 產生：開選項畫面（主題、字級、語言…），改完自動套用"
+        printf 'bash %q --local\n' "${REPO}/install.sh"
+        echo 'read -r -p "按 Enter 關閉…" _'
+    } > "${RIME_DIR}/na-setup.command"
+    chmod +x "${RIME_DIR}/na-setup.command"
 fi
 
 echo "      套用到 ${RIME_DIR}：更新 $(( lua + build )) 個檔（lua ${lua}）、移除 ${removed} 個舊檔"

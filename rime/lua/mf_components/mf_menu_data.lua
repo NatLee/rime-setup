@@ -52,16 +52,12 @@ M.menus = {
   [""] = {
     tag = "《功能總覽》" .. HOW,
     rows = {
-      -- 指令已攤平成一級代碼（'/h、'/git…），不再有 '/j 命名空間那一層。
-      -- run 有值＝選中即執行，不用先跳進去再按一次空白。
       { key = "h",    run = "h",
                       label = "❖ 輸入法速查表　　全部功能與範例，開瀏覽器看" },
-      -- run 有值＝選中就直接執行，不會再進一層（動作見 p_run_pattern 的 git 條目）
-      { key = "git",  run = "git",
-                      label = "⟳ 更新設定　　　　拉遠端設定 → 部署 → 重啟" },
+      { key = "set",  label = "⚙ 設定　　　　　換主題／語言／字級、更新、編輯短語" },
       { key = "dt",   label = "◷ 日期與時間　　今天、現在、年月日週、節氣" },
       { key = "num",  label = "∑ 計算機　　　　打 '/12+34 直接算出來" },
-      { key = "dev",  label = "◈ 開發小工具　　uuid、時間戳、密碼、色碼、維護" },
+      { key = "dev",  label = "◈ 開發小工具　　uuid、時間戳、密碼、色碼" },
       { key = "code", label = "▤ 編碼與字母　　Unicode、URL、大小寫、鍵位表" },
     },
   },
@@ -142,23 +138,25 @@ M.menus = {
       { key = "pw",            label = "隨機密碼　　　預設 16 碼（'/pw24 指定長度）" },
       { key = "rgb1a73e8",     label = "色碼轉換　　　HEX ↔ RGB／HSL" },
       { key = "cshello.world", label = "命名風格　　　camel／Pascal／snake／kebab" },
-      { key = "set",           label = "▸ 設定與維護　　編輯短語／指令清單、版本、記憶體" },
     },
   },
 
   --------------------------------------------------------------------------
   -- '/set 設定與維護
+  -- 從第一層 '/ 直接進來（以前藏在「開發小工具」底下，要換個主題得鑽三層）。
+  -- 「選項」那一列開的是安裝腳本的設定畫面（'/setup）：全部選項列在同一頁，輸入編號改那一項。
   -- 收兩類東西：① 編輯方案內設檔（'/phrase、'/cmd，條目就在 p_run_pattern）
   -- ② 版本／記憶體（以前只能背 '/v、'/g、'/gc，沒有任何入口找得到）。
   --------------------------------------------------------------------------
   ["set"] = {
     tag = "【設定與維護】" .. HOW,
     rows = {
-      { key = "phrase", run = "phrase", label = "編輯 自訂短語　打 email 出信箱那種" },
-      { key = "cmd",    run = "cmd",    label = "編輯 指令清單　要加快捷開啟就改這裡" },
-      { key = "v",             label = "版本資訊　　　Weasel 0.17.4  (Weasel)" },
-      { key = "g",             label = "Lua 佔用記憶體　1824 KB（Garbage）" },
-      { key = "gc",            label = "垃圾回收　　　跑一次 collectgarbage" },
+      { key = "setup",  run = "setup",  label = "選項　　　　主題、深色模式、字級、emoji、語言…一個畫面改完" },
+      { key = "git",    run = "git",    label = "更新設定　　拉最新版 → 套用 → 有變動才部署" },
+      { key = "phrase", run = "phrase", label = "編輯自訂短語　打 email 出信箱那種" },
+      { key = "cmd",    run = "cmd",    label = "編輯指令清單　要加快捷開啟就改這裡" },
+      { key = "v",             label = "版本資訊　　Weasel 0.17.4  (Weasel)" },
+      { key = "g",             label = "Lua 佔用記憶體　1824 KB（'/gc 可回收）" },
     },
   },
 

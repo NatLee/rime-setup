@@ -95,4 +95,17 @@ elseif os_name == "Windows" then
   --        [[/scripts/rime-update.ps1"]] }
 end
 
+--------------------------------------------------------------------------
+-- setup：開「選項」畫面（主題、深色模式、字級、emoji、語言、釋義語言），改完自動套用並重新部署。
+-- 開的是安裝腳本本身，跟重跑安裝指令是同一個畫面，只是用本機那份、不連網。
+-- na-setup.* 同樣是安裝時產生在使用者資料夾的啟動器。
+--------------------------------------------------------------------------
+if os_name == "Mac" then
+  run_pattern["setup"] = { s = 4, direct = true, name = "選項：主題／語言／字級…",
+    open = '"' .. user_dir .. '/na-setup.command"' }
+elseif os_name == "Windows" then
+  run_pattern["setup"] = { s = 4, direct = true, name = "選項：主題／語言／字級…",
+    open = '"' .. user_dir .. '/na-setup.cmd"' }
+end
+
 return run_pattern
