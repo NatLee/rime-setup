@@ -8,6 +8,7 @@
 
 .EXAMPLE
   pwsh tools\rime-test.ps1 -Sync -Mode basic      # 黃金樣本回歸（最常用）
+  pwsh tools\rime-test.ps1 -Sync -Mode gui        # 小狼毫設定對話框改的配色／方案清單留不留得住
   pwsh tools\rime-test.ps1 -Mode gloss            # 三語釋義檢查
   pwsh tools\rime-test.ps1 -Mode cycle            # 單按右 Shift 循環切換語言
   pwsh tools\rime-test.ps1 -Mode bench            # 量每個按鍵的處理時間
@@ -26,7 +27,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples', 'cycle', 'bench', 'load', 'snapshot')]
+  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples', 'cycle', 'bench', 'load', 'snapshot', 'gui')]
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
@@ -132,6 +133,59 @@ public static class RimeT {
     [DllImport("rime.dll")] public static extern bool RimeCandidateListNext(ref RimeCandListIterT it);
     [DllImport("rime.dll")] public static extern void RimeCandidateListEnd(ref RimeCandListIterT it);
 
+    // ── 以下給 -Mode gui 用：編譯單一設定檔、讀編譯結果、模擬小狼毫的設定對話框 ──
+    [DllImport("rime.dll")] public static extern void RimeDeployerInitialize(ref RimeTraitsT t);
+    [DllImport("rime.dll")] public static extern bool RimeDeployConfigFile([MarshalAs(UnmanagedType.LPUTF8Str)] string file, [MarshalAs(UnmanagedType.LPUTF8Str)] string versionKey);
+    [DllImport("rime.dll")] public static extern bool RimeConfigOpen([MarshalAs(UnmanagedType.LPUTF8Str)] string id, ref IntPtr config);
+    [DllImport("rime.dll")] public static extern bool RimeConfigClose(ref IntPtr config);
+    [DllImport("rime.dll")] public static extern bool RimeConfigGetString(ref IntPtr config, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, byte[] buf, UIntPtr size);
+    [DllImport("rime.dll")] public static extern IntPtr RimeFindModule([MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+    public static string ConfigString(string id, string key) {
+        IntPtr c = IntPtr.Zero;                     // RimeConfig 只有一個指標欄位
+        if (!RimeConfigOpen(id, ref c)) return "(open failed)";
+        byte[] buf = new byte[512];
+        bool ok = RimeConfigGetString(ref c, key, buf, (UIntPtr)buf.Length);
+        RimeConfigClose(ref c);
+        if (!ok) return "(none)";
+        return System.Text.Encoding.UTF8.GetString(buf, 0, Array.IndexOf(buf, (byte)0));
+    }
+
+    // 小狼毫的設定對話框做的事，就是呼叫 librime「levers」模組的這幾個函式再存檔。
+    // RimeModule.get_api 在位移 32；RimeLeversApi 是一排函式指標，第 n 個在位移 8*n（順序見 rime_levers_api.h）。
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr LvGetApi();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr LvInit2([MarshalAs(UnmanagedType.LPUTF8Str)] string configId, [MarshalAs(UnmanagedType.LPUTF8Str)] string generatorId);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate IntPtr LvInit0();
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int LvInt1(IntPtr settings);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate void LvVoid1(IntPtr settings);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int LvStr(IntPtr settings, [MarshalAs(UnmanagedType.LPUTF8Str)] string key, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] delegate int LvSel(IntPtr settings, IntPtr[] ids, int count);
+    static T Lv<T>(int slot) {
+        IntPtr module = RimeFindModule("levers");
+        IntPtr api = Marshal.GetDelegateForFunctionPointer<LvGetApi>(Marshal.ReadIntPtr(module, 32))();
+        return Marshal.GetDelegateForFunctionPointer<T>(Marshal.ReadIntPtr(api, 8 * slot));
+    }
+    // 「介面風格設定」按確定：UIStyleSettings::SelectColorScheme → customize_string("style/color_scheme")
+    public static bool DialogPickColorScheme(string id) {
+        IntPtr s = Lv<LvInit2>(1)("weasel", "Weasel::UIStyleSettings");   // custom_settings_init
+        Lv<LvInt1>(3)(s);                                                 // load_settings
+        Lv<LvStr>(8)(s, "style/color_scheme", id);                        // customize_string
+        bool saved = Lv<LvInt1>(4)(s) != 0;                               // save_settings
+        Lv<LvVoid1>(2)(s);                                                // custom_settings_destroy
+        return saved;
+    }
+    // 「方案選單設定」按確定：select_schemas
+    public static bool DialogSelectSchemas(string[] ids) {
+        IntPtr s = Lv<LvInit0>(12)();                                     // switcher_settings_init
+        Lv<LvInt1>(3)(s);
+        IntPtr[] p = new IntPtr[ids.Length];
+        for (int i = 0; i < ids.Length; i++) p[i] = Marshal.StringToCoTaskMemUTF8(ids[i]);
+        Lv<LvSel>(22)(s, p, ids.Length);                                  // select_schemas
+        bool saved = Lv<LvInt1>(4)(s) != 0;
+        Lv<LvVoid1>(2)(s);
+        foreach (IntPtr x in p) Marshal.FreeCoTaskMem(x);
+        return saved;
+    }
 }
 "@ -CompilerOptions "/unsafe"
 }
@@ -159,9 +213,13 @@ if ($Rebuild -or $Sync) {
   [RimeT]::RimeJoinMaintenanceThread()
 }
 Start-Sleep -Milliseconds 800
-$session = [RimeT]::RimeCreateSession()
-[RimeT]::RimeSelectSchema($session, $Schema) | Out-Null
-foreach ($o in $Option) { [RimeT]::RimeSetOption($session, $o, $true) | Out-Null }
+# -Mode gui 只編譯、讀設定檔，用不到 session（也省得 session 持有的設定物件跟重編後的結果攪在一起）
+$session = [uint64]0
+if ($Mode -ne 'gui') {
+  $session = [RimeT]::RimeCreateSession()
+  [RimeT]::RimeSelectSchema($session, $Schema) | Out-Null
+  foreach ($o in $Option) { [RimeT]::RimeSetOption($session, $o, $true) | Out-Null }
+}
 
 # ---------------------------------------------------------------- 輔助函式
 function Get-Commit([string]$seq) {
@@ -571,7 +629,135 @@ switch ($Mode) {
     [RimeT]::RimeClearComposition($session) | Out-Null
   }
 
+  'gui' {
+    # 小狼毫「輸入法設定」對話框改的東西（配色、方案清單）留不留得住、跟 '/setup 會不會打架。
+    # 對話框做的事就是呼叫 librime 的 levers API 再存檔；這裡用同一支 rime.dll 的同一組 API 照做一次，
+    # 寫出來的檔跟真的在對話框按確定一模一樣。驗三件事：
+    #   ① 對話框選的會生效  ② 之後再套用（＝更新）不會被蓋掉  ③ 在 '/setup 重選會取代它
+    # 這條路以前壞過兩次（選了沒反應、更新後被蓋掉），而且沙盒的其他模式完全測不到。
+    $owned = 'weasel.custom.yaml', 'default.custom.yaml'
+    $extra = 'na_style.custom.yaml', 'na_input.custom.yaml', 'na_menu.custom.yaml', 'na-update.cmd', 'na-setup.cmd',
+             'weasel.custom.yaml.bak', 'default.custom.yaml.bak'
+    $saved = @{}
+    foreach ($n in $owned + $extra) {
+      $p = Join-Path $Sandbox $n
+      if (Test-Path -LiteralPath $p) { $saved[$n] = @{ bytes = [IO.File]::ReadAllBytes($p); time = (Get-Item -LiteralPath $p).LastWriteTimeUtc } }
+    }
+    $pass = 0; $fail = 0
+    function Check($name, $got, $want) {
+      if ($got -eq $want) { $script:pass++; Write-Host ("  PASS {0,-40} [{1}]" -f $name, $got) -ForegroundColor DarkGray }
+      else { $script:fail++; Write-Host ("  FAIL {0,-40} got [{1}] want [{2}]" -f $name, $got, $want) -ForegroundColor Red }
+    }
+    # librime 判斷「要不要重編」是比檔案時間，而且只比到秒。測試在同一秒內改檔、編譯、再改檔，
+    # 它會以為沒變。所以每次編譯前把這幾個檔的時間往後推（真實操作不會一秒內改兩次，沒有這個問題）。
+    $tick = [datetime]::UtcNow.Date.AddSeconds([math]::Floor([datetime]::UtcNow.TimeOfDay.TotalSeconds) + 0.5)
+    function Compile([switch]$Raw) {
+      if (-not $Raw) {
+        $script:tick = $script:tick.AddSeconds(2)
+        foreach ($n in $owned + $extra) { $p = Join-Path $Sandbox $n; if (Test-Path -LiteralPath $p) { (Get-Item -LiteralPath $p).LastWriteTimeUtc = $script:tick } }
+      }
+      foreach ($f in 'default.yaml', 'weasel.yaml') {
+        if (-not [RimeT]::RimeDeployConfigFile($f, 'config_version')) { throw "編譯 $f 失敗（部署模組沒載入？）" }
+      }
+    }
+    # ⚠ RimeInitialize 不會載入部署用的模組（levers）；不先做這一步，RimeDeployConfigFile 會安靜地
+    #   回 false、什麼都沒編譯，後面讀到的全是上次留下的舊結果（寫這個模式時就被它騙過一輪）。
+    [RimeT]::RimeDeployerInitialize([ref]$traits)
+    function Color { Compile; [RimeT]::ConfigString('weasel', 'style/color_scheme') }
+    function Schemas { Compile; (0..3 | ForEach-Object { [RimeT]::ConfigString('default', "schema_list/@$_/schema") } | Where-Object { $_ -ne '(none)' }) -join ',' }
+    function Text($n) { [IO.File]::ReadAllText((Join-Path $Sandbox $n)) }
+    function Reapply { (& (Join-Path $Repo 'scripts\rime-apply.ps1') -RimeDir $Sandbox -NoLaunchers -AllowDowngrade -Quiet | Select-Object -Last 1).Build }
+    # 跟 scripts\rime-setup.cmd 同樣的跑法（明確用 UTF-8 讀進來當 script block）：目標指到沙盒、不問、不部署。
+    # -Font system：別在測試裡下載安裝字型。
+    function Setup([string]$extraArgs) {
+      $names = 'NA_HOME', 'NA_LOCAL', 'NA_NO_DEPLOY', 'NA_RIME_DIR', 'NA_YES', 'NA_INSTALL'
+      $old = @{}; foreach ($n in $names) { $old[$n] = [Environment]::GetEnvironmentVariable($n) }
+      $env:NA_HOME = $Repo; $env:NA_LOCAL = '1'; $env:NA_NO_DEPLOY = '1'; $env:NA_RIME_DIR = $Sandbox; $env:NA_YES = '1'
+      $env:NA_INSTALL = Join-Path $Repo 'install.ps1'
+      try {
+        $out = & pwsh -NoProfile -ExecutionPolicy Bypass -Command "`$global:NaSetupOk = `$false; & ([scriptblock]::Create([IO.File]::ReadAllText(`$env:NA_INSTALL, [Text.Encoding]::UTF8))) -Font system $extraArgs; if (-not `$global:NaSetupOk) { exit 1 }" 2>&1
+        if ($LASTEXITCODE -ne 0) { Write-Host ($out -join "`n") -ForegroundColor Yellow }
+        return ($LASTEXITCODE -eq 0)
+      } finally { foreach ($n in $names) { [Environment]::SetEnvironmentVariable($n, $old[$n]) } }
+    }
+    try {
+      # 起點：兩個使用者檔回到剛裝好的樣子（只有一行 __include）、沒有個人選項檔
+      foreach ($n in $owned + $extra) { Remove-Item -LiteralPath (Join-Path $Sandbox $n) -Force -ErrorAction SilentlyContinue }
+      [void](Reapply)
+      $base = ''
+      foreach ($ln in (Get-Content (Join-Path $Repo 'rime\core\na_style.yaml') -Encoding UTF8)) { if ($ln -match '^theme:\s*(\S+)') { $base = $Matches[1] } }
+      $pick = 'NatSakura'; if ($base -eq $pick) { $pick = 'NatOcean' }
+
+      Check 'G01 起點＝預設主題'                 (Color) $base
+      Check 'G02 repo 的配色定義有接上'          ([RimeT]::ConfigString('weasel', "preset_color_schemes/$pick/name") -ne '(none)') $true
+      Check 'G03 repo 的全域設定有接上'          ([RimeT]::ConfigString('default', 'schema_cycle/skip/@0') -ne '(none)') $true
+      $allSchemas = Schemas
+
+      # ── 配色 ──
+      Check 'G04 對話框存檔成功'                 ([RimeT]::DialogPickColorScheme($pick)) $true
+      Check 'G05 對話框選的配色會生效'           (Color) $pick
+      Check 'G06 存檔後仍接著 repo 的設定'       ((Text 'weasel.custom.yaml') -match 'na_weasel:/patch') $true
+      $before = Text 'weasel.custom.yaml'
+      Check 'G07 再套用（＝更新）沒有檔案變動'   (Reapply) 0
+      Check 'G08 再套用不動使用者的檔'           ((Text 'weasel.custom.yaml') -ceq $before) $true
+      Check 'G09 更新後配色還在'                 (Color) $pick
+
+      # ── 方案清單 ──
+      Check 'G10 對話框存檔成功'                 ([RimeT]::DialogSelectSchemas(@('bopomo_onionplus', 'easy_en_lower'))) $true
+      Check 'G11 對話框勾的方案會生效'           (Schemas) 'bopomo_onionplus,easy_en_lower'
+      Check 'G12 再套用（＝更新）沒有檔案變動'   (Reapply) 0
+      Check 'G13 更新後方案清單還在'             (Schemas) 'bopomo_onionplus,easy_en_lower'
+
+      # ── '/setup 直接按 Enter：對話框選的主題收進選項檔；自訂的方案清單不動 ──
+      Check 'G14 setup（不改任何項目）'          (Setup '') $true
+      Check 'G15 主題沒變'                       (Color) $pick
+      Check 'G16 主題已收進選項檔'               ((Text 'na_style.custom.yaml') -match "(?m)^  theme: $pick\s*$") $true
+      Check 'G17 對話框那一筆配色已拿掉'         ((Text 'weasel.custom.yaml') -match 'style/color_scheme') $false
+      Check 'G18 沒重選語言，方案清單不動'       (Schemas) 'bopomo_onionplus,easy_en_lower'
+      $optBefore = (Text 'na_style.custom.yaml') + (Text 'weasel.custom.yaml') + (Text 'default.custom.yaml')
+      $optTime = (Get-Item -LiteralPath (Join-Path $Sandbox 'na_style.custom.yaml')).LastWriteTimeUtc
+      Check 'G19 再跑一次 setup 沒有任何變動'    ((Setup '') -and ((Reapply) -eq 0) -and
+                                                 (((Text 'na_style.custom.yaml') + (Text 'weasel.custom.yaml') + (Text 'default.custom.yaml')) -ceq $optBefore) -and
+                                                 ((Get-Item -LiteralPath (Join-Path $Sandbox 'na_style.custom.yaml')).LastWriteTimeUtc -eq $optTime)) $true
+
+      # ── '/setup 重選：取代對話框選的 ──
+      Check 'G20 setup 重選主題與語言'           (Setup '-Theme ocean -Langs ja') $true
+      Check 'G21 主題換成 setup 選的'            (Color) 'NatOcean'
+      Check 'G22 方案清單換成 setup 選的'        (Schemas) 'bopomo_onionplus,jpnin1'
+      Check 'G23 對話框那一筆方案已拿掉'         ((Text 'default.custom.yaml') -match '(?m)^  "?schema_list') $false
+      Check 'G24 兩個使用者檔仍接著 repo'        (((Text 'default.custom.yaml') -match 'na_default:/patch') -and ((Text 'weasel.custom.yaml') -match 'na_weasel:/patch')) $true
+
+      # ── setup 之後再用對話框：對話框贏（誰最後動手就聽誰的）──
+      [void][RimeT]::DialogPickColorScheme($pick)
+      Check 'G25 setup 之後對話框再選仍生效'     (Color) $pick
+
+      # ── 對話框選了「不是這套」的配色（使用者自己加的）：setup 沒重選主題就不動它 ──
+      [void][RimeT]::DialogPickColorScheme('my_own_scheme')
+      Check 'G26 setup（不改主題）'              (Setup '') $true
+      Check 'G27 自訂配色原樣留著'               (Color) 'my_own_scheme'
+      Check 'G28 setup 重選主題'                 (Setup '-Theme light') $true
+      Check 'G29 自訂配色被 setup 取代'          (Color) 'NatLight'
+
+      # ── 舊版面升級：weasel.custom.yaml 整個是 repo 的內容＋檔尾有對話框選的配色 ──
+      [IO.File]::WriteAllText((Join-Path $Sandbox 'weasel.custom.yaml'), "patch:`n  style:`n    color_scheme: { __include: `"na_options:/theme`" }`n`n  `"style/color_scheme`": $pick`n")
+      Remove-Item -LiteralPath (Join-Path $Sandbox 'na_style.custom.yaml') -Force
+      Check 'G30 舊版面的檔會被換成新格式'       ((Reapply) -gt 0) $true
+      Check 'G31 舊版面裡對話框選的配色帶過來'   (Color) $pick
+      Check 'G33 換掉之前原檔留了一份 .bak'      ((Text 'weasel.custom.yaml.bak') -match 'na_options:/theme') $true
+      Check 'G32 換完之後再套用沒有變動'         (Reapply) 0
+    } finally {
+      # 沙盒回到測試前的樣子（連檔案時間一起還原，其他模式才不必為此重編）
+      foreach ($n in $owned + $extra) {
+        $p = Join-Path $Sandbox $n
+        if ($saved.ContainsKey($n)) { [IO.File]::WriteAllBytes($p, $saved[$n].bytes); (Get-Item -LiteralPath $p).LastWriteTimeUtc = $saved[$n].time }
+        else { Remove-Item -LiteralPath $p -Force -ErrorAction SilentlyContinue }
+      }
+      Compile -Raw
+    }
+    Write-Host ''
+    Write-Host ("  {0} PASS / {1} FAIL" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
+  }
 }
 
-[RimeT]::RimeDestroySession($session) | Out-Null
+if ($session) { [RimeT]::RimeDestroySession($session) | Out-Null }
 [RimeT]::RimeFinalize()
