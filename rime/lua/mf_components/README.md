@@ -99,7 +99,7 @@ specs["碼"] = {
 測試腳本位於 scratchpad（`...\scratchpad\`），沙盒為其中的 `rime_regress\`：
 
 ```powershell
-# 1) 部署：把 C:\RIME\lua 鏡像到沙盒；-Freeze <epoch> 會在沙盒 rime.lua 注入
+# 1) 部署：把 repo 的 rime\lua 鏡像到沙盒；-Freeze <epoch> 會在沙盒 rime.lua 注入
 #    凍結時鐘 shim（僅沙盒副本），使輸出完全 deterministic 可 byte 級比對
 .\deploy_sandbox.ps1 -Freeze 1785884649
 

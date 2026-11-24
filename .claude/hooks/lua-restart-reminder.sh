@@ -33,8 +33,9 @@ case "$(uname -s 2>/dev/null)" in
     test_hint='Mac 沒有沙盒回歸工具，請推到 Windows 那台跑 rime-test.ps1，或在 Mac 實機驗證。'
     ;;
   MINGW*|MSYS*|CYGWIN*)
-    restart="Stop-Process -Name WeaselServer -Force; Start-Process 'C:\\Program Files\\Rime\\weasel-0.17.4\\WeaselServer.exe'"
-    test_hint='上線前跑回歸測試（23 條黃金樣本須全 PASS）：pwsh tools\rime-test.ps1 -Sync -Mode basic'
+    # 用 rime-update.ps1：它會自己找小狼毫、用 /quit 優雅停服務（別 Stop-Process -Force，見 GOTCHAS）
+    restart='pwsh scripts\rime-update.ps1 -Force -SkipPull'
+    test_hint='上線前跑回歸測試（黃金樣本須全 PASS）：pwsh tools\rime-test.ps1 -Sync -Mode basic'
     ;;
   *)
     restart='重啟你平台上的 RIME 服務程序'

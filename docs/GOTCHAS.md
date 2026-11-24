@@ -371,12 +371,85 @@ Linux 沙盒測過不代表 Mac 會過。→ 中文字串裡的變數一律加�
 
 ### 重裝／重新 clone 會把打字詞頻歸零
 `*.userdb/` 與 `sync/` 被 `.gitignore` 排除（刻意的，避免兩台機器互相污染），
-所以 `git clone` 出來的是空的。`scripts/bootstrap-mac.sh` 已會從備份目錄把 `*.userdb` 搬回來，
+所以 `git clone` 出來的是空的。安裝腳本（`install.sh`／`install.ps1`）已會從備份目錄把
+`*.userdb`、`sync/`、`installation.yaml`、`user.yaml`、個人短語檔搬回來，
 手動重裝時**別忘了這一步**，否則等於重新學一次你的用字習慣。
 
-### private repo 不能用 HTTPS clone
-腳本裡若寫 `https://github.com/NatLee/rime-config.git`，在非互動環境會卡在帳密輸入
-（症狀是 `could not read Username for 'https://github.com'`）。→ 一律走 SSH。
+### 安裝腳本一律用 HTTPS clone（repo 是公開的）
+公開 repo 用 `https://github.com/NatLee/rime-setup.git` 匿名就能拉，不需要 SSH key。
+維護者自己的機器 remote 是 SSH（要 push）沒關係：安裝腳本判斷「是不是已經裝過」時
+只比 remote 的最後兩段（`owner/repo`），HTTPS 與 SSH 會被視為同一個 repo。
+（歷史：repo 還是 private 時 HTTPS 會卡在帳密輸入，
+`could not read Username for 'https://github.com'`，當時才一律走 SSH。）
+
+## 安裝腳本與安裝選項
+
+### 安裝選項放在 `na_options.yaml`，不要寫死在 `*.custom.yaml`
+主題、直／橫排、emoji 預設、釋義語言、方案清單是「每個人裝的時候自己選」的東西。
+作法：
+
+- `rime/core/na_options.yaml`（repo 裡）放**預設值**。
+- 各 `*.custom.yaml` 在需要的位置寫 `{ __include: "na_options:/<鍵>" }` 取值。
+- 個人選擇寫在 `na_options.custom.yaml`（**不進版控**，安裝腳本產生）——
+  librime 對「被 include 的檔」也會自動套 `<檔名>.custom.yaml` 的 patch，
+  跟 `default.yaml ← default.custom.yaml` 是同一套機制（沙盒實測：`build/*.yaml` 的
+  `__build_info/timestamps` 會列出 `na_options` 與 `na_options.custom`，改了會觸發重編）。
+
+為什麼不讓安裝腳本直接改使用者資料夾裡的 `weasel.custom.yaml`：那是從 repo 複製來的檔，
+下次更新（`'/git`）內容一有變就會被 repo 的版本整個蓋掉，選擇就不見了。
+`na_options.custom.yaml` 不在 repo 裡，套用腳本永遠不會碰它。
+
+新增一個選項要動四處：`na_options.yaml`（預設值）、用到它的 `*.custom.yaml`（`__include`）、
+`install.ps1` 與 `install.sh`（詢問＋寫檔，兩支要同步）。
+
+### `install.ps1` 不能有 BOM，其他 `.ps1` 一定要有
+- **`irm` 不會去掉 BOM**。腳本開頭多一個 U+FEFF，第一行會變成「找不到指令」，
+  而且 `param(...)` 區塊失效——參數被**悄悄忽略**（實測 5.1 與 7 都一樣；
+  測試時 `-NoDeploy` 因此沒生效，真的跑了一次部署）。→ `install.ps1` 存成 UTF-8 無 BOM。
+- **Windows PowerShell 5.1 讀「沒有 BOM」的檔會當成 ANSI**，中文變亂碼甚至語法錯。
+  → 會從磁碟被執行的 `scripts\*.ps1`、`tools\*.ps1` 一律 UTF-8 **含** BOM。
+- 兩條規則衝突在 `install.ps1` 身上：本機要重跑它得走 `scripts\rime-setup.cmd`（使用者資料夾裡的 `na-setup.cmd` 會轉過來）
+  （明確用 UTF-8 讀進來再當 script block 執行），不要 `powershell -File install.ps1`。
+
+### 一般人的 Windows 只有 PowerShell 5.1，沒有 `pwsh`
+腳本不能用三元運算子、`??`、`&&`；輸入法呼叫腳本要經過 `.cmd` 啟動器
+（`rime-update.cmd` 會挑 `pwsh` 或 `powershell`），不能寫死 `pwsh`。
+預設執行政策也不准直接跑 `.ps1` 檔，所以啟動器都帶 `-ExecutionPolicy Bypass`，
+安裝腳本呼叫 `rime-update.ps1` 時也是另開行程帶這個參數，不是用 `&` 直接呼叫。
+
+### `start "" "x.cmd"` 開出來的視窗不會自己關
+`start` 執行批次檔是用 `cmd /K`（跑完留在提示字元）。→ `rime-update.cmd` 最後一行
+`exit %errorlevel%` 就是為了關視窗；失敗時 `.ps1` 自己已經停下來等 Enter，不會漏看訊息。
+
+### PowerShell：只有一個元素的「陣列的陣列」會被攤平
+`@( @('jpnin1', '日文') )` 得到的是兩個字串，不是「一個含兩元素的陣列」，
+迴圈裡取 `[0]` 會拿到單一字元（方案 id 變成 `j`）。→ 前面加逗號：`@( , @(…) )`。
+另外自訂函式別取名 `Git`（會遮住 `git.exe` 造成無窮遞迴）或 `R`（是 `Invoke-History` 的別名）。
+
+### repo 不是使用者資料夾 —— 改了 repo 要「套用」才會生效
+repo 的 `rime/` 按功能分類，RIME 卻只認使用者資料夾根目錄的方案檔，所以兩者是分開的：
+`scripts/rime-apply.*` 把 `rime/<分類>/*` 攤平複製過去（`lua/`、`opencc/` 保留資料夾）。
+- 改完 repo 沒效果 → 還沒套用。跑 `pwsh scripts\rime-update.ps1 -SkipPull`（Mac：`bash scripts/rime-update.command --skip-pull`）。
+- 直接改使用者資料夾裡的副本 → 下次更新被蓋掉（`'/cmd` 開到的就是副本）。個人化只能放
+  `na_options.custom.yaml` 與個人短語檔。
+- 兩個分類放了同名檔 → 攤平後會撞，`rime-apply` 會報錯拒絕。
+- repo 刪掉的檔，套用時會依使用者資料夾的 `na_manifest.txt` 清掉；清單以外的檔一律不動。
+- 套用只複製「大小或修改時間不同」的檔（Mac 版比內容）。所以沒有變更時 `'/git` 不會觸發部署。
+- 輸入法怎麼找到 repo：套用時在使用者資料夾產生 `na-update.cmd`／`na-update.command`，
+  裡面記著 repo 的位置，`'/git` 開的是它。批次檔用 OEM 字碼頁讀，路徑含中文會壞，
+  所以盡量寫成 `%USERPROFILE%\…`，避不掉才 `chcp 65001`。
+
+### 舊版安裝（使用者資料夾本身是 git clone）要遷移
+早期這個 repo 就是使用者資料夾。改成分類結構後，舊機器不能再 `git pull`
+（一拉檔案全搬進 `rime/` 子資料夾，輸入法整個壞掉）。防護有三層：
+歷史重寫過，舊 clone 的 `pull --ff-only` 本來就會失敗；`rime-apply` 看到目標有 `.git` 會拒絕；
+安裝腳本看到「有東西但沒有 `na_manifest.txt`」就整個備份搬走，再還原詞頻與個人檔。
+→ 舊機器的遷移方式就是**重跑安裝指令**。
+
+### 個人短語檔不進版控
+`bopomo_onionplus_phrase.txt` 裡是信箱之類的個人資料，只存在使用者資料夾；
+repo 裡只有範本 `bopomo_onionplus_phrase.sample.txt`，套用腳本在檔案不存在時複製一份。
+lua 讀不到檔會安靜略過（`translator_lua_custom_phrase.lua`），不會壞，但 `'/phrase` 會開不到東西。
 
 ### os.execute 在 Mac 的回傳值不能拿來判斷成敗
 `start` 在 macOS 不存在，但 Lua 5.1／LuaJIT 的 `os.execute` 回傳的是 **exit code**，
