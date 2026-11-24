@@ -122,12 +122,16 @@ pwsh tools\keymap-dump.ps1     # 讀 build\，所以要先部署
 → `rime-test.ps1` 用 `(cand:N)` 標記，在**上屏之前**當場問引擎第 N 個候選是什麼再比。
 ⚠ 換算一定要在 `Get-Commit` 之前做：上屏本身就會改變順序，事後再問已經來不及。
 
-### 指令選單的每一列「選中即執行」——測試不要按下去
-`'/j` 那一頁選中會真的開檔案／開瀏覽器，主選單 ⇧2 會真的跑
-`scripts/rime-update.ps1`（git pull → 部署 → 重啟服務）。
-測試期間誤觸過兩次（`git pull --ff-only` 因本機有未提交變更而失敗，沒造成損害）。
-→ 選單相關的回歸一律用 `Get-Preedit` 驗編碼列，只有 `'/dt`、`'/num` 這種
-純跳轉的列才可以用 `Get-Commit`。
+### 指令選單的每一列「選中即執行」——沙盒裡動作一律空轉
+選單列選中、或一級指令代碼按空白，會真的開檔案／開瀏覽器／跑 `scripts/rime-update.ps1`
+（git pull → 部署 → 重啟服務）。以前的對策是「測試不要按下去」，靠註解提醒，結果還是出事：
+主選單第一列後來換成速查表，`T19`（`'/` ＋空白）沒跟著改，**每跑一次回歸就開一次瀏覽器**。
+→ 現在是結構上擋住：使用者資料夾裡有 `na_test_open.log` 這個檔時，`p_generic_open.lua` 只把
+  「本來要開的東西」記進去、不執行。`rime-test.ps1` 每次都在沙盒建這個檔，而且開跑前先確認沙盒裡的
+  lua 真的有這道判斷，沒有就直接停。正式的使用者資料夾不會有這個檔。
+→ 所以測試可以放心按下去，再用 `Get-Opened` 比對它「本來要開什麼」（A01～A06）。
+  以前這條鏈（選單列的 `run` → `p_run_pattern` 的 `open`）完全沒有測試。
+→ 為什麼用檔案不用環境變數：Lua 的 `os.getenv` 讀的是 C 執行階段的快照，測試行程中途才設的變數不一定看得到。
 
 ### 新增 `'/` 功能一定要給選單入口
 `'/g`（Lua 記憶體）、`'/gc`、`'/p`、`'/z`、`'/l` 曾經只能靠背代碼才找得到 ——
@@ -249,6 +253,7 @@ translator 的提示候選（`mf_open_menu.register_direct`）、processor 的�
 部署器通知服務進維護模式的那段時間，輸入法不出字，但**其他程式不會被拖住**。
 以前為了避開這段「有輸入法但沒反應」而改成先停服務，結果換來更糟的整台卡死（見上一條）。
 兩害相權取其輕：就讓它進維護模式。
+
 ### 套用檔案要比內容，不能只比修改時間
 `rime-apply` 原本用「大小＋修改時間」判斷檔案有沒有變。換一份 clone 來套用、或 git 重新簽出時，
 內容沒變但修改時間全都不同 → 一百多個檔全部重新複製 → RIME 整輪重新編譯（實測 170 秒）。
@@ -256,13 +261,14 @@ translator 的提示候選（`mf_open_menu.register_direct`）、processor 的�
 
 ### 更新流程：沒變更就別動輸入法
 以前不管 `git pull` 有沒有拉到東西，都照樣部署＋重啟 —— 光是「確認一下有沒有
-更新」就要付十幾秒的 IME 中斷。現在比對 pull 前後的 HEAD 分流：
+更新」就要付十幾秒的 IME 中斷。現在以「套用時實際有沒有檔案被改到」分流（`rime-apply.ps1` 的回傳值）：
 
-| 拉到的變更 | 動作 | 實測 |
+| 套用時變動的檔 | 動作 | 實測（小狼毫 0.17.4） |
 |---|---|---|
-| 無 / 只有 md、html、ps1… | 什麼都不做 | 2 秒，IME 完全不中斷 |
-| 只有 `.lua` | 只重啟（lua 只在服務啟動時載入） | 約 1 秒 |
-| 有 yaml／詞典／txt／gram／opencc | 停服務 → 部署 → 啟動 → 等 build 穩定 | 約 3 秒起 |
+| 沒有 | 什麼都不做 | 整支腳本 0.5 秒，IME 完全不中斷 |
+| 只有 `.lua` | 只重啟服務（lua 只在服務啟動時載入） | （沒有單獨量過） |
+| 有 yaml／詞典／txt／gram／opencc | 部署，服務保持運作；lua 也有變才另外重啟 | 只動候選窗設定：部署 1.0 秒、整支 1.7 秒；動到全域設定（每個方案都要重編）：部署 11.5 秒 |
+| `-Force` | 部署＋重啟 | 沒有東西要重編時整支 7.6 秒（部署 0.9 秒，其餘是等服務停、啟） |
 
 macOS 版（`rime-update.command`）同樣的分流，但沒有「先停服務」那段：
 鼠鬚管沒有獨立部署器，`Squirrel --reload` 一個動作就同時重編與重載 lua。
@@ -307,7 +313,7 @@ python3 -c "import yaml;print(yaml.safe_dump(yaml.safe_load(open('build/squirrel
 若輸出的鍵**剛好等於你 custom 裡寫的那些**、前端預設值一個都不在，就是踩到這個坑。
 
 → 改用路徑鍵逐鍵覆寫：`"style/font_point": 17`、`"preset_color_schemes/NatMatcha": {...}`。
-`squirrel.custom.yaml` 已改寫完成。⚠ `weasel.custom.yaml` 目前仍是巢狀寫法，
+`squirrel.custom.yaml` 已改寫完成。⚠ Windows 的 `na_weasel.yaml` 目前仍是巢狀寫法，
 Windows 端能動是因為小狼毫的 fallback 剛好可接受，但同樣在默默丟棄內建預設值。
 
 ### 【已解】macOS 標籤顯示 `!@#$%^` 而不是 `⇧1~⇧6` → 兩邊前端的取用優先序是反的
@@ -476,7 +482,7 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
   `WM_FONTCHANGE`，這次登入階段才馬上認得。
 - 粉圓體只有一種字重，**不要加 `:bold`**（合成粗體會糊）。後面接正黑體／蘋方當後備字型。
 - 鼠鬚管認字型：`名稱-樣式`（如 `PingFangTC-Semibold`）或 PostScript 名稱。粉圓要寫 `jf-openhuninn-2.1`。
-- `na_options.yaml` 的預設值刻意留系統字型：手動安裝、或粉圓下載失敗的人不會拿到一個不存在的字型。
+- `na_style.yaml` 的預設值刻意留系統字型：手動安裝、或粉圓下載失敗的人不會拿到一個不存在的字型。
   下載失敗時安裝腳本自動退回系統字型，不中斷安裝。
 - PowerShell 5.1 的 `Invoke-WebRequest` 不關進度條會慢十倍，下載前要設 `$ProgressPreference = 'SilentlyContinue'`。
 
@@ -497,6 +503,7 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
   |---|---|---|
   | 標籤不加句點 | `label_format: "%s"` | `candidate_format: "[label] [candidate] [comment]"` |
   | 視窗圓角／光棒圓角 | `layout/corner_radius`／`layout/round_corner` | `corner_radius`／`hilited_corner_radius` |
+  | 視窗最小寬度 | `layout/min_width`（設 0＝跟著內容走） | 沒有，本來就跟著內容走 |
   | 視窗內距 | `layout/margin_x`、`margin_y` | 沒有獨立的鍵：＝`border_width`／`border_height` ＋ `corner_radius` |
   | 邊框粗細 | `layout/border_width` | `border_width` 與 `border_height` 取小的 |
   | 候選列距與光棒內距 | `candidate_spacing`、`hilite_padding_*` | `line_spacing` 一個值兼任兩者 |
@@ -507,44 +514,141 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
   | 視窗陰影 | `layout/shadow_radius` | **沒有**（`shadow_size` 是光棒底下的陰影，不是同一件事） |
 - 鼠鬚管這份排版是照原始碼的算法換算的，沒有在 Mac 上實際看過，上機後可能要微調數值。
 
-### 在小狼毫「輸入法設定」換配色沒反應 → 深色模式被釘住
-小狼毫的做法是先套 `style/color_scheme`，系統在深色模式時再看 `style/color_scheme_dark`
-**讀不讀得到字串**，讀得到就蓋過去（`RimeWithWeasel.cpp`）。
-舊版安裝腳本在「不跟隨系統」時把 `theme_dark` 寫成跟 `theme` 同名 —— 等於把深色模式釘死在
-安裝當下的主題。對話框只改 `color_scheme`，於是在深色模式下怎麼換都看不出來。
-→ 「不跟隨」現在寫成 `theme_dark: ~`（空值），而且 `*.custom.yaml` 用選用式的
-  `{ __include: "na_options:/theme_dark?" }`：值是空的時候那個鍵解析成空節點，
-  `config_get_string` 回 false，小狼毫就退回 `color_scheme`。沙盒用同一支 rime.dll 的同一個 API 驗過。
-→ `rime-apply` 會把舊格式的 `na_options.custom.yaml` 自動改過來。
-→ 「跟隨系統」時深色模式固定用 Nat Dark，這時在對話框換配色只影響淺色模式，這是預期行為。
+### 小狼毫設定對話框與 `*.custom.yaml`：那兩個檔是使用者的，repo 不可以放東西進去
+工作列圖示右鍵 →「輸入法設定」會連開兩個對話框，按確定就**把整個檔重寫**（註解全掉、鍵重新排序、
+多一段 `customization:`），然後自己部署一次。對過小狼毫 0.17.4 的原始碼（`Configurator.cpp`、
+`UIStyleSettings.cpp`）與 librime 的 `custom_settings.cc`：
 
-### 對話框選的配色會被更新蓋掉
-對話框把選擇寫進使用者資料夾的 `weasel.custom.yaml`（`patch` 底下多一個 `"style/color_scheme"`，
-而且整個檔案被它重新排版）。那是從 repo 複製來的檔，照一般規則下次套用就整個蓋回去。
-→ `rime-apply.ps1` 對這個檔特別處理：套用前記下對話框的選擇，蓋完補回檔尾；
-  「應有內容＝repo 版本＋那幾行」，跟現況一樣就不動，不會每次更新都觸發部署。
-→ 誰比較新聽誰的：之後用 `'/setup` 重選主題會重寫 `na_options.custom.yaml`，它比
-  `weasel.custom.yaml` 新的話，對話框的舊選擇就不再保留。
+| 對話框 | 寫哪個檔 | 寫什麼 |
+|---|---|---|
+| 方案選單設定 | `default.custom.yaml` | `patch/schema_list`（勾選的方案） |
+| 介面風格設定 | `weasel.custom.yaml` | `patch/"style/color_scheme"`（**只有這一格，深色那格它不碰**） |
+
+這套設定以前把自己的內容也放在這兩個檔（從 repo 複製過去），於是「在對話框選了、下次更新就不見」。
+修過一輪：套用前記下對話框選的配色、蓋完補回檔尾、再比 `na_style.custom.yaml` 和它誰的檔案時間新。
+那個做法只顧得到配色（方案清單照樣被蓋掉）、靠檔案時間猜先後很脆弱，`'/setup` 還得「就算沒變也重寫一次
+選項檔」來贏過時間比較。
+
+**現在的做法：誰寫的檔歸誰。**
+- repo 的內容搬到 `na_weasel.yaml`／`na_default.yaml`（一樣是 `patch:` 開頭）。
+- 使用者資料夾的 `weasel.custom.yaml`／`default.custom.yaml` 只有一行把它接進來：
+  ```yaml
+  patch:
+    __include: na_weasel:/patch
+  ```
+  `rime-apply` 只在「沒有這個檔」或「還是舊版面的檔」時建立它，之後**永遠不覆蓋**，也不在安裝清單上。
+  （判斷方式：檔裡找不到接上 `na_weasel:/patch` 的那一行就當成舊版面。換掉之前原檔留一份 `.bak`，
+  萬一那其實是使用者自己把 `__include` 拿掉的檔，他寫的東西還找得回來。）
+  `rime/` 裡如果又出現這兩個檔名，`rime-apply` 會直接報錯。
+- librime 的規則：`__include` 旁邊的其他鍵會合併進被引入的內容、蓋過同名的值。對話框寫的
+  `"style/color_scheme"`／`schema_list` 就落在那裡，所以它直接生效、更新也碰不到。
+  這是社群既有的寫法（easy_en 的安裝說明就是 `patch:` 底下寫 `__include: easy_en:/patch`）。
+- 使用者想自己加設定也寫在那一行底下，同樣不會被更新蓋掉。
+
+**`'/setup` 跟對話框誰贏：最後動手的那個。** 不比檔案時間，由安裝腳本直接處理那一行：
+- 對話框選的配色是這套的主題 → 選項畫面把它顯示成目前的主題；套用時記進 `na_style.custom.yaml`，
+  並把 `weasel.custom.yaml` 裡那一行拿掉。之後再用對話框選，又會多出那一行、蓋過選項檔。
+- 對話框選的是別的配色（使用者自己加的）、或自己勾了方案清單 → 選項畫面照實顯示「自訂…」，
+  **沒在這裡重選那一項就不動它**；重選了才拿掉。
+- 只刪那一個鍵，檔案其他內容原樣留著。
+
+驗證：`pwsh tools\rime-test.ps1 -Mode gui`。它用對話框呼叫的同一組 API（librime 的 levers）寫檔，
+所以產生的檔跟真的按對話框一模一樣；再套用、跑安裝腳本、編譯，逐步比對結果（33 條）。
+改到 `rime-apply`、安裝腳本的選項段、或這兩個檔的配置，都要跑這個模式。
+
+### 在對話框換了配色卻沒變 → 系統在深色模式，而且「跟隨系統」開著
+小狼毫先套 `style/color_scheme`，系統在深色模式時再看 `style/color_scheme_dark`
+**讀不讀得到字串**，讀得到就蓋過去（`RimeWithWeasel.cpp`）。對話框只改得到前者。
+- 「系統深色模式：跟隨」時，深色模式固定顯示 Nat Dark。這時在對話框或 `'/setup` 換主題，改到的都是
+  淺色模式那一格，畫面不會變 —— **這是設定的本意，不是壞掉**，但看起來一模一樣。
+  → 選項畫面在這個狀態下會多印兩行提示（系統現在是深色、想在深色模式也用這個主題就把第 2 項改成「不跟隨」）。
+- 「不跟隨」寫成 `theme_dark: ~`（空值），搭配選用式的 `{ __include: "na_style:/theme_dark?" }`：
+  值是空的時候那個鍵解析成空節點，`config_get_string` 回 false，小狼毫就退回 `color_scheme`。
+  ⚠ 不可以寫成跟 `theme` 同名：那會把深色模式釘死在那個主題，對話框怎麼換都沒反應（舊版安裝腳本
+  就是這樣寫的，`rime-apply` 會把舊檔自動改過來）。
+
+### ⚠ 設定「一直被重置」→ 同一台電腦有兩份版本不同的 clone 在輪流套用
+維護者的電腦通常有兩份：安裝指令放的 `~/.na-plus`，和開發用的那份。**誰最後套用，使用者資料夾裡的
+啟動器（`na-setup.cmd`、`na-update.cmd`）就指向誰**，所以 `'/setup`、`'/git` 跑的是哪一份會跟著換。
+兩份版本一樣時沒事；開發那份改了個人檔的格式（例如選項檔從一個拆成三個）而 `~/.na-plus` 還是舊的，
+就會這樣：新版套用 → 舊的選項檔被收掉；之後不管什麼原因跑到舊版的安裝腳本，它找不到自己認得的選項檔，
+**直接寫回預設值**，還把新版的檔當成「repo 已刪除」清掉。從使用者看就是「改了又被改回去」，
+而且兩邊都沒有任何錯誤訊息（真的發生過，查了很久才想到要看 `na-setup.cmd` 指向哪裡）。
+→ `rime-apply` 有「版面編號」（`.ps1` 的 `$Layout`、`.sh` 的 `LAYOUT`，記在 `na_manifest.txt` 檔頭的
+  `# na-layout:`）。目標資料夾的編號比這份 repo 大就拒絕套用，並說明原因。
+→ **個人檔的名字、格式、或「哪個檔歸使用者」一改，兩支腳本的版面編號就要一起加 1。**
+→ 沙盒測試傳 `-AllowDowngrade`（沙盒本來就會被不同分支輪流套用）。
+→ 開發到一半要確認現在是誰在管：看使用者資料夾的 `na-setup.cmd` 最後一行指向哪個資料夾。
 
 ## 安裝腳本與安裝選項
 
-### 安裝選項放在 `na_options.yaml`，不要寫死在 `*.custom.yaml`
-主題、深色模式、直／橫排、字級、emoji 預設、釋義語言、方案清單是「每個人裝的時候自己選」的東西。
+### 安裝選項放在 `na_style`／`na_input`／`na_menu` 三個檔，不要寫死在 `*.custom.yaml`
+主題、深色模式、直／橫排、字級、字型、emoji 預設、釋義語言、方案清單是「每個人裝的時候自己選」的東西。
 作法：
 
-- `rime/core/na_options.yaml`（repo 裡）放**預設值**。
-- 各 `*.custom.yaml` 在需要的位置寫 `{ __include: "na_options:/<鍵>" }` 取值。
-- 個人選擇寫在 `na_options.custom.yaml`（**不進版控**，安裝腳本產生）——
+- `rime/core/na_style.yaml`、`na_input.yaml`、`na_menu.yaml`（repo 裡）放**預設值**。
+- 用到它的檔（`na_weasel.yaml`、`squirrel.custom.yaml`、`na_default.yaml`、方案的 `*.custom.yaml`）
+  在需要的位置寫 `{ __include: "na_style:/<鍵>" }` 取值。
+- 個人選擇寫在對應的 `na_*.custom.yaml`（**不進版控**，安裝腳本產生）——
   librime 對「被 include 的檔」也會自動套 `<檔名>.custom.yaml` 的 patch，
-  跟 `default.yaml ← default.custom.yaml` 是同一套機制（沙盒實測：`build/*.yaml` 的
-  `__build_info/timestamps` 會列出 `na_options` 與 `na_options.custom`，改了會觸發重編）。
+  跟 `default.yaml ← default.custom.yaml` 是同一套機制（`build/*.yaml` 的
+  `__build_info/timestamps` 會列出 `na_style` 與 `na_style.custom`，改了會觸發重編）。
 
-為什麼不讓安裝腳本直接改使用者資料夾裡的 `weasel.custom.yaml`：那是從 repo 複製來的檔，
-下次更新（`'/git`）內容一有變就會被 repo 的版本整個蓋掉，選擇就不見了。
-`na_options.custom.yaml` 不在 repo 裡，套用腳本永遠不會碰它。
+**為什麼是三個檔而不是一個**：RIME 記下每個設定檔讀過哪些檔，任何一個的時間變了就整個重編；
+方案檔重編還會連帶重建詞典索引（英文那個索引 46 MB，一個就要三秒）。誰讀哪個檔：
 
-新增一個選項要動四處：`na_options.yaml`（預設值）、用到它的 `*.custom.yaml`（`__include`）、
+| 檔 | 內容 | 被誰讀 | 改了之後重編什麼 | 實測 |
+|---|---|---|---|---|
+| `na_style` | 主題、字型、字級、排列 | `weasel`／`squirrel` | 只有候選窗設定 | 1.6 秒 |
+| `na_input` | emoji、釋義語言 | 注音、日文兩個方案 | 這兩個方案＋它們的索引 | 1.8 秒 |
+| `na_menu` | 方案清單 | `default` → **每個方案** | 全部 | 6～12 秒 |
+
+以前全放在一個 `na_options.yaml`，方案清單也在裡面，所以每個方案都讀它 —— 換個主題等於全部重編。
+新增選項時**放進對的檔**：只影響長相的放 `na_style`，千萬別放 `na_menu`。
+`rime-apply` 看到舊的 `na_options.custom.yaml` 會照鍵名拆成三個檔（舊檔改名 `.bak`）。
+
+安裝腳本**只重寫內容有變的檔**（沒變卻重寫＝時間變了＝白白重編），而且不再一律 `-Force`：
+選項有變加 `-Deploy`（部署、不重啟服務），沒變就什麼都不加，`rime-update` 發現沒事可做直接結束。
+實測（臨時資料夾、不部署）：`'/setup` 從啟動到列出選單 0.2 秒；直接按 Enter 到結束 0.8 秒。
+以前「進來看一眼就要等十幾秒」是因為一律 `-Force`（整輪部署＋重啟服務）。
+
+為什麼選項不寫進 `weasel.custom.yaml`／`default.custom.yaml`：那兩個檔留給使用者和小狼毫的設定對話框
+（見「小狼毫設定對話框與 `*.custom.yaml`」）。選項有自己的三個檔，安裝腳本整個檔重寫也不會動到別人的東西。
+
+新增一個選項要動四處：對應的 `na_*.yaml`（預設值）、用到它的檔（`__include`）、
 `install.ps1` 與 `install.sh`（詢問＋寫檔，兩支要同步）。
+
+`scripts\rime-setup.cmd`（`'/setup` 開的就是它）成功時視窗 2 秒後自己關，失敗才停下來等按鍵：
+安裝腳本走到最後會設 `$global:NaSetupOk`，沒設到就代表中途出錯。
+
+### ⚠ 什麼都沒改，部署卻每次重編一堆方案 → 內建設定檔的時間是「整秒」
+**症狀**：連續按兩次「重新部署」，中間什麼都沒動，`build/` 裡還是有十幾個 `*.schema.yaml`、
+好幾個 `*.prism.bin` 被重寫，要等 1～10 秒不等（看這次輪到哪幾個方案）。`'/setup` 慢就是這個。
+**原因**：RIME 靠編譯時記下的檔案時間（`__build_info/timestamps`）判斷要不要重編。小狼毫安裝目錄的
+`default.yaml`、`key_bindings.yaml`、`punctuation.yaml` 修改時間剛好是整秒（安裝程式寫的），
+而 librime 把檔案時間換算成秒數時有極小的誤差，整秒的檔會**有時算成 N、有時算成 N−1**。
+實測同一次部署：17 個編譯結果裡 3 個把 `default` 記成 …323、14 個記成 …324，檔案實際是 …324.0000000。
+下一次部署兩邊再各擲一次骰子，對不上的就被當成「內建設定變了」而重編；重編後 `__build_info`
+的內容不同 → 方案檔的 checksum 不同 → 詞典索引跟著重建。
+**解法**：`rime-apply.ps1` 在使用者資料夾放這三個檔的副本，時間設成「原檔＋半秒」。RIME 優先讀
+使用者資料夾的，帶小數的時間怎麼算都是同一個值。
+
+| 沒有任何變動，連續部署 | 重寫的檔 | 時間 |
+|---|---|---|
+| 修正前 | 16～26 個（其中索引 4～11 個） | 1.3～10.6 秒 |
+| 修正後 | 0 個 | 0.9 秒 |
+
+- 副本跟著原檔走：小狼毫升級後內容不同，下次套用會重新複製。`default.yaml` 另有 librime 自己的保護
+  （使用者資料夾的版本比內建的舊就會被它移到 `trash/`）。
+- 只管「內容跟上次複製的一樣」的檔（雜湊記在 `na_shared_copy.txt`）；使用者自己放、自己改過的不碰。
+- 只在目標是小狼毫正在用的資料夾時才做（沙盒與測試不受影響；測試可用 `-SharedData` 指定來源）。
+- `weasel.yaml` 也有同樣的現象，但它重編不牽動詞典、幾乎不花時間，所以沒放副本。
+- **macOS 沒有做也沒有驗證**：鼠鬚管的內建檔在 app 裡面，是否有同樣的問題要在 Mac 上連續部署兩次、
+  看 `build/` 的檔案時間才知道。
+- 查這類問題的方法：部署前 `touch` 一個標記檔，部署後列出 `build/` 裡比它新的檔；
+  再比對各 `build/*.yaml` 的 `__build_info/timestamps` 跟實際檔案時間（要看到小數）。
+- 誤差的來源（librime `common.h` 的 `to_time_t`）：它用「檔案時間 − 檔案時鐘的現在 ＋ 系統時鐘的現在」換算，
+  兩個「現在」是先後取的，差那一點點就決定整秒的檔被捨去成 N 還是 N−1。
 
 ### `install.ps1` 不能有 BOM，其他 `.ps1` 一定要有
 - **`irm` 不會去掉 BOM**。腳本開頭多一個 U+FEFF，第一行會變成「找不到指令」，
@@ -574,8 +678,9 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
 repo 的 `rime/` 按功能分類，RIME 卻只認使用者資料夾根目錄的方案檔，所以兩者是分開的：
 `scripts/rime-apply.*` 把 `rime/<分類>/*` 攤平複製過去（`lua/`、`opencc/` 保留資料夾）。
 - 改完 repo 沒效果 → 還沒套用。跑 `pwsh scripts\rime-update.ps1 -SkipPull`（Mac：`bash scripts/rime-update.command --skip-pull`）。
-- 直接改使用者資料夾裡的副本 → 下次更新被蓋掉（`'/cmd` 開到的就是副本）。個人化只能放
-  `na_options.custom.yaml` 與個人短語檔。
+- 直接改使用者資料夾裡的副本 → 下次更新被蓋掉（`'/cmd` 開到的就是副本）。個人化只能放在
+  「使用者的檔」：`na_*.custom.yaml`（選項）、`weasel.custom.yaml`／`default.custom.yaml`
+  （`__include` 那一行底下可以自己加鍵）、個人短語檔。
 - 兩個分類放了同名檔 → 攤平後會撞，`rime-apply` 會報錯拒絕。
 - repo 刪掉的檔，套用時會依使用者資料夾的 `na_manifest.txt` 清掉；清單以外的檔一律不動。
 - 套用只複製「大小或修改時間不同」的檔（Mac 版比內容）。所以沒有變更時 `'/git` 不會觸發部署。
@@ -604,7 +709,7 @@ lua 讀不到檔會安靜略過（`translator_lua_custom_phrase.lua`），不會
 
 ### `Ctrl+Alt+字母` 完全沒反應 → Windows AltGr 保留組合
 小狼毫**不會**把 `Ctrl+Alt+X` 轉送給輸入法（等同 AltGr）。引擎層測試會通過、實機永遠無效。
-→ 方案切換改用 **`Ctrl+Shift+F1~F4`**（見 `default.custom.yaml`）。
+→ 方案切換改用 **`Ctrl+Shift+F1~F4`**（見 `na_default.yaml`）。
 
 ### `Ctrl+Shift+6~9` 已被方案內建開關佔用
 `element_bopomo.yaml` 的 key_binder 綁了字集／emoji／符號標註／Unicode 開關，方案層綁定優先。
@@ -654,6 +759,17 @@ if f then f:write("...\n") f:close() end
 
 ### 時間相關輸出的比對
 `'/f`、`'/t` 等每秒都在變。回歸比對要嘛正規化數字，要嘛用凍結時鐘（在沙盒 `rime.lua` 注入 `os.date`/`os.time` shim）。跨午夜測試會誤判日期類項目。
+
+### ⚠ 沙盒裡「重新編譯設定檔」安靜地什麼都沒做 → 部署模組沒載入
+`RimeInitialize` 只載入打字用的模組；`RimeDeployConfigFile`（編譯單一設定檔）需要的部署模組（levers）
+要 `RimeDeployerInitialize` 或跑過一次維護（`RimeStartMaintenance`）才會載入。沒載入時它**回 false、
+不報錯、什麼都不編**，接著讀到的全是上一次留下的編譯結果 —— 而預設值剛好等於預期值的檢查還會顯示 PASS。
+寫 `-Mode gui` 時被它騙過一輪。→ 那個模式開頭先呼叫 `RimeDeployerInitialize`，編譯回 false 就直接丟例外。
+
+### librime 判斷「要不要重編」只比到秒
+`__build_info/timestamps` 記的是整數秒。測試在同一秒內「改檔 → 編譯 → 再改檔 → 再編譯」，
+第二次會被當成沒變。真實操作不會一秒內改兩次，所以只有測試會遇到。
+→ `-Mode gui` 每次編譯前把相關檔案的時間往後推 2 秒。
 
 ## librime-lua API
 

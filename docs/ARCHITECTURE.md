@@ -9,8 +9,8 @@ repo（設定的來源；一般使用者在 ~/.na-plus）
 ├─ CLAUDE.md                  AI 助手操作指南（每次載入）
 │
 ├─ rime/                      ★ 會被裝進 RIME 使用者資料夾的全部內容，按功能分類
-│  ├─ core/                   default.custom.yaml、rime.lua、na_options.yaml、cheatsheet.html
-│  ├─ theme/                  weasel.custom.yaml、squirrel.custom.yaml
+│  ├─ core/                   na_default.yaml、rime.lua、na_style／na_input／na_menu.yaml、cheatsheet.html
+│  ├─ theme/                  na_weasel.yaml（Windows）、squirrel.custom.yaml（macOS）
 │  ├─ bopomofo/               主方案 bopomo_onionplus*、中文詞庫、語言模型、注音文、符號、倉頡反查
 │  │    ├─ *.custom.yaml         ★ 我們的設定改動都寫成 patch（不直接改上游檔）
 │  │    ├─ *.schema.yaml         上游方案定義（盡量不改）
@@ -27,9 +27,11 @@ repo（設定的來源；一般使用者在 ~/.na-plus）
         │  scripts/rime-apply.*：rime/lua、rime/opencc 保留資料夾，其餘分類攤平到根目錄
         ▼
 RIME 使用者資料夾（Windows 預設 %APPDATA%\Rime／macOS ~/Library/Rime）
-├─ *.schema.yaml *.custom.yaml *.dict.yaml lua/ opencc/ …   ← 從 repo 複製來，更新時會被覆蓋
+├─ *.schema.yaml *.dict.yaml na_*.yaml 方案的 *.custom.yaml lua/ opencc/ …   ← 從 repo 複製來，更新時會被覆蓋
 ├─ na_manifest.txt、na-update.*、na-setup.cmd               ← 套用時產生（清單與啟動器）
-└─ *.userdb/、bopomo_onionplus_phrase.txt、na_options.custom.yaml、build/ …  ← 使用者自己的，不在 repo
+├─ weasel.custom.yaml、default.custom.yaml                  ← 使用者的：一行 __include 接上 na_weasel／na_default，
+│                                                             小狼毫設定對話框選的配色／方案寫在這裡。只建立、不覆蓋
+└─ *.userdb/、bopomo_onionplus_phrase.txt、na_*.custom.yaml、build/ …  ← 使用者自己的，不在 repo
 ```
 
 RIME 只認使用者資料夾根目錄的方案與設定檔，所以 repo 的分類結構不能直接給引擎用；
@@ -113,8 +115,8 @@ specs["fq"] = { { function() return os.date("%Y!%m!%d") end, "〔自訂〕" } }
 
 **加一個自訂詞** → `bopomo_onionplus_phrase.txt`（個人檔，不進版控；範本是 `bopomo_onionplus_phrase.sample.txt`）加「文字 <TAB> 編碼 <TAB> 權重」→ 部署。
 
-**加一個安裝選項**（讓使用者安裝時自己選的設定）→ `rime/core/na_options.yaml` 加預設值 →
-用到的 `*.custom.yaml` 寫 `{ __include: "na_options:/<鍵>" }` → `install.ps1` 與 `install.sh` 加詢問與寫檔。
+**加一個安裝選項**（讓使用者安裝時自己選的設定）→ 預設值加進 `rime/core/` 的 `na_style.yaml`（長相）、
+`na_input.yaml`（輸入行為）或 `na_menu.yaml`（方案清單）其中一個 → 用到它的檔（`na_weasel.yaml`、`squirrel.custom.yaml`、方案的 `*.custom.yaml`…）寫 `{ __include: "na_style:/<鍵>" }` → `install.ps1` 與 `install.sh` 加詢問與寫檔。
 原理與注意事項見 [GOTCHAS](GOTCHAS.md)「安裝腳本與安裝選項」。
 
 改完一律跑 `pwsh tools\rime-test.ps1 -Sync -Mode basic`。
