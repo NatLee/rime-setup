@@ -34,4 +34,15 @@ local function make_handler(specs, code)
   end
 end
 
-return { render = render, make_handler = make_handler }
+--- 「只打了前導碼、還沒打內容」時的提示：產生一個 handler，吐出一列空白候選，
+--- 註解放說明、編碼列尾端放標籤。字母轉換（/ ; '）與內碼輸入（x u c o i）共用。
+local function tip(comment, label)
+  return function(input, seg, env, ctx)
+    local cand = Candidate("simp_mf_tips", seg.start, seg._end, "", comment)
+    cand.preedit = input .. "\t" .. label
+    yield(cand)
+    return true
+  end
+end
+
+return { render = render, make_handler = make_handler, tip = tip }

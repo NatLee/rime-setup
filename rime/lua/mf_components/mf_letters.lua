@@ -28,14 +28,7 @@ local english_braille_u_ul = f_e_s.english_braille_u_ul
 ----------------------------------------------------------------------------------------
 --- 字母轉換前導提示（/ ; ' 單獨），改為精確代碼 handler
 
-local function tip(comment, label)
-  return function(input, seg, env, ctx)
-    local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", comment)
-    cand2.preedit = input .. "\t" .. label
-    yield(cand2)
-    return true
-  end
-end
+local tip = require("mf_components/core/render").tip
 
 -------------------------------------------------------------------------------------------------------------
 --- 字母大小寫各種轉換分支（原 translate() 內容純搬移，matcher 保序）

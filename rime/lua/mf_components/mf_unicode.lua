@@ -12,14 +12,7 @@ local url_decode = require("f_components/f_url_decode")
 ----------------------------------------------------------------------------------------
 --- 內碼／URL encode 前導提示（x u c o i 單獨），改為精確代碼 handler
 
-local function tip(comment, label)
-  return function(input, seg, env, ctx)
-    local cand2 = Candidate("simp_mf_tips", seg.start, seg._end, "", comment)
-    cand2.preedit = input .. "\t" .. label
-    yield(cand2)
-    return true
-  end
-end
+local tip = require("mf_components/core/render").tip
 
 ----------------------------------------------------------------------------------------
 --- u/x/c/o 內碼與 i URL encode/decode 分支（原 translate() 內容純搬移，matcher 保序）
