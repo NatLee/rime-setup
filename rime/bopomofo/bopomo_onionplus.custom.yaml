@@ -20,6 +20,16 @@ patch:
   "gr2/enable_completion": true
   "cyr2/enable_completion": true
 
+  # ── 少用的前綴語言不開使用者詞庫（加快載入這個方案的速度）──
+  # 每個開了使用者詞庫的 translator，載入方案時都要各開一個資料庫。主方案掛了九種前綴語言，
+  # 光這一項就佔載入時間的四分之一左右 —— 每次切回注音、每開一個新視窗都要付一次。
+  # 這五種（拉丁、希臘、俄文、全形、倉頡反查）用得少、候選也少，不記詞頻幾乎沒差別，關掉。
+  # 日文（japan）、韓文（korea）、emoji 仍然會學習。各語言的獨立方案不受影響。
+  "european/enable_user_dict": false
+  "gr2/enable_user_dict": false
+  "cyr2/enable_user_dict": false
+  "fs2/enable_user_dict": false
+  "reverse2_lookup/enable_user_dict": false
   # ── 英文段落提示標籤：《Easy》→《英》──
   # 用 /+ 附加一條改寫規則，不必複製原本的 preedit_format 列表
   "easy_en/tips": "《英》▶"
