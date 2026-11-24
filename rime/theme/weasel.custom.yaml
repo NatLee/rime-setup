@@ -35,23 +35,23 @@ patch:
     comment_font_face: { __include: "na_options:/comment_font_face" } # 安裝選項，跟候選字同一套字型
     comment_font_point: { __include: "na_options:/label_font_point" } # 註釋與標籤一致
     layout:
-      margin_x: 10 # 視窗內距。比光棒內距大一點，光棒才不會貼到邊
-      margin_y: 10
+      margin_x: 8 # 視窗左右內距
+      margin_y: 6 # 視窗上下內距。小狼毫會把它撐到至少等於光棒的上下內距（hilite_padding_y）
       border_width: 1 # 細邊框（淺色主題在白底視窗上靠它跟背景分開）
-      spacing: 12 # 編碼列與候選之間
-      candidate_spacing: 4 # 候選列之間。光棒自己有上下內距，列距不必再大
-      hilite_spacing: 10 # 標籤／候選字／註釋之間
+      spacing: 6 # 編碼列與候選之間
+      candidate_spacing: 2 # 候選列之間。光棒自己有上下內距，列距不必再大
+      hilite_spacing: 8 # 標籤／候選字／註釋之間
       # 註解排版：候選字大、右側小字註解，過長自動折行成第二行
       max_width: 520 # 超過此寬度自動折行（0 = 不限制）
-      min_width: 240 # 候選很短時視窗也不會縮成一小條
+      min_width: 0 # 不設最小寬度：視窗跟著內容走，候選短就窄
       align_type: center # 標籤、候選字、註釋垂直置中對齊
-      hilite_padding_x: 10 # 光棒比文字左右各寬出這麼多
-      hilite_padding_y: 7
-      corner_radius: 12 # 視窗圓角
-      round_corner: 8 # 光棒圓角
-      shadow_radius: 16 # 陰影放大一點、往下偏，視窗像浮在畫面上
+      hilite_padding_x: 8 # 光棒比文字左右各寬出這麼多
+      hilite_padding_y: 4 # 光棒比文字上下各高出這麼多
+      corner_radius: 10 # 視窗圓角
+      round_corner: 6 # 光棒圓角
+      shadow_radius: 12 # 柔和的陰影、略往下偏，視窗像浮在畫面上
       shadow_offset_x: 0
-      shadow_offset_y: 4
+      shadow_offset_y: 3
   preset_color_schemes:
     # 顏色格式為 0xBBGGRR（含透明度時 0xAABBGGRR）
     NatMatcha:

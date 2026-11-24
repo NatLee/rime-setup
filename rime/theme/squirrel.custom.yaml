@@ -35,14 +35,14 @@ patch:
   "style/color_scheme": { __include: "na_options:/theme" }
   "style/color_scheme_dark": { __include: "na_options:/theme_dark?" } # 與上面相同＝深色模式也不換
 
-  "style/corner_radius": 12 # 視窗圓角（Windows：layout/corner_radius 12）
-  "style/hilited_corner_radius": 8 # 光棒圓角（Windows：layout/round_corner 8）
-  # 視窗內距＝border_* ＋ corner_radius（鼠鬚管的算法），所以 1＋12＝13，接近 Windows 的 margin 10＋光棒內距。
+  "style/corner_radius": 10 # 視窗圓角（Windows：layout/corner_radius 10）
+  "style/hilited_corner_radius": 6 # 光棒圓角（Windows：layout/round_corner 6）
+  # 視窗內距＝border_* ＋ corner_radius（鼠鬚管的算法），所以 1＋10＝11。這是鼠鬚管能做到的最小值，會比 Windows 的內距寬一點。
   # 兩者取小的那個同時是邊框線的粗細：1＝細邊框（Windows：layout/border_width 1）。
   "style/border_height": 1
   "style/border_width": 1
-  "style/line_spacing": 10 # 候選列之間。光棒的高度是「文字＋這個值」，所以它同時決定光棒的上下內距
-  "style/spacing": 12 # 編碼列與候選之間（Windows：layout/spacing 12）
+  "style/line_spacing": 5 # 候選列之間。光棒的高度是「文字＋這個值」，所以它同時決定光棒的上下內距
+  "style/spacing": 6 # 編碼列與候選之間（Windows：layout/spacing 6）
   # 翻頁箭頭（Windows：配色裡的 prevpage_color／nextpage_color）。鼠鬚管畫的是候選窗左緣的小三角形，
   # 位置跟 Windows（編碼列右側的 < >）不一樣，但功能相同：可點、看得出還有沒有上下頁。
   "style/show_paging": true
