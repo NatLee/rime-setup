@@ -9,6 +9,9 @@
 .EXAMPLE
   pwsh tools\rime-test.ps1 -Sync -Mode basic      # 23 條基本回歸（最常用）
   pwsh tools\rime-test.ps1 -Mode gloss            # 三語釋義檢查
+  pwsh tools\rime-test.ps1 -Mode cycle            # 單按右 Shift 循環切換語言
+  pwsh tools\rime-test.ps1 -Mode bench            # 量每個按鍵的處理時間
+  pwsh tools\rime-test.ps1 -Mode snapshot > a.txt # 全候選快照（重構前後 diff 用）
   pwsh tools\rime-test.ps1 -Mode cands -Input "6sakura"   # 列出某輸入的全部候選
   pwsh tools\rime-test.ps1 -Mode commit -Input "'/uuid "  # 看某按鍵序列上屏什麼
   pwsh tools\rime-test.ps1 -Mode labels -Input "su3"      # 看前端會拿到的選字鍵／標籤
@@ -19,7 +22,7 @@
 #>
 [CmdletBinding()]
 param(
-  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples')]
+  [ValidateSet('basic', 'gloss', 'cands', 'commit', 'preedit', 'labels', 'examples', 'cycle', 'bench', 'snapshot')]
   [string]$Mode = 'basic',
   [string]$InputSeq = '',
   [string]$Schema = 'bopomo_onionplus',
@@ -102,6 +105,7 @@ public static class RimeT {
     [DllImport("rime.dll")] public static extern ulong RimeCreateSession();
     [DllImport("rime.dll")] public static extern bool RimeDestroySession(ulong s);
     [DllImport("rime.dll")] public static extern bool RimeSelectSchema(ulong s, [MarshalAs(UnmanagedType.LPUTF8Str)] string id);
+    [DllImport("rime.dll")] public static extern bool RimeGetCurrentSchema(ulong s, byte[] buf, UIntPtr size);
     [DllImport("rime.dll")] public static extern bool RimeSimulateKeySequence(ulong s, [MarshalAs(UnmanagedType.LPUTF8Str)] string keys);
     [DllImport("rime.dll")] public static extern bool RimeGetCommit(ulong s, ref RimeCommitT c);
     [DllImport("rime.dll")] public static extern bool RimeFreeCommit(ref RimeCommitT c);
@@ -369,6 +373,118 @@ switch ($Mode) {
       [RimeT]::RimeFreeContext([ref]$c) | Out-Null
     }
     [RimeT]::RimeClearComposition($session) | Out-Null
+  }
+
+  'cycle' {
+    # 單按右 Shift 循環切換語言（lua_processor@schema_cycle）。
+    # 預期：照 build\default.yaml 的 schema_list 順序一個一個換，最後繞回第一個；
+    # 右 Shift 當修飾鍵用（中間按了別的鍵）或正在組字時不切。
+    function Cur { $b = New-Object byte[] 128; [RimeT]::RimeGetCurrentSchema($session, $b, [UIntPtr]128) | Out-Null
+                   [Text.Encoding]::UTF8.GetString($b).TrimEnd([char]0) }
+    function Tap { [RimeT]::RimeSimulateKeySequence($session, '{Shift_R}{Release+Shift_R}') | Out-Null }
+    $all = @(); $skip = @(); $sec = ''
+    foreach ($ln in (Get-Content "$Sandbox\build\default.yaml")) {
+      if ($ln -match '^([\w]+):') { $sec = $Matches[1] }
+      elseif ($sec -eq 'schema_list' -and $ln -match '^\s+-\s*\{?\s*schema:\s*([\w\.\-]+)') { $all += $Matches[1] }
+      elseif ($sec -eq 'schema_cycle' -and $ln -match '^\s+-\s*([\w\.\-]+)\s*$') { $skip += $Matches[1] }
+    }
+    $list = @($all | Where-Object { $skip -notcontains $_ })
+    Write-Host ("  循環清單：{0}（跳過 {1} 個）" -f ($list -join ' → '), $skip.Count)
+    $pass = 0; $fail = 0
+    function Check($name, $got, $want) {
+      if ($got -eq $want) { $script:pass++; Write-Host ("  PASS {0,-34} [{1}]" -f $name, $got) -ForegroundColor Green }
+      else { $script:fail++; Write-Host ("  FAIL {0,-34} got [{1}] want [{2}]" -f $name, $got, $want) -ForegroundColor Red }
+    }
+    Check '起點' (Cur) $list[0]
+    for ($i = 1; $i -le $list.Count; $i++) { Tap; Check ("單按右 Shift 第 $i 次") (Cur) $list[$i % $list.Count] }
+    # 右 Shift 當修飾鍵（Shift_R 按住 + a）：不可以切
+    [RimeT]::RimeSimulateKeySequence($session, '{Shift_R}{Shift+A}{Release+Shift_R}') | Out-Null
+    [RimeT]::RimeClearComposition($session) | Out-Null
+    Check '右 Shift 當修飾鍵不切' (Cur) $list[0]
+    # 組字中：不可以切
+    [RimeT]::RimeSimulateKeySequence($session, 'su3{Shift_R}{Release+Shift_R}') | Out-Null
+    Check '組字中不切' (Cur) $list[0]
+    [RimeT]::RimeClearComposition($session) | Out-Null
+    # 左 Shift 單按：不切方案（它是中英切換）
+    [RimeT]::RimeSimulateKeySequence($session, '{Shift_L}{Release+Shift_L}') | Out-Null
+    Check '左 Shift 不切方案' (Cur) $list[0]
+    [RimeT]::RimeSimulateKeySequence($session, '{Shift_L}{Release+Shift_L}') | Out-Null
+    # 切到別的方案後還打得出字（新方案的元件有正常載入）
+    Tap; $c2 = @(Get-Cands 'sakura' 3)
+    Check '切到第 2 個方案後仍可輸入' ($c2.Count -gt 0) $true
+    Write-Host ''
+    Write-Host ("  {0} PASS / {1} FAIL" -f $pass, $fail) -ForegroundColor $(if ($fail) { 'Red' } else { 'Green' })
+  }
+
+  'bench' {
+    # 量「每按一鍵引擎要花多久」：逐鍵送出一段注音長句，每鍵之後都把第一頁候選取回來
+    # （前端每次按鍵都會這麼做，lua filter 的成本就是花在這裡）。
+    # 用法：pwsh tools\rime-test.ps1 -Mode bench            # 預設句子
+    #       pwsh tools\rime-test.ps1 -Mode bench -InputSeq "su3cl3"
+    $seq = if ($InputSeq) { $InputSeq } else { 'su3cl3ji3g4vu;6j04rup wu0 2k7au4a83' }   # 你好我是學生今天天氣很好…一類的連打
+    $rounds = 15
+    function One-Pass {
+      [RimeT]::RimeClearComposition($session) | Out-Null
+      foreach ($ch in $seq.ToCharArray()) {
+        $k = if ($ch -eq ' ') { '{space}' } else { [string]$ch }
+        [RimeT]::RimeSimulateKeySequence($session, $k) | Out-Null
+        $it = New-Object RimeCandListIterT; $n = 0
+        if ([RimeT]::RimeCandidateListBegin($session, [ref]$it)) {
+          while ($n -lt 6 -and [RimeT]::RimeCandidateListNext([ref]$it)) { $n++ }
+          [RimeT]::RimeCandidateListEnd([ref]$it)
+        }
+      }
+      [RimeT]::RimeClearComposition($session) | Out-Null
+    }
+    One-Pass; One-Pass   # 暖機（第一次會載入詞典與 lua 模組）
+    $times = @()
+    for ($r = 0; $r -lt $rounds; $r++) {
+      $sw = [Diagnostics.Stopwatch]::StartNew(); One-Pass; $sw.Stop()
+      $times += $sw.Elapsed.TotalMilliseconds / $seq.Length
+    }
+    $sorted = $times | Sort-Object
+    "{0} 鍵 × {1} 輪｜每鍵 中位數 {2:N2} ms｜最快 {3:N2}｜最慢 {4:N2}" -f $seq.Length, $rounds, $sorted[[int]($rounds / 2)], $sorted[0], $sorted[-1]
+  }
+
+  'snapshot' {
+    # 重構護欄：把一批輸入的「全部候選（文字＋註解）」與一批按鍵序列的「上屏結果」倒出來。
+    # 重構前後各跑一次、存檔後 diff，應該一個字都不差：
+    #   pwsh tools\rime-test.ps1 -Sync -Mode snapshot > before.txt
+    #   （改程式）
+    #   pwsh tools\rime-test.ps1 -Sync -Mode snapshot > after.txt ; git diff --no-index before.txt after.txt
+    # 會隨時間變的輸出（日期時間、uuid、隨機密碼、記憶體用量）不放進來。
+    # ⚠ 上屏清單不可以放會「執行動作」的序列（'/h␣、'/git␣ 之類會真的開檔／跑更新）。
+    $g = [char]0x60
+    $candSeqs = @(
+      "'/", "'//", "'/;", "'/'", "'/x", "'/u", "'/c", "'/o", "'/i",
+      "'//hello", "'//hello.world", "'//hello/world-x", "'/;hello", "'/;hello.world", "'/'hello", "'/'hello.world",
+      "'/1", "'/12345", "'/123.45", "'/-12.5", "'/0", "'/1234567890",
+      "'/123a45x2", "'/q1a2wx3", "'/1.5v0.5", "'/2s10",
+      "'/u4e2d", "'/x4e2d", "'/c20013", "'/o47055", "'/ie4bda0",
+      "'/dev", "'/code", "'/set", "'/case", "'/k", "'/kk", "'/ko", "'/gi", "'/ph", "'/j", "'/jh",
+      "'/rgb1a73e8", "'/cshello.world",
+      '3hello', '3hello;', '3hello;;', '3app', '3hello.world;', '4cafe', '66privet', '77alpha',
+      '6sakura', '6arigatou', '6sakura;', '6sakura;;', '7gksrmf',
+      'su3', 'su3cl3', 'ji3g4', '=oiar', "';su3", "${g}1f", 'email', 'abc@def.com', 'www.abc.com'
+    )
+    $commitSeqs = @(
+      'su3 ', 'su3cl3 ', 'su3{Return}', '3hello ', '3hello; ', '3hello;; ', '6sakura ', '4cafe ', '7gksrmf ',
+      "'/12345 ", "'/123a45x2 ", "'/12{KP_3}{KP_Add}{KP_4} ", "'//hello ", "'/u4e2d ", "'/jzz ",
+      'su3{Shift+exclam}', "'/12345{Shift+at}", 'su3cl3{Left}{Left}{Left} ', '3hello{Left}{Left} ', '6sakura{Left}{Left} ',
+      '{Shift+less}', '{Shift+greater}', 'su3{Shift+less}', 'email{Shift+exclam}'
+    )
+    '##### candidates'
+    foreach ($s in $candSeqs) {
+      "## [$s]"
+      foreach ($c in (Get-Cands $s 80)) { "{0}`t{1}`t{2}" -f $c.i, $c.text, ($c.comment -replace "`r?`n", '\n') }
+      "   preedit: " + (Get-Preedit $s)
+    }
+    '##### commits'
+    foreach ($s in $commitSeqs) { "## [$s] => " + ((Get-Commit $s) -replace "`r?`n", '\n') }
+    '##### commits with ascii_punct'
+    [RimeT]::RimeSetOption($session, 'ascii_punct', $true) | Out-Null
+    foreach ($s in @('{Shift+less}', '{Shift+greater}', 'su3{Shift+less}', 'su3{Shift+greater}', 'su3 ')) { "## [$s] => " + ((Get-Commit $s) -replace "`r?`n", '\n') }
+    [RimeT]::RimeSetOption($session, 'ascii_punct', $false) | Out-Null
   }
 
   'labels' {
