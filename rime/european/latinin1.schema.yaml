@@ -3,7 +3,7 @@
 # 《拉丁+音標字母（洋蔥形碼鍵位）設定頁》
 schema:
   schema_id: latinin1
-  name: ❃拉丁 in 1❃
+  name: "拉丁字母"
   version: "202301"
   author:
     - 『洋蔥』

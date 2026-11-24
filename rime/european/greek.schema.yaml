@@ -3,7 +3,7 @@
 # 《希臘字母（洋蔥形碼鍵位）設定頁》
 schema:
   schema_id: greek
-  name: ❃希臘字母❃
+  name: "希臘字母"
   version: "202301"
   author:
     - 『洋蔥』

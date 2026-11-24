@@ -8,7 +8,7 @@
 - **單按右 Shift 換語言**：注音 → 日文 → 韓文 → 英文，像系統內建輸入法一樣按一下就換
 - **候選釋義**：日文／英文候選旁邊直接顯示中、英、日文解釋
 - **`'/` 多功能選單**：日期時間、計算機、Unicode、UUID、時間戳、色碼轉換…
-- **emoji 候選**、自訂短語（打 `email` 出信箱）、四套配色主題
+- **emoji 候選**、自訂短語（打 `email` 出信箱）、八套配色主題
 
 ## 安裝
 
@@ -45,7 +45,7 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 
 | 選項 | 可選的值 | 預設 |
 |---|---|---|
-| 主題 `theme` | `matcha` 抹茶奶油／`light` 明亮／`dark` 深色／`classic` 經典 | `matcha` |
+| 主題 `theme` | `matcha`／`light`／`sakura`／`ocean`／`latte`／`dark`／`midnight`／`classic`，長相見下方[主題](#主題) | `matcha` |
 | 系統深色模式 `dark` | `auto` 系統切到深色模式時自動換成深色主題／`off` 永遠用上面選的主題 | `auto` |
 | 候選排列 `layout` | `vertical` 直排／`horizontal` 橫排 | `vertical` |
 | 候選字級 `size` | `small`／`medium`／`large` | `medium` |
@@ -55,10 +55,48 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 
 `langs` 決定的是「方案選單裡有哪些獨立方案」；主方案裡用前綴打日文／英文的功能不受影響。
 
+### 主題
+
+<table>
+<tr>
+<td align="center"><img src="docs/themes/NatMatcha.svg" width="250" alt="Nat Matcha"><br><code>matcha</code> 抹茶奶油（預設）</td>
+<td align="center"><img src="docs/themes/NatLight.svg" width="250" alt="Nat Light"><br><code>light</code> 明亮</td>
+<td align="center"><img src="docs/themes/NatSakura.svg" width="250" alt="Nat Sakura"><br><code>sakura</code> 櫻花</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/themes/NatOcean.svg" width="250" alt="Nat Ocean"><br><code>ocean</code> 海洋</td>
+<td align="center"><img src="docs/themes/NatLatte.svg" width="250" alt="Nat Latte"><br><code>latte</code> 拿鐵</td>
+<td align="center"><img src="docs/themes/NatLee.svg" width="250" alt="Nat Classic"><br><code>classic</code> 經典</td>
+</tr>
+<tr>
+<td align="center"><img src="docs/themes/NatDark.svg" width="250" alt="Nat Dark"><br><code>dark</code> 深色</td>
+<td align="center"><img src="docs/themes/NatMidnight.svg" width="250" alt="Nat Midnight"><br><code>midnight</code> 午夜</td>
+<td></td>
+</tr>
+</table>
+
+預覽圖是照配色畫出來的示意圖（`pwsh tools\theme-preview.ps1` 產生），不是螢幕截圖；實際的字型與間距以輸入法為準。
+選了淺色主題又開著「系統深色模式：跟隨」時，系統切到深色會自動換成 Nat Dark。
+
 ### 重新選擇、重新安裝
 
-**再跑一次同一行安裝指令就好。** 已經裝過的話它會更新到最新版，然後把每個選項再問一次
-（直接按 Enter＝維持上次的選擇），最後重新部署。裝過的機器不會再備份一次。
+**在輸入法裡打 `'/setup` 再按空白鍵**（或 `'/` → 設定 → 選項），會開一個視窗列出目前全部的設定：
+
+```
+目前的設定
+  1) 主題　　　　　Nat Matcha 抹茶奶油色
+  2) 系統深色模式　跟隨系統
+  3) 候選排列　　　直排
+  4) 候選字級　　　中
+  5) 候選附 emoji　開
+  6) 選單裡的語言　日文、韓文、英文、其他
+  7) 釋義語言　　　中文
+  輸入編號 1-7 修改那一項；直接按 Enter 套用
+```
+
+想改哪一項就輸入它的編號，都不改直接按 Enter。套用後自動重新部署。
+
+再跑一次安裝指令也是同一個畫面，差別是它會先更新到最新版。裝過的機器不會再備份一次。
 
 不想連網也可以跑本機那一份：
 
@@ -106,7 +144,7 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
 
    ```yaml
    patch:
-     theme: NatLight        # NatMatcha／NatLight／NatDark／NatLee
+     theme: NatLight        # NatMatcha／NatLight／NatSakura／NatOcean／NatLatte／NatDark／NatMidnight／NatLee
      theme_dark: NatDark    # 系統深色模式時用的主題
      font_point: 20         # 候選字級（macOS 是 mac_font_point）
      emoji: 0               # 1 開／0 關
@@ -158,7 +196,7 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
 | 計算機 | `'/123+45*2` |
 | emoji | `` ` `` 開頭 |
 | 自訂短語 | 打你設定的編碼（例如 `email`）後按 `⇧1` |
-| 速查表／更新／編輯短語 | `'/h`／`'/git`／`'/phrase` |
+| 速查表／選項／更新／編輯短語 | `'/h`／`'/setup`／`'/git`／`'/phrase` |
 
 ## Repo 結構
 
@@ -196,7 +234,6 @@ docs/                       架構、鍵位總表、踩過的坑
 
 ## 來源與致謝
 
-- 方案、詞典與部分 lua 的原始來源：[Onion Rime Files](https://github.com/oniondelta/Onion_Rime_Files)（oniondelta）
 - 輸入法引擎：[RIME／中州韻](https://rime.im)、[librime-lua](https://github.com/hchunhui/librime-lua)
 - 語言模型：[rime-octagram-data](https://github.com/lotem/rime-octagram-data)
 - 日文釋義：[JMdict/EDICT](https://www.edrdg.org/jmdict/j_jmdict.html)（EDRDG，CC BY-SA 4.0）、

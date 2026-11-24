@@ -3,7 +3,7 @@
 # 《全形輸出（洋蔥形碼鍵位）設定頁》
 schema:
   schema_id: fullshape
-  name: ❃全形輸出❃
+  name: "全形字元"
   version: "202301"
   author:
     - 『洋蔥』

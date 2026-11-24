@@ -81,7 +81,10 @@ PowerShell 5.1 跑、個人資料不可進版控。
 | 新增／移除一個 lua 元件 | `rime/core/rime.lua`（掛接表）＋方案的 `engine/*`＋ `rime/lua/` 的模組，三處一起 |
 | 主方案行為（選字鍵、開關、filter/translator 掛載） | `rime/bopomofo/bopomo_onionplus.custom.yaml` |
 | ⇧1~6 選字的按鍵與標籤 | 鍵：`p_select_keys/keys` ＋ `rime/lua/processor_p_select_keys.lua`；標籤：`menu/alternative_select_labels`（**別設** `alternative_select_keys`，macOS 標籤會壞） |
-| 方案顯示名稱 | 各 `*.custom.yaml` 的 `"schema/name"` |
+| 方案顯示名稱 | **直接改 `*.schema.yaml` 的 `schema/name`**（少數允許直接改上游檔的地方）。小狼毫的「輸入法設定」對話框讀的是原始名稱，不吃 custom 的 patch；只 patch 的話選單對了、對話框還是舊名 |
+| emoji 聯想、字集過濾、符號標註的對照表 | `rime/opencc/*.txt` 是來源，輸入法讀的是編譯後的 `.ocd2`。**改了 .txt 要跑 `pwsh tools\opencc-build.ps1` 重編**（需要 Docker），兩個檔一起提交 |
+| 新增一個主題 | 配色加進 `rime/theme/weasel.custom.yaml` **和** `squirrel.custom.yaml` → `install.ps1`、`install.sh` 的主題清單與對照表 → `pwsh tools\theme-preview.ps1` 重產預覽圖 → README「主題」那張表加一格 |
+| `'/setup`（選項畫面） | 就是安裝腳本的互動選單：`install.ps1`／`install.sh` 裡「目前的設定」那個迴圈。輸入法端的入口在 `p_run_pattern.lua` 的 `setup` 與 `mf_menu_data.lua` 的 `set` 選單 |
 | 自訂詞（打 `email` 出信箱那種） | 個人的：使用者資料夾的 `bopomo_onionplus_phrase.txt`（改完要**部署**）；給新使用者的範本：`rime/bopomofo/bopomo_onionplus_phrase.sample.txt` |
 | `'/` 開頭的多功能（日期／計算機／Unicode…） | `rime/lua/mf_components/` → 見 [架構文件](docs/ARCHITECTURE.md) |
 | `'/ts`、`'/uuid`、`'/pw`、`'/rgb`、`'/cs` | `rime/lua/translator_devkit.lua` |
@@ -116,6 +119,7 @@ pwsh tools\rime-test.ps1 -Sync -Mode basic     # 黃金樣本須全 PASS
 pwsh tools\rime-test.ps1 -Mode gloss           # 三語釋義
 pwsh tools\rime-test.ps1 -Mode cycle           # 單按右 Shift 循環切換語言
 pwsh tools\rime-test.ps1 -Mode bench           # 每個按鍵的處理時間
+pwsh tools\rime-test.ps1 -Mode load            # 切換到注音方案要多久（目前約 60 ms）
 pwsh tools\rime-test.ps1 -Sync -Mode snapshot > before.txt   # 重構護欄：全候選＋上屏快照，改完再跑一次 diff
 pwsh tools\rime-test.ps1 -Mode cands  -InputSeq "6sakura"    # 看全部候選＋註解
 pwsh tools\rime-test.ps1 -Mode commit -InputSeq "'/uuid "    # 看上屏結果
@@ -166,5 +170,4 @@ ls -t /tmp/rime.squirrel.* | head; tail -50 "$(ls -t /tmp/rime.squirrel.ERROR* |
 - 溝通用**繁體中文**。
 - 這個 repo 是**公開**的，文件與腳本的讀者是不認識維護者環境的一般使用者。
 - 重視**先驗證再上線**：使用者說過「請驗證後再做」。做完要能拿出實測輸出，不要只說「應該可以」。
-- 上游品牌「洋蔥」不出現在使用者可見處（方案名、候選、速查表、README 開頭）。README 最後的
-  「來源與致謝」留一行出處；各檔案開頭的著作／來源聲明不要動。
+- 各檔案開頭的作者／來源聲明、方案檔的 `author` 欄位不要動（那是原作者的署名，不是我們的文字）。
