@@ -23,31 +23,35 @@ patch:
     inline_preedit: false # FALSE 雙行顯示（編碼列在候選窗內）
     preedit_type: composition
     display_tray_icon: true
-    label_format: "%s."
-    font_face: "Microsoft JhengHei:bold, Segoe UI Emoji" # bold＝字重加粗；後者為 emoji fallback
+    # ── 候選窗的長相（設計說明見 docs/GOTCHAS.md「候選窗樣式」）──
+    label_format: "%s" # 標籤只留「⇧1」，不加句點：少一個符號，候選字更乾淨
+    mark_text: "" # 留空＝高亮那一列的左側畫一條圓角色條（顏色是配色裡的 hilited_mark_color）
+    hover_type: semi_hilite # 滑鼠移到候選上會淡淡反白，知道點下去會選到哪個
+    paging_on_scroll: true # 在候選窗上滾輪可以翻頁
+    font_face: { __include: "na_options:/font_face" } # 安裝選項：粉圓體或系統字型（正黑粗體）
     font_point: { __include: "na_options:/font_point" } # 安裝選項（小 15／中 17／大 20）
     label_font_face: "Segoe UI Semibold, Segoe UI Symbol" # 後者確保 ⇧ 符號有字形
     label_font_point: { __include: "na_options:/label_font_point" } # 標籤縮小，候選字更突出
+    comment_font_face: { __include: "na_options:/comment_font_face" } # 安裝選項，跟候選字同一套字型
     comment_font_point: { __include: "na_options:/label_font_point" } # 註釋與標籤一致
     layout:
-      margin_x: 12
+      margin_x: 10 # 視窗內距。比光棒內距大一點，光棒才不會貼到邊
       margin_y: 10
-      border_width: 1 # 細邊框
-      spacing: 10
-      candidate_spacing: 8
-      hilite_spacing: 6
+      border_width: 1 # 細邊框（淺色主題在白底視窗上靠它跟背景分開）
+      spacing: 12 # 編碼列與候選之間
+      candidate_spacing: 4 # 候選列之間。光棒自己有上下內距，列距不必再大
+      hilite_spacing: 10 # 標籤／候選字／註釋之間
       # 註解排版：候選字大、右側小字註解，過長自動折行成第二行
       max_width: 520 # 超過此寬度自動折行（0 = 不限制）
-      min_width: 200
-      align_type: top # 候選字與多行註解頂端對齊
-      hilite_padding_x: 8
-      hilite_padding_y: 6
-      corner_radius: 10 # 視窗圓角
-      round_corner: 6 # 高亮光棒圓角
-      shadow_radius: 12 # 柔和陰影
+      min_width: 240 # 候選很短時視窗也不會縮成一小條
+      align_type: center # 標籤、候選字、註釋垂直置中對齊
+      hilite_padding_x: 10 # 光棒比文字左右各寬出這麼多
+      hilite_padding_y: 7
+      corner_radius: 12 # 視窗圓角
+      round_corner: 8 # 光棒圓角
+      shadow_radius: 16 # 陰影放大一點、往下偏，視窗像浮在畫面上
       shadow_offset_x: 0
-      shadow_offset_y: 2
-
+      shadow_offset_y: 4
   preset_color_schemes:
     # 顏色格式為 0xBBGGRR（含透明度時 0xAABBGGRR）
     NatMatcha:
@@ -67,6 +71,8 @@ patch:
       hilited_candidate_label_color: 0xE4E2C2 # 高亮候選標籤：淡青奶油 #C2E2E4
       hilited_comment_text_color: 0xE4E2C2 # 高亮候選註釋：淡青奶油 #C2E2E4
       hilited_mark_color: 0xF4FDFF # 高亮候選前的小標記：奶油白 #FFFDF4
+      prevpage_color: 0x786607 # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0x786607 # 翻頁箭頭 >
 
     NatLight:
       name: Nat Light
@@ -85,6 +91,8 @@ patch:
       hilited_candidate_label_color: 0xE08D5B # 高亮候選標籤：淺藍 #5B8DE0
       hilited_comment_text_color: 0xCF936A # 高亮候選註釋：灰藍 #6A93CF
       hilited_mark_color: 0xD6620F # 高亮候選前的小標記：藍 #0F62D6
+      prevpage_color: 0xD6620F # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0xD6620F # 翻頁箭頭 >
 
     # 深色主題（安裝時選「跟隨系統」會把它設成 color_scheme_dark）
     NatDark:
@@ -104,6 +112,29 @@ patch:
       hilited_candidate_label_color: 0xD98F62 # #628FD9
       hilited_comment_text_color: 0xC08163 # #6381C0
       hilited_mark_color: 0xF2A55C # #5CA5F2
+      prevpage_color: 0xF2A55C # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0xF2A55C # 翻頁箭頭 >
+
+    # 低調：淡灰光棒＋藍色色條（高亮不靠大色塊，靠左側那條強調色）
+    NatFluent:
+      name: Nat Fluent
+      author: NatLee
+      back_color: 0xF9F9F9 # 底色 #F9F9F9
+      border_color: 0xE0E0E0 # 邊框 #E0E0E0
+      text_color: 0x5C5C5C # 編碼列文字 #5C5C5C
+      hilited_text_color: 0xB85F00 # 編碼列高亮段文字（強調藍） #005FB8
+      hilited_back_color: 0xFAF0E6 # 編碼列高亮段底色 #E6F0FA
+      label_color: 0x8A8A8A # 候選標籤 #8A8A8A
+      candidate_text_color: 0x1A1A1A # 候選字 #1A1A1A
+      comment_text_color: 0x6B6B6B # 註釋 #6B6B6B
+      hilited_candidate_back_color: 0xEAEAEA # 高亮候選底色：淡灰，不是整條色塊 #EAEAEA
+      hilited_candidate_text_color: 0x1A1A1A # 高亮候選文字：維持深色 #1A1A1A
+      hilited_candidate_label_color: 0xB85F00 # 高亮候選標籤：強調藍 #005FB8
+      hilited_comment_text_color: 0x4A4A4A # 高亮候選註釋 #4A4A4A
+      shadow_color: 0x30000000 # 陰影
+      hilited_mark_color: 0xB85F00 # 高亮候選左側的色條：強調藍
+      prevpage_color: 0xB85F00 # 翻頁箭頭 <
+      nextpage_color: 0xB85F00 # 翻頁箭頭 >
 
     # 櫻花：粉白底＋莓紅光棒
     NatSakura:
@@ -123,6 +154,8 @@ patch:
       hilited_comment_text_color: 0xECE6FF # 高亮候選註釋 #FFE6EC
       shadow_color: 0x28000000 # 陰影
       hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
+      prevpage_color: 0x6B45C2 # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0x6B45C2 # 翻頁箭頭 >
 
     # 海洋：霧白底＋海藍光棒
     NatOcean:
@@ -142,6 +175,8 @@ patch:
       hilited_comment_text_color: 0xFAF0DD # 高亮候選註釋 #DDF0FA
       shadow_color: 0x28000000 # 陰影
       hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
+      prevpage_color: 0xA46F0B # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0xA46F0B # 翻頁箭頭 >
 
     # 拿鐵：奶泡底＋咖啡光棒
     NatLatte:
@@ -161,6 +196,8 @@ patch:
       hilited_comment_text_color: 0xCFE3F3 # 高亮候選註釋 #F3E3CF
       shadow_color: 0x28000000 # 陰影
       hilited_mark_color: 0xEEF8FF # 高亮候選前的小標記
+      prevpage_color: 0x2B5B9A # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0x2B5B9A # 翻頁箭頭 >
 
     # 午夜：深藍底＋靛藍光棒（深色）
     NatMidnight:
@@ -180,6 +217,8 @@ patch:
       hilited_comment_text_color: 0xFFE0D6 # 高亮候選註釋 #D6E0FF
       shadow_color: 0x60000000 # 陰影
       hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
+      prevpage_color: 0xFFB48F # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0xFFB48F # 翻頁箭頭 >
 
     # 經典主題
     NatLee:
@@ -197,3 +236,6 @@ patch:
       hilited_candidate_label_color: 0xc7f1fb # 第一候選項編號
       hilited_comment_text_color: 0xc7f1fb # 第一候選項提示文字
       hilited_candidate_back_color: 0x786607 # 第一候選項背景
+      hilited_mark_color: 0xc7f1fb # 高亮候選左側的色條
+      prevpage_color: 0x36383c # 翻頁箭頭 <（還能往前翻時的顏色）
+      nextpage_color: 0x36383c # 翻頁箭頭 >

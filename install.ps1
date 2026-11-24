@@ -29,10 +29,11 @@
 #     pwsh 7 則可以直接 pwsh -File install.ps1。
 
 param(
-    [string]$Theme,      # matcha | light | sakura | ocean | latte | dark | midnight | classic
+    [string]$Theme,      # matcha | light | fluent | sakura | ocean | latte | dark | midnight | classic
     [string]$Dark,       # auto（系統深色模式時自動換成 Nat Dark）| off
     [string]$Layout,     # vertical | horizontal
     [string]$Size,       # small | medium | large（候選字級）
+    [string]$Font,       # huninn（粉圓體，沒裝會自動下載）| system（系統內建）
     [string]$Emoji,      # on | off
     [string]$Langs,      # ja,ko,en,extra 任意組合；none＝只留注音
     [string]$Gloss,      # zh | en | ja
@@ -44,7 +45,7 @@ param(
 )
 
 function Install-NaPlus {
-    param($Theme, $Dark, $Layout, $Size, $Emoji, $Langs, $Gloss, [bool]$Yes, [bool]$NoDeploy, $Repo, $Branch, $RimeDir)
+    param($Theme, $Dark, $Layout, $Size, $Font, $Emoji, $Langs, $Gloss, [bool]$Yes, [bool]$NoDeploy, $Repo, $Branch, $RimeDir)
 
     $ErrorActionPreference = 'Stop'
 
@@ -130,6 +131,7 @@ function Install-NaPlus {
     $themeItems = @(
         @('matcha',  'Nat Matcha   抹茶奶油色（預設）'),
         @('light',   'Nat Light    明亮白底'),
+        @('fluent',   'Nat Fluent   低調淡灰＋藍色條'),
         @('sakura',   'Nat Sakura   櫻花粉'),
         @('ocean',    'Nat Ocean    海洋藍'),
         @('latte',    'Nat Latte    拿鐵棕'),
@@ -138,7 +140,7 @@ function Install-NaPlus {
         @('classic',  'Nat Classic  經典黃綠')
     )
     # 值 → color_scheme。各主題的長相見 README 的預覽圖（docs/themes/）。
-    $themeMap = @{ matcha = 'NatMatcha'; light = 'NatLight'; sakura = 'NatSakura'; ocean = 'NatOcean'; latte = 'NatLatte'
+    $themeMap = @{ matcha = 'NatMatcha'; light = 'NatLight'; fluent = 'NatFluent'; sakura = 'NatSakura'; ocean = 'NatOcean'; latte = 'NatLatte'
                    dark = 'NatDark'; midnight = 'NatMidnight'; classic = 'NatLee' }
     $darkThemes = 'dark', 'midnight'   # 本身就是深色的主題：系統深色模式時不必再換
     $darkItems = @(
@@ -168,9 +170,10 @@ function Install-NaPlus {
                    @('easy_en_lcomment', '英文（附釋義）'), @('symbols_bpmf', '符號') )
     }
     $glossItems = @( @('zh', '中文（預設）'), @('en', '英文'), @('ja', '日文') )
+    $fontItems  = @( @('huninn', '粉圓體：圓潤的開源字型 jf open 粉圓（預設；沒裝會自動下載安裝，約 5 MB）'), @('system', '系統字型：微軟正黑體') )
     $glossMap   = @{ zh = 0; en = 1; ja = 2 }
 
-    $defaults = @{ theme = 'matcha'; dark = 'auto'; size = 'medium'; layout = 'vertical'; emoji = 'on'; langs = 'ja,ko,en,extra'; gloss = 'zh' }
+    $defaults = @{ theme = 'matcha'; dark = 'auto'; size = 'medium'; font = 'huninn'; layout = 'vertical'; emoji = 'on'; langs = 'ja,ko,en,extra'; gloss = 'zh' }
 
     # ── 開始 ──────────────────────────────────────────────────────────
     Say ''
@@ -338,7 +341,7 @@ function Install-NaPlus {
         }
     }
     $opt = @{}
-    $given = @{ theme = (Pick $Theme 'NA_THEME'); dark = (Pick $Dark 'NA_DARK'); size = (Pick $Size 'NA_SIZE'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
+    $given = @{ theme = (Pick $Theme 'NA_THEME'); dark = (Pick $Dark 'NA_DARK'); size = (Pick $Size 'NA_SIZE'); font = (Pick $Font 'NA_FONT'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
                 langs = (Pick $Langs 'NA_LANGS'); gloss = (Pick $Gloss 'NA_GLOSS') }
     foreach ($k in $defaults.Keys) {
         if ($given[$k])     { $opt[$k] = $given[$k].ToLower() }
@@ -359,7 +362,8 @@ function Install-NaPlus {
             @{ key = 'size';   title = '候選字級　　'; items = $sizeItems;   ask = '候選字級' },
             @{ key = 'emoji';  title = '候選附 emoji'; items = $emojiItems;  ask = '打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' },
             @{ key = 'langs';  title = '選單裡的語言'; items = $langItems;   ask = '方案選單要放哪些語言（注音一定有）'; multi = $true },
-            @{ key = 'gloss';  title = '釋義語言　　'; items = $glossItems;  ask = '日文／英文候選的釋義要用哪種語言顯示' }
+            @{ key = 'gloss';  title = '釋義語言　　'; items = $glossItems;  ask = '日文／英文候選的釋義要用哪種語言顯示' },
+            @{ key = 'font';   title = '候選字型　　'; items = $fontItems;   ask = '候選字型' }
         )
         function Show-Value($row) {
             $v = $opt[$row.key]
@@ -390,12 +394,63 @@ function Install-NaPlus {
         }
     }
     # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
-    if (-not $themeMap.ContainsKey($opt.theme)) { Die "不認得的主題：$($opt.theme)（可用：matcha light sakura ocean latte dark midnight classic）" }
+    if (-not $themeMap.ContainsKey($opt.theme)) { Die "不認得的主題：$($opt.theme)（可用：matcha light fluent sakura ocean latte dark midnight classic）" }
     if ('auto', 'off' -notcontains $opt.dark) { Die "不認得的深色模式設定：$($opt.dark)（可用：auto off）" }
     if (-not $sizeMap.ContainsKey($opt.size)) { Die "不認得的字級：$($opt.size)（可用：small medium large）" }
     if ('vertical', 'horizontal' -notcontains $opt.layout) { Die "不認得的排列：$($opt.layout)（可用：vertical horizontal）" }
     if ('on', 'off' -notcontains $opt.emoji) { Die "不認得的 emoji 設定：$($opt.emoji)（可用：on off）" }
     if (-not $glossMap.ContainsKey($opt.gloss)) { Die "不認得的釋義語言：$($opt.gloss)（可用：zh en ja）" }
+    if ('huninn', 'system' -notcontains $opt.font) { Die "不認得的字型：$($opt.font)（可用：huninn system）" }
+
+    # ── 字型：粉圓體（jf open 粉圓，SIL OFL 授權的開源字型）──
+    # 字型的「家族名稱」帶版本號（jf open 粉圓 2.1），所以先看電腦上裝的是哪一版、用它真正的名字；
+    # 沒裝才下載。裝在使用者自己的字型資料夾，不需要系統管理員權限。下載失敗就退回系統字型，不中斷安裝。
+    $fontFace = 'Microsoft JhengHei:bold, Segoe UI Emoji'; $commentFace = 'Microsoft JhengHei, Segoe UI'
+    if ($opt.font -eq 'huninn') {
+        function Find-Huninn {
+            try {
+                Add-Type -AssemblyName System.Drawing
+                $fc = New-Object System.Drawing.Text.InstalledFontCollection
+                return ($fc.Families | Where-Object { $_.Name -like 'jf open 粉圓*' } | Sort-Object Name -Descending | Select-Object -First 1 -ExpandProperty Name)
+            } catch { return $null }
+        }
+        $family = Find-Huninn
+        if (-not $family) {
+            Step '下載並安裝粉圓體（jf open 粉圓，約 5 MB）'
+            try {
+                $url = Pick '' 'NA_FONT_URL'
+                if (-not $url) { $url = 'https://github.com/justfont/open-huninn-font/releases/download/v2.1/jf-openhuninn-2.1.ttf' }
+                $fontDir = Pick '' 'NA_FONT_DIR'    # 測試用：裝到別的資料夾、不寫登錄檔
+                $register = -not $fontDir
+                if (-not $fontDir) { $fontDir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\Fonts' }
+                New-Item -ItemType Directory -Force $fontDir | Out-Null
+                $ttf = Join-Path $fontDir 'jf-openhuninn-2.1.ttf'
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+                $old = $ProgressPreference; $ProgressPreference = 'SilentlyContinue'   # 5.1 的進度條會讓下載慢十倍
+                try { Invoke-WebRequest -Uri $url -OutFile $ttf -UseBasicParsing } finally { $ProgressPreference = $old }
+                if (-not (Test-Path $ttf) -or (Get-Item $ttf).Length -lt 1000000) { throw '下載到的檔案不完整' }
+                if ($register) {
+                    New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Fonts' -Name 'jf open 粉圓 2.1 (TrueType)' -Value $ttf -PropertyType String -Force | Out-Null
+                    # 讓這次登入階段馬上認得新字型（不用登出再登入）
+                    $sig = '[DllImport("gdi32.dll", CharSet=CharSet.Unicode)] public static extern int AddFontResourceW(string f); [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr h, uint m, IntPtr w, IntPtr l, uint f, uint t, out IntPtr r);'
+                    $api = Add-Type -MemberDefinition $sig -Name 'NaFont' -Namespace 'NaPlus' -PassThru
+                    [void]$api::AddFontResourceW($ttf)
+                    $r = [IntPtr]::Zero; [void]$api::SendMessageTimeout([IntPtr]0xffff, 0x001D, [IntPtr]::Zero, [IntPtr]::Zero, 2, 1000, [ref]$r)
+                    $family = Find-Huninn
+                }
+                if (-not $family) { $family = 'jf open 粉圓 2.1' }
+                Ok "已安裝 $family"
+            } catch {
+                Warn "粉圓體安裝失敗（$($_.Exception.Message)），先改用系統字型。之後重跑安裝指令可以再試。"
+                $opt.font = 'system'; $family = $null
+            }
+        }
+        if ($family) {
+            # 粉圓體只有一種字重，不加 :bold（合成的粗體會糊）。後面接正黑體當後備，粉圓沒有的字才會用到。
+            $fontFace = "$family, Microsoft JhengHei, Segoe UI Emoji"
+            $commentFace = "$family, Microsoft JhengHei, Segoe UI"
+        }
+    }
     $langs = @($opt.langs -split '[,\s]+' | Where-Object { $_ -and $_ -ne 'none' })
     foreach ($l in $langs) { if (-not $langSchemas.Contains($l)) { Die "不認得的語言：$l（可用：ja ko en extra none）" } }
     if ($langs.Count) { $opt.langs = ($langs -join ',') } else { $opt.langs = 'none' }
@@ -416,7 +471,7 @@ function Install-NaPlus {
     $y.Add('# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）')
     $y.Add('# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。')
     $y.Add('# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。')
-    $y.Add("# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) emoji=$($opt.emoji) langs=$($opt.langs) gloss=$($opt.gloss)")
+    $y.Add("# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) font=$($opt.font) emoji=$($opt.emoji) langs=$($opt.langs) gloss=$($opt.gloss)")
     $y.Add('patch:')
     $y.Add("  theme: $scheme")
     $y.Add("  theme_dark: $schemeDark")
@@ -424,6 +479,15 @@ function Install-NaPlus {
     $y.Add("  label_font_point: $($sz[1])")
     $y.Add("  mac_font_point: $($sz[2])")
     $y.Add("  mac_label_font_point: $($sz[3])")
+    $y.Add("  font_face: `"$fontFace`"")
+    $y.Add("  comment_font_face: `"$commentFace`"")
+    if ($opt.font -eq 'huninn') {
+        $y.Add('  mac_font_face: "jf-openhuninn-2.1, PingFangTC-Semibold"')
+        $y.Add('  mac_comment_font_face: "jf-openhuninn-2.1, PingFangTC-Regular"')
+    } else {
+        $y.Add('  mac_font_face: "PingFangTC-Semibold"')
+        $y.Add('  mac_comment_font_face: "PingFangTC-Regular"')
+    }
     $y.Add("  horizontal: $horizontal")
     $y.Add("  candidate_list_layout: $mac")
     $y.Add("  emoji: $emojiNum")
@@ -436,7 +500,7 @@ function Install-NaPlus {
     # 不帶 BOM、LF：這個檔是給 librime 讀的
     [IO.File]::WriteAllText($optFile, (($y -join "`n") + "`n"), (New-Object Text.UTF8Encoding $false))
     Step '已寫入選項'
-    Say "    主題 $($opt.theme)｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜emoji $($opt.emoji)｜語言 $($opt.langs)｜釋義 $($opt.gloss)"
+    Say "    主題 $($opt.theme)｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜字型 $($opt.font)｜emoji $($opt.emoji)｜語言 $($opt.langs)｜釋義 $($opt.gloss)"
 
     # ── [6] 套用檔案＋部署＋重啟 ──────────────────────────────────────
     # 交給 repo 裡的 rime-update.ps1：它會把 rime\ 攤平複製到使用者資料夾、部署、重啟。
@@ -460,7 +524,7 @@ function Install-NaPlus {
 }
 
 try {
-    Install-NaPlus -Theme $Theme -Dark $Dark -Layout $Layout -Size $Size -Emoji $Emoji -Langs $Langs -Gloss $Gloss `
+    Install-NaPlus -Theme $Theme -Dark $Dark -Layout $Layout -Size $Size -Font $Font -Emoji $Emoji -Langs $Langs -Gloss $Gloss `
         -Yes ([bool]$Yes) -NoDeploy ([bool]$NoDeploy) -Repo $Repo -Branch $Branch -RimeDir $RimeDir
 } catch {
     Write-Host ''
