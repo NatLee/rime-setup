@@ -19,9 +19,13 @@ patch:
   "app_options/com.googlecode.iterm2/ascii_mode": true
 
   # ── 候選窗排版 ──
-  # 內建預設就是 "[label]. [candidate] [comment]"，這裡明寫是為了不被上面那個
-  # 節點取代問題咬到；[label] 會吃 menu/alternative_select_labels 的 ⇧1～⇧6。
-  "style/candidate_format": "[label]. [candidate] [comment]"
+  # 目標是跟 Windows 端（weasel.custom.yaml）看起來一樣。兩個前端的鍵完全不同，下面每一行都標了
+  # 它對應 Windows 的哪個設定；鍵名與行為對過鼠鬚管的原始碼（SquirrelTheme.swift／SquirrelView.swift）。
+  # ⚠ 這份排版沒有在 Mac 上實際看過，數值是照原始碼的算法換算的，上機後可能要微調。
+  #
+  # 標籤不加句點（Windows：label_format "%s"）。明寫這個鍵也是為了不被檔頭講的「節點取代」咬到；
+  # [label] 會吃 menu/alternative_select_labels 的 ⇧1～⇧6。
+  "style/candidate_format": "[label] [candidate] [comment]"
   # ↓ 排列與配色是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
   #   na_options.custom.yaml（重跑安裝指令即可重選）。別在這裡直接寫死。
   "style/candidate_list_layout": { __include: "na_options:/candidate_list_layout" } # stacked 直排／linear 橫排
@@ -31,20 +35,28 @@ patch:
   "style/color_scheme": { __include: "na_options:/theme" }
   "style/color_scheme_dark": { __include: "na_options:/theme_dark?" } # 與上面相同＝深色模式也不換
 
-  "style/corner_radius": 10 # 視窗圓角
-  "style/hilited_corner_radius": 6 # 高亮光棒圓角
-  "style/border_height": 4
-  "style/border_width": 4
-  "style/line_spacing": 5
-  "style/spacing": 8
+  "style/corner_radius": 12 # 視窗圓角（Windows：layout/corner_radius 12）
+  "style/hilited_corner_radius": 8 # 光棒圓角（Windows：layout/round_corner 8）
+  # 視窗內距＝border_* ＋ corner_radius（鼠鬚管的算法），所以 1＋12＝13，接近 Windows 的 margin 10＋光棒內距。
+  # 兩者取小的那個同時是邊框線的粗細：1＝細邊框（Windows：layout/border_width 1）。
+  "style/border_height": 1
+  "style/border_width": 1
+  "style/line_spacing": 10 # 候選列之間。光棒的高度是「文字＋這個值」，所以它同時決定光棒的上下內距
+  "style/spacing": 12 # 編碼列與候選之間（Windows：layout/spacing 12）
+  # 翻頁箭頭（Windows：配色裡的 prevpage_color／nextpage_color）。鼠鬚管畫的是候選窗左緣的小三角形，
+  # 位置跟 Windows（編碼列右側的 < >）不一樣，但功能相同：可點、看得出還有沒有上下頁。
+  "style/show_paging": true
+  # Windows 有、鼠鬚管沒有的：高亮列左側的圓角色條（mark）、滑鼠懸停反白的開關（鼠鬚管內建就會）。
+  # 鼠鬚管的 shadow_size 是「光棒底下」的陰影，不是整個視窗的陰影，跟 Windows 的不是同一件事，所以不設。
 
   # ── 字型 ──
-  "style/font_face": "PingFangTC-Semibold" # 蘋方繁中・半粗（對應 Windows 端的正黑粗體）
+  "style/font_face": { __include: "na_options:/mac_font_face" } # 安裝選項：粉圓體或系統字型（蘋方半粗）
+  "style/label_font_face": "PingFangTC-Medium" # 標籤：中等字重（Windows：Segoe UI Semibold）
+  "style/comment_font_face": { __include: "na_options:/mac_comment_font_face" } # 安裝選項，跟候選字同一套字型
   # 字級是安裝選項（小 18／中 21／大 24）；同樣的 pt 在 Mac 上看起來比 Windows 小，所以大兩級
   "style/font_point": { __include: "na_options:/mac_font_point" }
   "style/label_font_point": { __include: "na_options:/mac_label_font_point" } # 標籤／註釋比候選字小一截
   "style/comment_font_point": { __include: "na_options:/mac_label_font_point" }
-
   # ── 配色 ──
   # 同樣用路徑鍵逐項加入，才不會蓋掉鼠鬚管內建的 native/solarized 等配色。
   # 顏色格式為 0xBBGGRR。
@@ -95,6 +107,23 @@ patch:
     hilited_candidate_text_color: 0xF5B075 # #75B0F5
     hilited_candidate_label_color: 0xD98F62 # #628FD9
     hilited_comment_text_color: 0xC08163 # #6381C0
+
+  # 低調：淡灰光棒＋藍色強調
+  "preset_color_schemes/NatFluent":
+    name: Nat Fluent
+    author: NatLee
+    back_color: 0xF9F9F9 # 底色 #F9F9F9
+    border_color: 0xE0E0E0 # 邊框 #E0E0E0
+    text_color: 0x5C5C5C # 編碼列文字 #5C5C5C
+    hilited_text_color: 0xB85F00 # 編碼列高亮段文字（強調藍） #005FB8
+    hilited_back_color: 0xFAF0E6 # 編碼列高亮段底色 #E6F0FA
+    label_color: 0x8A8A8A # 候選標籤 #8A8A8A
+    candidate_text_color: 0x1A1A1A # 候選字 #1A1A1A
+    comment_text_color: 0x6B6B6B # 註釋 #6B6B6B
+    hilited_candidate_back_color: 0xEAEAEA # 高亮候選底色：淡灰，不是整條色塊 #EAEAEA
+    hilited_candidate_text_color: 0x1A1A1A # 高亮候選文字：維持深色 #1A1A1A
+    hilited_candidate_label_color: 0xB85F00 # 高亮候選標籤：強調藍 #005FB8
+    hilited_comment_text_color: 0x4A4A4A # 高亮候選註釋 #4A4A4A
 
   # 櫻花：粉白底＋莓紅光棒
   "preset_color_schemes/NatSakura":

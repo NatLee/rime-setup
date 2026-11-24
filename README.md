@@ -8,7 +8,7 @@
 - **單按右 Shift 換語言**：注音 → 日文 → 韓文 → 英文，像系統內建輸入法一樣按一下就換
 - **候選釋義**：日文／英文候選旁邊直接顯示中、英、日文解釋
 - **`'/` 多功能選單**：日期時間、計算機、Unicode、UUID、時間戳、色碼轉換…
-- **emoji 候選**、自訂短語（打 `email` 出信箱）、八套配色主題
+- **emoji 候選**、自訂短語（打 `email` 出信箱）、九套配色主題
 
 ## 安裝
 
@@ -45,10 +45,11 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 
 | 選項 | 可選的值 | 預設 |
 |---|---|---|
-| 主題 `theme` | `matcha`／`light`／`sakura`／`ocean`／`latte`／`dark`／`midnight`／`classic`，長相見下方[主題](#主題) | `matcha` |
+| 主題 `theme` | `matcha`／`light`／`fluent`／`sakura`／`ocean`／`latte`／`dark`／`midnight`／`classic`，長相見下方[主題](#主題) | `matcha` |
 | 系統深色模式 `dark` | `auto` 系統切到深色模式時自動換成深色主題／`off` 永遠用上面選的主題 | `auto` |
 | 候選排列 `layout` | `vertical` 直排／`horizontal` 橫排 | `vertical` |
 | 候選字級 `size` | `small`／`medium`／`large` | `medium` |
+| 候選字型 `font` | `huninn` 粉圓體（[jf open 粉圓](https://github.com/justfont/open-huninn-font)，沒裝會自動下載安裝，約 5 MB）／`system` 系統內建（正黑體、蘋方） | `huninn` |
 | 候選附帶 emoji `emoji` | `on`／`off` | `on` |
 | 方案選單裡的語言 `langs` | `ja` 日文、`ko` 韓文、`en` 英文、`extra`（注音文、全形、符號…）任意組合；`none` 只留注音 | 全部 |
 | 釋義語言 `gloss` | `zh`／`en`／`ja` | `zh` |
@@ -71,11 +72,12 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 <tr>
 <td align="center"><img src="docs/themes/NatDark.svg" width="250" alt="Nat Dark"><br><code>dark</code> 深色</td>
 <td align="center"><img src="docs/themes/NatMidnight.svg" width="250" alt="Nat Midnight"><br><code>midnight</code> 午夜</td>
-<td></td>
+<td align="center"><img src="docs/themes/NatFluent.svg" width="250" alt="Nat Fluent"><br><code>fluent</code> 低調</td>
 </tr>
 </table>
 
-預覽圖是照配色畫出來的示意圖（`pwsh tools\theme-preview.ps1` 產生），不是螢幕截圖；實際的字型與間距以輸入法為準。
+預覽圖是照配色畫出來的示意圖（`pwsh tools\theme-preview.ps1` 產生），不是螢幕截圖；實際的字型與間距以輸入法為準
+（預設的候選字型是粉圓體，預覽圖裡用的是你瀏覽器的字型）。
 選了淺色主題又開著「系統深色模式：跟隨」時，系統切到深色會自動換成 Nat Dark。
 
 ### 重新選擇、重新安裝
@@ -91,7 +93,8 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
   5) 候選附 emoji　開
   6) 選單裡的語言　日文、韓文、英文、其他
   7) 釋義語言　　　中文
-  輸入編號 1-7 修改那一項；直接按 Enter 套用
+  8) 候選字型　　　粉圓體
+  輸入編號 1-8 修改那一項；直接按 Enter 套用
 ```
 
 想改哪一項就輸入它的編號，都不改直接按 Enter。套用後自動重新部署。
@@ -120,7 +123,7 @@ NA_THEME=dark NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL https://raw.githubuser
 bash ~/.na-plus/install.sh --local --theme dark --langs ja,en --yes
 ```
 
-環境變數：`NA_THEME` `NA_DARK` `NA_LAYOUT` `NA_SIZE` `NA_EMOJI` `NA_LANGS` `NA_GLOSS`，`NA_YES=1`＝不詢問（沒指定的沿用上次）。
+環境變數：`NA_THEME` `NA_DARK` `NA_LAYOUT` `NA_SIZE` `NA_FONT` `NA_EMOJI` `NA_LANGS` `NA_GLOSS`，`NA_YES=1`＝不詢問（沒指定的沿用上次）。
 
 ### 更新
 
@@ -144,7 +147,7 @@ RIME 只認使用者資料夾**根目錄**的方案與設定檔，而這個 repo
 
    ```yaml
    patch:
-     theme: NatLight        # NatMatcha／NatLight／NatSakura／NatOcean／NatLatte／NatDark／NatMidnight／NatLee
+     theme: NatLight        # NatMatcha／NatLight／NatFluent／NatSakura／NatOcean／NatLatte／NatDark／NatMidnight／NatLee
      theme_dark: NatDark    # 系統深色模式時用的主題
      font_point: 20         # 候選字級（macOS 是 mac_font_point）
      emoji: 0               # 1 開／0 關
@@ -239,6 +242,7 @@ docs/                       架構、鍵位總表、踩過的坑
   多數元件的原始版本都來自它；這裡在其上做了重整、刪減與改寫。
 - 輸入法引擎：[RIME／中州韻](https://rime.im)、[librime-lua](https://github.com/hchunhui/librime-lua)
 - 語言模型：[rime-octagram-data](https://github.com/lotem/rime-octagram-data)
+- 候選字型：[jf open 粉圓](https://github.com/justfont/open-huninn-font)（justfont，SIL Open Font License 1.1）。字型檔不在這個 repo 裡，安裝時從它的官方發佈頁下載
 - 日文釋義：[JMdict/EDICT](https://www.edrdg.org/jmdict/j_jmdict.html)（EDRDG，CC BY-SA 4.0）、
   [日本語 WordNet](http://compling.hss.ntu.edu.sg/wnja/)（NICT）、Chinese Wordnet（中央研究院）、
   [Chinese Open Wordnet](http://compling.hss.ntu.edu.sg/cow/)，經 [Open Multilingual Wordnet](https://github.com/omwn/omw-data) 對齊

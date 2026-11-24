@@ -10,13 +10,14 @@
 #   NA_THEME=light NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL <網址>)"
 #   bash ~/.na-plus/install.sh --local --theme light --emoji off --langs ja,en --yes
 #
-#   --theme   matcha | light | sakura | ocean | latte | dark | midnight | classic
+#   --theme   matcha | light | fluent | sakura | ocean | latte | dark | midnight | classic
 #   --dark    auto（系統深色模式時自動換成 Nat Dark）| off
 #   --layout  vertical | horizontal
 #   --size    small | medium | large（候選字級）
 #   --emoji   on | off
 #   --langs   ja,ko,en,extra 任意組合；none＝只留注音
 #   --gloss   zh | en | ja
+#   --font    huninn（粉圓體，沒裝會自動下載）| system（系統內建的蘋方）
 #   --yes     不詢問：沿用上次的選擇（第一次則用預設值）
 #   --local   用這支腳本所在的那份 repo，不連網（不 clone、不 pull）
 #   --no-deploy  只複製檔案與寫設定，不重新部署（測試用）
@@ -47,17 +48,18 @@ main() {
     local SQUIRREL="${NA_SQUIRREL:-${SQUIRREL_APP}/Contents/MacOS/Squirrel}"
     local YES="${NA_YES:-}" NO_DEPLOY="${NA_NO_DEPLOY:-}"
     local G_THEME="${NA_THEME:-}" G_LAYOUT="${NA_LAYOUT:-}" G_EMOJI="${NA_EMOJI:-}"
-    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}" G_DARK="${NA_DARK:-}" G_SIZE="${NA_SIZE:-}"
+    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}" G_DARK="${NA_DARK:-}" G_SIZE="${NA_SIZE:-}" G_FONT="${NA_FONT:-}"
     local BACKUP=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
-            --theme|--dark|--layout|--size|--emoji|--langs|--gloss)
+            --theme|--dark|--layout|--size|--font|--emoji|--langs|--gloss)
                 [ $# -ge 2 ] || { echo "✗ $1 後面要接一個值" >&2; return 2; }
                 case "$1" in
                     --theme)  G_THEME="$2" ;;
                     --dark)   G_DARK="$2" ;;
                     --size)   G_SIZE="$2" ;;
+                    --font)   G_FONT="$2" ;;
                     --layout) G_LAYOUT="$2" ;;
                     --emoji)  G_EMOJI="$2" ;;
                     --langs)  G_LANGS="$2" ;;
@@ -106,6 +108,7 @@ main() {
         case "$1" in
             matcha)  echo "NatMatcha" ;;
             light)   echo "NatLight" ;;
+            fluent)  echo "NatFluent" ;;
             sakura)  echo "NatSakura" ;;
             ocean)   echo "NatOcean" ;;
             latte)   echo "NatLatte" ;;
@@ -245,7 +248,7 @@ main() {
 
     # ── [4] 選項 ──────────────────────────────────────────────────────
     local OPT_FILE="${RIME_DIR}/na_options.custom.yaml"
-    local P_DARK="" P_SIZE=""
+    local P_DARK="" P_SIZE="" P_FONT=""
     local P_THEME="" P_LAYOUT="" P_EMOJI="" P_LANGS="" P_GLOSS="" line kv
     if [ -f "${OPT_FILE}" ]; then
         # 上次的選擇記在檔頭那行「# na-options: k=v k=v」
@@ -255,6 +258,7 @@ main() {
                 theme=*)  P_THEME="${kv#theme=}" ;;
                 dark=*)   P_DARK="${kv#dark=}" ;;
                 size=*)   P_SIZE="${kv#size=}" ;;
+                font=*)   P_FONT="${kv#font=}" ;;
                 layout=*) P_LAYOUT="${kv#layout=}" ;;
                 emoji=*)  P_EMOJI="${kv#emoji=}" ;;
                 langs=*)  P_LANGS="${kv#langs=}" ;;
@@ -267,6 +271,7 @@ main() {
     THEME="$(lower "${G_THEME:-${P_THEME:-matcha}}")"
     DARK="$(lower "${G_DARK:-${P_DARK:-auto}}")"
     SIZE="$(lower "${G_SIZE:-${P_SIZE:-medium}}")"
+    local FONT; FONT="$(lower "${G_FONT:-${P_FONT:-huninn}}")"
     # 舊值相容：以前「跟隨系統」是主題的一個選項（auto），現在拆成獨立的 dark 選項
     if [ "${THEME}" = "auto" ]; then THEME=light; [ -z "${G_DARK}" ] && DARK=auto; fi
     LAYOUT="$(lower "${G_LAYOUT:-${P_LAYOUT:-vertical}}")"
@@ -279,7 +284,7 @@ main() {
         # （以前是一題一題問完七題才結束，只想換個主題也得按六次 Enter。）
         local CHOICE="" pick=""
         theme_label() { case "$1" in
-            matcha) echo 'Nat Matcha 抹茶奶油色' ;; light) echo 'Nat Light 明亮白底' ;; sakura) echo 'Nat Sakura 櫻花粉' ;;
+            matcha) echo 'Nat Matcha 抹茶奶油色' ;; light) echo 'Nat Light 明亮白底' ;; fluent) echo 'Nat Fluent 低調淡灰＋藍色條' ;; sakura) echo 'Nat Sakura 櫻花粉' ;;
             ocean) echo 'Nat Ocean 海洋藍' ;; latte) echo 'Nat Latte 拿鐵棕' ;; dark) echo 'Nat Dark 深色' ;;
             midnight) echo 'Nat Midnight 午夜藍（深色）' ;; classic) echo 'Nat Classic 經典黃綠' ;; *) echo "$1" ;; esac; }
         langs_label() {
@@ -300,12 +305,14 @@ main() {
             printf '  5) 候選附 emoji　%s\n' "$( [ "${EMOJI}" = "off" ] && echo '關' || echo '開' )"
             printf '  6) 選單裡的語言　%s\n' "$(langs_label "${LANGS}")"
             printf '  7) 釋義語言　　　%s\n' "$( case "${GLOSS}" in en) echo '英文' ;; ja) echo '日文' ;; *) echo '中文' ;; esac )"
-            ask '  輸入編號 1-7 修改那一項；直接按 Enter 套用：'
+            printf '  8) 候選字型　　　%s\n' "$( [ "${FONT}" = "system" ] && echo '系統字型（蘋方）' || echo '粉圓體' )"
+            ask '  輸入編號 1-8 修改那一項；直接按 Enter 套用：'
             pick="${REPLY}"
             [ -z "${pick}" ] && break
             case "${pick}" in
             1)  choose_one '主題（候選窗配色，長相見 README 的預覽圖）' "${THEME}" \
-                    matcha 'Nat Matcha   抹茶奶油色（預設）' light 'Nat Light    明亮白底' sakura 'Nat Sakura   櫻花粉' \
+                    matcha 'Nat Matcha   抹茶奶油色（預設）' light 'Nat Light    明亮白底' fluent 'Nat Fluent   低調淡灰＋藍色條' \
+                    sakura 'Nat Sakura   櫻花粉' \
                     ocean 'Nat Ocean    海洋藍' latte 'Nat Latte    拿鐵棕' dark 'Nat Dark     深色' \
                     midnight 'Nat Midnight 午夜藍（深色）' classic 'Nat Classic  經典黃綠'
                 THEME="${CHOICE}" ;;
@@ -348,19 +355,49 @@ main() {
                 done ;;
             7)  choose_one '日文／英文候選的釋義要用哪種語言顯示' "${GLOSS}" zh '中文（預設）' en '英文' ja '日文'
                 GLOSS="${CHOICE}" ;;
+            8)  choose_one '候選字型' "${FONT}" \
+                    huninn '粉圓體：圓潤的開源字型 jf open 粉圓（預設；沒裝會自動下載安裝，約 5 MB）' system '系統字型：蘋方'
+                FONT="${CHOICE}" ;;
             *)  say '  請輸入清單上的數字。' ;;
             esac
         done
     fi
     # 檢查（參數／環境變數／手改的檔頭都可能給出不認得的值）
     local scheme scheme_dark pts
-    scheme="$(theme_scheme "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light sakura ocean latte dark midnight classic）"; return 1; }
+    scheme="$(theme_scheme "${THEME}")" || { die "不認得的主題：${THEME}（可用：matcha light fluent sakura ocean latte dark midnight classic）"; return 1; }
     # 本身就是深色的主題：系統深色模式時不必再換
     # 不跟隨、或主題本身就是深色 → theme_dark 留空（~），深色模式直接沿用 color_scheme。
     # 不可以寫成跟 theme 同名：那會把深色模式釘死在安裝當下的主題（原委見 rime-apply.ps1）。
     case "${THEME}" in dark|midnight) [ "${DARK}" = "auto" ] && scheme_dark="~" ;; esac
     case "${DARK}" in auto) scheme_dark="${scheme_dark:-NatDark}" ;; off) scheme_dark="~" ;; *) die "不認得的深色模式設定：${DARK}（可用：auto off）"; return 1 ;; esac
     pts="$(size_points "${SIZE}")" || { die "不認得的字級：${SIZE}（可用：small medium large）"; return 1; }
+    case "${FONT}" in huninn|system) ;; *) die "不認得的字型：${FONT}（可用：huninn system）"; return 1 ;; esac
+
+    # ── 字型：粉圓體（jf open 粉圓，SIL OFL 授權的開源字型）──
+    # 沒裝才下載，裝在使用者自己的 ~/Library/Fonts，不需要管理員密碼。
+    # 下載失敗就退回系統字型，不中斷安裝。鼠鬚管認字型用的是 PostScript 名稱 jf-openhuninn-2.1。
+    local FONT_DIR="${NA_FONT_DIR:-${HOME}/Library/Fonts}" FONT_URL="${NA_FONT_URL:-https://github.com/justfont/open-huninn-font/releases/download/v2.1/jf-openhuninn-2.1.ttf}"
+    if [ "${FONT}" = "huninn" ]; then
+        if ! ls "${FONT_DIR}"/jf-openhuninn-*.ttf /Library/Fonts/jf-openhuninn-*.ttf >/dev/null 2>&1; then
+            step '下載並安裝粉圓體（jf open 粉圓，約 5 MB）'
+            mkdir -p "${FONT_DIR}"
+            if curl -fsSL "${FONT_URL}" -o "${FONT_DIR}/jf-openhuninn-2.1.ttf.part" \
+               && [ "$(wc -c < "${FONT_DIR}/jf-openhuninn-2.1.ttf.part")" -gt 1000000 ]; then
+                mv "${FONT_DIR}/jf-openhuninn-2.1.ttf.part" "${FONT_DIR}/jf-openhuninn-2.1.ttf"
+                ok '已安裝 jf open 粉圓 2.1'
+            else
+                rm -f "${FONT_DIR}/jf-openhuninn-2.1.ttf.part"
+                warn '粉圓體下載失敗，先改用系統字型。之後重跑安裝指令可以再試。'
+                FONT=system
+            fi
+        fi
+    fi
+    local mac_font='PingFangTC-Semibold' mac_comment='PingFangTC-Regular' win_font='Microsoft JhengHei:bold, Segoe UI Emoji' win_comment='Microsoft JhengHei, Segoe UI'
+    if [ "${FONT}" = "huninn" ]; then
+        # 粉圓體只有一種字重。後面接蘋方／正黑當後備，粉圓沒有的字才會用到。
+        mac_font='jf-openhuninn-2.1, PingFangTC-Semibold'; mac_comment='jf-openhuninn-2.1, PingFangTC-Regular'
+        win_font='jf open 粉圓 2.1, Microsoft JhengHei, Segoe UI Emoji'; win_comment='jf open 粉圓 2.1, Microsoft JhengHei, Segoe UI'
+    fi
     case "${LAYOUT}" in vertical|horizontal) ;; *) die "不認得的排列：${LAYOUT}（可用：vertical horizontal）"; return 1 ;; esac
     case "${EMOJI}" in on|off) ;; *) die "不認得的 emoji 設定：${EMOJI}（可用：on off）"; return 1 ;; esac
     local gnum
@@ -384,11 +421,12 @@ main() {
         printf '%s\n' '# na_options.custom.yaml — 個人安裝選項（由 install 腳本產生，不進版控）'
         printf '%s\n' '# 想換選項：重跑安裝指令；或手動改下面的值後重新部署。各鍵說明見 na_options.yaml。'
         printf '%s\n' '# ↓ 這行是給安裝腳本讀「上次選了什麼」用的，手動改值時請一起改，或整行刪掉。'
-        printf '# na-options: theme=%s dark=%s layout=%s size=%s emoji=%s langs=%s gloss=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${EMOJI}" "${LANGS}" "${GLOSS}"
+        printf '# na-options: theme=%s dark=%s layout=%s size=%s font=%s emoji=%s langs=%s gloss=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${FONT}" "${EMOJI}" "${LANGS}" "${GLOSS}"
         printf 'patch:\n'
         printf '  theme: %s\n' "${scheme}"
         printf '  theme_dark: %s\n' "${scheme_dark}"
         printf '  font_point: %s\n  label_font_point: %s\n  mac_font_point: %s\n  mac_label_font_point: %s\n' ${pts}
+        printf '  font_face: "%s"\n  comment_font_face: "%s"\n  mac_font_face: "%s"\n  mac_comment_font_face: "%s"\n' "${win_font}" "${win_comment}" "${mac_font}" "${mac_comment}"
         printf '  horizontal: %s\n' "${horizontal}"
         printf '  candidate_list_layout: %s\n' "${mac}"
         printf '  emoji: %s\n' "${emoji_num}"
@@ -404,7 +442,7 @@ main() {
         done
     } > "${OPT_FILE}" || { die "寫不進 ${OPT_FILE}"; return 1; }
     step '已寫入選項'
-    say "    主題 ${THEME}｜深色模式 ${DARK}｜排列 ${LAYOUT}｜字級 ${SIZE}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
+    say "    主題 ${THEME}｜深色模式 ${DARK}｜排列 ${LAYOUT}｜字級 ${SIZE}｜字型 ${FONT}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
 
     # ── [5] 套用檔案＋重新部署 ────────────────────────────────────────
     # 交給 repo 裡的 rime-update.command：把 rime/ 攤平複製到使用者資料夾，再重新部署。

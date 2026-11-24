@@ -28,6 +28,15 @@ label_font_point: 13 # Windows：標籤與註釋
 mac_font_point: 21 # macOS：候選字（同樣的 pt 在 Mac 上看起來比較小，所以大兩級）
 mac_label_font_point: 15 # macOS：標籤與註釋
 
+# ── 字型 ──
+# 安裝時選「粉圓體」的話，安裝腳本會把這四個值換成 jf open 粉圓（沒裝會自動下載安裝）。
+# 這裡的預設值是系統內建字型，所以手動安裝、沒有粉圓體的人也不會出問題。
+# 逗號後面是後備字型：前面的字型沒有某個字（或根本沒安裝）時往後找。
+font_face: "Microsoft JhengHei:bold, Segoe UI Emoji" # Windows：候選字（:bold＝加粗）
+comment_font_face: "Microsoft JhengHei, Segoe UI" # Windows：註釋（一般字重）
+mac_font_face: "PingFangTC-Semibold" # macOS：候選字
+mac_comment_font_face: "PingFangTC-Regular" # macOS：註釋
+
 # ── 候選排列 ──
 horizontal: false # Windows：true 橫排／false 直排
 candidate_list_layout: stacked # macOS：linear 橫排／stacked 直排

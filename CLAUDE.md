@@ -83,6 +83,7 @@ PowerShell 5.1 跑、個人資料不可進版控。
 | ⇧1~6 選字的按鍵與標籤 | 鍵：`p_select_keys/keys` ＋ `rime/lua/processor_p_select_keys.lua`；標籤：`menu/alternative_select_labels`（**別設** `alternative_select_keys`，macOS 標籤會壞） |
 | 方案顯示名稱 | **直接改 `*.schema.yaml` 的 `schema/name`**（少數允許直接改上游檔的地方）。小狼毫的「輸入法設定」對話框讀的是原始名稱，不吃 custom 的 patch；只 patch 的話選單對了、對話框還是舊名 |
 | emoji 聯想、字集過濾、符號標註的對照表 | `rime/opencc/*.txt` 是來源，輸入法讀的是編譯後的 `.ocd2`。**改了 .txt 要跑 `pwsh tools\opencc-build.ps1` 重編**（需要 Docker），兩個檔一起提交 |
+| 候選字型（粉圓體／系統字型） | 預設值（系統字型）在 `rime/core/na_options.yaml` 的 `font_face`／`comment_font_face`／`mac_*`；安裝腳本選粉圓體時偵測或下載安裝字型，再把實際的字型名稱寫進個人選項檔。字型檔不進 repo |
 | 新增一個主題 | 配色加進 `rime/theme/weasel.custom.yaml` **和** `squirrel.custom.yaml` → `install.ps1`、`install.sh` 的主題清單與對照表 → `pwsh tools\theme-preview.ps1` 重產預覽圖 → README「主題」那張表加一格 |
 | `'/setup`（選項畫面） | 就是安裝腳本的互動選單：`install.ps1`／`install.sh` 裡「目前的設定」那個迴圈。輸入法端的入口在 `p_run_pattern.lua` 的 `setup` 與 `mf_menu_data.lua` 的 `set` 選單 |
 | 自訂詞（打 `email` 出信箱那種） | 個人的：使用者資料夾的 `bopomo_onionplus_phrase.txt`（改完要**部署**）；給新使用者的範本：`rime/bopomofo/bopomo_onionplus_phrase.sample.txt` |
