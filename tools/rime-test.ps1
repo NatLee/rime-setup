@@ -410,11 +410,13 @@ switch ($Mode) {
     # 沙盒裡 generic_open 只記錄不執行（見檔頭），所以可以真的按下去，再比對它「本來要開」的東西。
     # 這幾條釘住：選單列的 run、一級指令代碼、p_run_pattern 的 open 三者有接起來。
     $acases = [ordered]@{
-      'A01 主選單空白＝速查表' = @("'/ ",                 '*cheatsheet.html*')
-      'A02 /h 直接開速查表'    = @("'/h ",                '*cheatsheet.html*')
-      'A03 /set ⇧1＝選項畫面'  = @("'/set{Shift+exclam}", '*na-setup.*')
-      'A04 /setup 直接開'      = @("'/setup ",            '*na-setup.*')
-      'A05 /git 直接跑更新'    = @("'/git ",              '*na-update.*')
+      'A01 主選單空白＝速查表' = @("'/ ",                 'start "" "*cheatsheet.html"')
+      'A02 /h 直接開速查表'    = @("'/h ",                'start "" "*cheatsheet.html"')
+      # 批次檔用 start "" cmd /c ""路徑""：路徑包兩層引號、斜線換成反斜線，跑完視窗會自己關
+      # （為什麼長這樣、為什麼是 popen 不是 os.execute，見 p_generic_open.lua）。
+      'A03 /set ⇧1＝選項畫面'  = @("'/set{Shift+exclam}", 'start "" cmd /c ""*\na-setup.cmd""')
+      'A04 /setup 直接開'      = @("'/setup ",            'start "" cmd /c ""*\na-setup.cmd""')
+      'A05 /git 直接跑更新'    = @("'/git ",              'start "" cmd /c ""*\na-update.cmd""')
       'A06 純跳轉不開東西'     = @("'/dt ",               '')
     }
     foreach ($k in $acases.Keys) {

@@ -417,9 +417,45 @@ function Install-NaPlus {
             if ($hit) { return (($hit[1] -replace '（預設）', '') -replace '\s{2,}', ' ').Trim() }
             return $v
         }
+        # 從輸入法打 '/setup 進來的話，lua 在啟動前留了一個時間戳（na_launch.stamp）。
+        # 這裡算出「從按下到選單出現」花了多久。正常大約一秒，不吵人；超過兩秒才印在標題旁、
+        # 並寫進 na_launch.log —— 啟動慢在哪，只有真的從輸入法啟動時量得到（從外面模擬，量到的是
+        # 另一種行程的啟動時間；「os.execute 讓輸入法卡五秒」就是靠這幾個數字找到的，見 p_generic_open.lua）。
+        # 分四段：輸入法服務卡在啟動指令多久（na_launch.ret）、到批次檔開始跑（rime-setup.cmd 把
+        # 當時的 %time% 放在 NA_T_CMD）、到這個 PowerShell 行程起來、到選單列出來。
+        # 想看每一次的數字：設環境變數 NA_LAUNCH_TIMING=1。
+        $launchSlow = 2.0
+        $launchNote = ''
+        $stampFile = Join-Path $RimeDir 'na_launch.stamp'
+        $retFile   = Join-Path $RimeDir 'na_launch.ret'
+        if (Test-Path -LiteralPath $stampFile) {
+            $now = Get-Date
+            $t0 = (Get-Item -LiteralPath $stampFile).LastWriteTime
+            $age = ($now - $t0).TotalSeconds
+            if ($age -ge 0 -and $age -lt 60) {
+                $parts = @()
+                $tCmd = $null
+                if ((Pick '' 'NA_T_CMD') -match '(\d+):(\d+):(\d+)[.,](\d+)') {
+                    $tCmd = $t0.Date.AddHours([int]$Matches[1]).AddMinutes([int]$Matches[2]).AddSeconds([int]$Matches[3]).AddMilliseconds([int]$Matches[4] * 10)
+                    $parts += ('到批次檔開始跑 {0:N1}' -f ($tCmd - $t0).TotalSeconds)
+                }
+                $tPs = (Get-Process -Id $PID).StartTime
+                if ($tCmd) { $parts += ('到 PowerShell 啟動 {0:N1}' -f ($tPs - $tCmd).TotalSeconds) }
+                $parts += ('腳本到選單 {0:N1}' -f ($now - $tPs).TotalSeconds)
+                if (Test-Path -LiteralPath $retFile) {
+                    $parts += ('輸入法卡住 {0:N1}' -f ((Get-Item -LiteralPath $retFile).LastWriteTime - $t0).TotalSeconds)
+                }
+                if ($age -ge $launchSlow -or (Pick '' 'NA_LAUNCH_TIMING')) {
+                    $launchNote = '　（從按下到這裡 {0:N1} 秒：{1}）' -f $age, ($parts -join '｜')
+                    try { Add-Content -LiteralPath (Join-Path $RimeDir 'na_launch.log') -Value ($now.ToString('yyyy-MM-dd HH:mm:ss') + $launchNote) -Encoding UTF8 } catch { }
+                }
+            }
+            Remove-Item -LiteralPath $stampFile, $retFile -Force -ErrorAction SilentlyContinue
+        }
         while ($true) {
             Write-Host ''
-            Write-Host '目前的設定' -ForegroundColor Cyan
+            Write-Host "目前的設定$launchNote" -ForegroundColor Cyan
+            $launchNote = ''
             for ($i = 0; $i -lt $rows.Count; $i++) { Write-Host ("  {0}) {1}　{2}" -f ($i + 1), $rows[$i].title, (Show-Value $rows[$i])) }
             # 最常見的「換了主題怎麼沒變」：系統在深色模式＋跟隨系統，看到的一直是 Nat Dark。
             # 小狼毫的對話框只改得到淺色那一格，在這個狀態下換配色同樣看不出來。
