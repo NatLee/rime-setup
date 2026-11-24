@@ -65,17 +65,10 @@ patch:
     - {accept: "Control+period", toggle: full_shape, when: always}
     - {accept: "Control+semicolon", toggle: simplification, when: always}
     - {accept: "Control+slash", toggle: ascii_punct, when: always}
-  # 順序即 F4 選單編號，並與 Ctrl+Shift+F1~F4 直達鍵對應
-  schema_list:
-    - {schema: bopomo_onionplus}
-    - {schema: jpnin1}
-    - {schema: hangeul_hnc}
-    - {schema: easy_en_lower}
-    - {schema: allbpm}
-    - {schema: fullshape}
-    - {schema: easy_en_upper}
-    - {schema: easy_en_lcomment}
-    - {schema: symbols_bpmf}
+  # 方案清單是安裝選項（裝哪些語言），預設值與說明見 na_options.yaml；
+  # 個人選擇由安裝腳本寫進 na_options.custom.yaml。順序即 F4 選單編號。
+  # ⚠ Ctrl+Shift+F1~F4 直達鍵寫死方案 id，不隨這份清單變動。
+  schema_list: { __include: "na_options:/schema_list" }
   "switcher/fix_schema_list_order": true
   "switcher/hotkeys":
     - "Control+grave"

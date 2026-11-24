@@ -15,9 +15,11 @@ patch:
       ascii_mode: true
 
   style:
-    color_scheme: NatMatcha
-    color_scheme_dark: NatMatcha # Windows 深色模式也維持亮色；想跟隨系統可改成 NatLight_dark
-    horizontal: false # 直式排列
+    # ↓ 這三項是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
+    #   na_options.custom.yaml（重跑安裝指令即可重選）。別在這裡直接寫死。
+    color_scheme: { __include: "na_options:/theme" }
+    color_scheme_dark: { __include: "na_options:/theme_dark" } # 與上面相同＝深色模式也不換
+    horizontal: { __include: "na_options:/horizontal" } # false 直排／true 橫排
     inline_preedit: false # FALSE 雙行顯示（編碼列在候選窗內）
     preedit_type: composition
     display_tray_icon: true
@@ -84,9 +86,9 @@ patch:
       hilited_comment_text_color: 0xCF936A # 高亮候選註釋：灰藍 #6A93CF
       hilited_mark_color: 0xD6620F # 高亮候選前的小標記：藍 #0F62D6
 
-    # 配套深色主題（想跟隨 Windows 深色模式時，把 color_scheme_dark 改成這個）
-    NatLight_dark:
-      name: Nat Light（Dark）
+    # 深色主題（安裝時選「跟隨系統」會把它設成 color_scheme_dark）
+    NatDark:
+      name: Nat Dark
       author: NatLee
       back_color: 0x2B2320 # #20232B
       border_color: 0x3D332D # #2D333D
@@ -103,7 +105,7 @@ patch:
       hilited_comment_text_color: 0xC08163 # #6381C0
       hilited_mark_color: 0xF2A55C # #5CA5F2
 
-    # 原主題保留，隨時可把 color_scheme 改回 NatLee
+    # 經典主題
     NatLee:
       name: Nat x Theme
       author: NatLee

@@ -16,9 +16,9 @@ patch:
   "engine/filters":
     - lua_filter@convert_japan_filter
     - lua_filter@gloss_filter
-  # 釋義語言 radio 開關（reset: 0 = 預設 gloss_zh 中文）
+  # 釋義語言 radio 開關（reset 0／1／2 = 中／英／日；安裝選項，見 na_options.yaml）
   "switches/+":
     - options: [ gloss_zh, gloss_en, gloss_ja ]
       states: [ 釋中, 釋英, 釋日 ]
-      reset: 0
+      reset: { __include: "na_options:/gloss" }
 

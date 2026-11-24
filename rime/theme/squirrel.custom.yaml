@@ -22,12 +22,14 @@ patch:
   # 內建預設就是 "[label]. [candidate] [comment]"，這裡明寫是為了不被上面那個
   # 節點取代問題咬到；[label] 會吃 menu/alternative_select_labels 的 ⇧1～⇧6。
   "style/candidate_format": "[label]. [candidate] [comment]"
-  "style/candidate_list_layout": stacked # 直式候選（同 Windows）
+  # ↓ 排列與配色是安裝選項：預設值在 na_options.yaml，個人選擇由安裝腳本寫進
+  #   na_options.custom.yaml（重跑安裝指令即可重選）。別在這裡直接寫死。
+  "style/candidate_list_layout": { __include: "na_options:/candidate_list_layout" } # stacked 直排／linear 橫排
   "style/text_orientation": horizontal
   "style/inline_preedit": false # 編碼列顯示在候選窗內（同 Windows）
 
-  "style/color_scheme": NatMatcha
-  "style/color_scheme_dark": NatMatcha # 深色模式也維持亮色主題
+  "style/color_scheme": { __include: "na_options:/theme" }
+  "style/color_scheme_dark": { __include: "na_options:/theme_dark" } # 與上面相同＝深色模式也不換
 
   "style/corner_radius": 10 # 視窗圓角
   "style/hilited_corner_radius": 6 # 高亮光棒圓角
@@ -61,7 +63,39 @@ patch:
     hilited_candidate_label_color: 0xE4E2C2 # 高亮候選標籤：淡青奶油 #C2E2E4
     hilited_comment_text_color: 0xE4E2C2 # 高亮候選註釋：淡青奶油 #C2E2E4
 
-  # 原主題保留
+  "preset_color_schemes/NatLight":
+    name: Nat Light
+    author: NatLee
+    back_color: 0xFEFCFA # 底色：微暖白 #FAFCFE
+    border_color: 0xF0E9E4 # 邊框：淡灰藍 #E4E9F0
+    text_color: 0x4F4137 # 編碼列文字：深灰 #37414F
+    hilited_text_color: 0xD6620F # 編碼列高亮段文字：藍 #0F62D6
+    hilited_back_color: 0xFEF1E9 # 編碼列高亮段底色：淡藍 #E9F1FE
+    label_color: 0xABA198 # 候選標籤：淺灰 #98A1AB
+    candidate_text_color: 0x3D3630 # 候選字：近黑 #30363D
+    comment_text_color: 0x81776E # 註釋：中灰 #6E7781
+    hilited_candidate_back_color: 0xFEF1E9 # 高亮候選底色：淡藍 #E9F1FE
+    hilited_candidate_text_color: 0xD6620F # 高亮候選文字：藍 #0F62D6
+    hilited_candidate_label_color: 0xE08D5B # 高亮候選標籤：淺藍 #5B8DE0
+    hilited_comment_text_color: 0xCF936A # 高亮候選註釋：灰藍 #6A93CF
+
+  "preset_color_schemes/NatDark":
+    name: Nat Dark
+    author: NatLee
+    back_color: 0x2B2320 # #20232B
+    border_color: 0x3D332D # #2D333D
+    text_color: 0xD8CEC8 # #C8CED8
+    hilited_text_color: 0xF2A55C # #5CA5F2
+    hilited_back_color: 0x40332B # #2B3340
+    label_color: 0x8A7A6E # #6E7A8A
+    candidate_text_color: 0xE4DBD5 # #D5DBE4
+    comment_text_color: 0xA08D80 # #808DA0
+    hilited_candidate_back_color: 0x4A3A2E # #2E3A4A
+    hilited_candidate_text_color: 0xF5B075 # #75B0F5
+    hilited_candidate_label_color: 0xD98F62 # #628FD9
+    hilited_comment_text_color: 0xC08163 # #6381C0
+
+  # 經典主題
   "preset_color_schemes/NatLee":
     name: Nat x Theme
     author: NatLee
