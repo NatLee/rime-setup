@@ -1,6 +1,12 @@
 # 文字檔統一以 LF 入庫（Windows/macOS 皆可讀）
 * text=auto
 
+# shell 腳本在任何平台簽出都必須是 LF（CRLF 會讓 bash 直接報錯）
+*.sh text eol=lf
+*.command text eol=lf
+# cmd 批次檔要 CRLF
+*.cmd text eol=crlf
+
 # 二進位檔
 *.gram binary
 *.bin binary

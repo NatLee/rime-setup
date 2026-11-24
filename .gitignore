@@ -1,14 +1,27 @@
-# ===== 機器專屬狀態（每台機器不同，勿同步）=====
-installation.yaml
-user.yaml
+# 這個 repo 是「設定的來源」，RIME 使用者資料夾在別處（由 scripts/rime-apply.* 套用過去）。
+# 下面這些本來就不該出現在 repo 裡；留著是防呆 —— 萬一有人把使用者資料夾的東西
+# 複製回來，也不會被提交。
 
-# ===== 編譯輸出（部署時重新生成）=====
-build/
-
-# ===== 打字紀錄／詞頻資料庫（機器各自維護，不同步以免互相污染）=====
+# ===== 個人資料 =====
+# 打字紀錄／詞頻資料庫
 *.userdb/
 *.userdb.old/
 sync/
+# 個人自訂短語（信箱、地址之類）；範本是 rime/bopomofo/bopomo_onionplus_phrase.sample.txt
+bopomo_onionplus_phrase.txt
+# 個人安裝選項；預設值在 rime/core/na_options.yaml
+na_options.custom.yaml
+
+# ===== 機器專屬狀態與編譯輸出 =====
+installation.yaml
+user.yaml
+build/
+
+# ===== 套用時產生的檔 =====
+na_manifest.txt
+na-update.cmd
+na-update.command
+na-setup.cmd
 
 # ===== 備份與暫存 =====
 *.bak
