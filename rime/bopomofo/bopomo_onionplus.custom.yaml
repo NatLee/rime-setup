@@ -77,7 +77,7 @@ patch:
       reset: 1
       states: [ 完整字集, 台灣常用字 ]
     - name: emoji_segestion
-      reset: 1
+      reset: { __include: "na_options:/emoji" } # 安裝選項（預設 1），見 na_options.yaml
       states: [ 不附 emoji, 附 emoji ]
     - name: back_mark
       reset: 1
@@ -92,7 +92,7 @@ patch:
       reset: 0
       states: [ 英文：預設排序, 英文：字母序 ]
     - options: [ gloss_zh, gloss_en, gloss_ja ]
-      reset: 0
+      reset: { __include: "na_options:/gloss" } # 安裝選項（預設 0＝中文）
       states: [ 釋義：中文, 釋義：英文, 釋義：日文 ]
 
   # ── 補綁被 Windows 攔截的快捷鍵 ──
