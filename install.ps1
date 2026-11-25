@@ -388,17 +388,18 @@ function Install-NaPlus {
     if ($opt.theme -eq 'auto') { $opt.theme = 'light'; if (-not $given.dark) { $opt.dark = 'auto' } }
 
     if ($interactive) {
-        # 一個畫面列出全部設定：想改哪一項就輸入它的編號，都不改就直接按 Enter。
-        # （以前是一題一題問完七題才結束，只想換個主題也得按六次 Enter。）
+        # 全部設定。這裡的順序是「輸入編號」版本的 1~8，跟 macOS 的 install.sh 一致，不要動；
+        # 選項畫面會照 group 重新排成兩組：外觀（看得到的）與輸入（打字時的行為）。
+        # ask 是「輸入編號」版本問的那句；hint 是選項畫面底下那行「這一項在做什麼」。
         $rows = @(
-            @{ key = 'theme';  title = '主題　　　　'; items = $themeItems;  ask = '主題（候選窗配色，長相見 README 的預覽圖）' },
-            @{ key = 'dark';   title = '系統深色模式'; items = $darkItems;   ask = '系統深色模式' },
-            @{ key = 'layout'; title = '候選排列　　'; items = $layoutItems; ask = '候選排列' },
-            @{ key = 'size';   title = '候選字級　　'; items = $sizeItems;   ask = '候選字級' },
-            @{ key = 'emoji';  title = '候選附 emoji'; items = $emojiItems;  ask = '打字時候選附帶 emoji（之後仍可在方案選單臨時切換）' },
-            @{ key = 'langs';  title = '選單裡的語言'; items = $langItems;   ask = '方案選單要放哪些語言（注音一定有）'; multi = $true },
-            @{ key = 'gloss';  title = '釋義語言　　'; items = $glossItems;  ask = '日文／英文候選的釋義要用哪種語言顯示' },
-            @{ key = 'font';   title = '候選字型　　'; items = $fontItems;   ask = '候選字型' }
+            @{ key = 'theme';  group = '外觀'; title = '主題　　　　'; items = $themeItems;  ask = '主題（候選窗配色，長相見 README 的預覽圖）'; hint = '候選窗的配色。用 ←→ 換，右邊就是它實際的顏色。' },
+            @{ key = 'dark';   group = '外觀'; title = '系統深色模式'; items = $darkItems;   ask = '系統深色模式'; hint = '系統切到深色模式時，候選窗要不要跟著換成深色。' },
+            @{ key = 'layout'; group = '外觀'; title = '候選排列　　'; items = $layoutItems; ask = '候選排列'; hint = '候選字直的排，還是橫的排成一列。' },
+            @{ key = 'size';   group = '外觀'; title = '候選字級　　'; items = $sizeItems;   ask = '候選字級'; hint = '候選字的大小，標籤與註釋會跟著調整。' },
+            @{ key = 'emoji';  group = '輸入'; title = '候選附 emoji'; items = $emojiItems;  ask = '打字時候選附帶 emoji（之後仍可在方案選單臨時切換）'; hint = '打字時候選裡要不要附上對應的 emoji。這是預設狀態，之後仍可在方案選單臨時切換。' },
+            @{ key = 'langs';  group = '輸入'; title = '選單裡的語言'; items = $langItems;   ask = '方案選單要放哪些語言（注音一定有）'; multi = $true; hint = '方案選單與右 Shift 循環裡要放哪些語言（注音一定有）。←→ 移動，空白鍵勾選。' },
+            @{ key = 'gloss';  group = '輸入'; title = '釋義語言　　'; items = $glossItems;  ask = '日文／英文候選的釋義要用哪種語言顯示'; hint = '日文、英文候選旁邊的釋義，用哪種語言顯示。' },
+            @{ key = 'font';   group = '外觀'; title = '候選字型　　'; items = $fontItems;   ask = '候選字型'; hint = '候選字用哪一套字型。' }
         )
         function Show-Value($row) {
             $v = $opt[$row.key]
@@ -452,7 +453,327 @@ function Install-NaPlus {
             }
             Remove-Item -LiteralPath $stampFile, $retFile -Force -ErrorAction SilentlyContinue
         }
-        while ($true) {
+
+        # ════ 選項畫面 ═══════════════════════════════════════════════════
+        # 以前是「輸入編號 → Enter → 再輸入編號 → Enter → 再 Enter 套用」，換個主題要按五六下，而且主題
+        # 只有名字、看不到長相。現在一個畫面、方向鍵操作：↑↓ 選項目、←→ 直接換值；右邊用主題真正的顏色
+        # 畫一個候選窗，換到哪個就看到哪個；改了什麼列在下面，Backspace 還原那一項，Esc 全部不算。
+        # 幾個刻意的決定（改之前先看）：
+        #   ‧ 所有文字都用「絕對座標」定位，不靠補空白對齊。中日文字、箭頭這類字元在不同終端機佔一格
+        #     還是兩格不一定（Windows Terminal 與傳統主控台就不一樣），算錯只會歪一個字，不會整排亂掉。
+        #   ‧ 預覽的色塊是「有底色的空白」，不用方塊／框線字元（傳統主控台的中文字型把它們畫成兩格寬）。
+        #   ‧ 介面本身只用終端機的預設色＋灰＋一個強調色，深色、淺色的終端機都看得清楚；真彩色只用在
+        #     預覽那一塊。焦點用 ▸、改過的用 ● 標示，不只靠顏色分辨。
+        #   ‧ 終端機不支援 VT、輸入輸出被重導向、或視窗太小 → 退回下面的「輸入編號」版本。NA_PLAIN=1 強制退回。
+        #   ‧ 測試用：NA_TUI_KEYS（例如 "Down,Right,Enter"）＝不讀鍵盤，照這串按鍵走（Wait＝停四秒）；
+        #     NA_TUI_DUMP＝把最後畫出來的那一格畫面（含控制碼）寫進這個檔。
+        function Show-OptionsScreen([string]$scriptKeys, [string]$note) {
+            $CSI = [string][char]27 + '['
+            $kReset = "${CSI}0m"; $kDim = "${CSI}90m"; $kAccent = "${CSI}36m"; $kBold = "${CSI}1m"; $kReverse = "${CSI}7m"
+            function At([int]$r, [int]$c) { return "$CSI$r;${c}H" }
+            # 字串在終端機上佔幾格（中日韓文字與全形符號算兩格）
+            function Cells([string]$s) {
+                $w = 0
+                foreach ($ch in $s.ToCharArray()) {
+                    $c = [int]$ch
+                    if (($c -ge 0x1100 -and $c -le 0x115F) -or ($c -ge 0x2E80 -and $c -le 0xA4CF) -or ($c -ge 0xAC00 -and $c -le 0xD7A3) -or
+                        ($c -ge 0xF900 -and $c -le 0xFAFF) -or ($c -ge 0xFE30 -and $c -le 0xFE4F) -or ($c -ge 0xFF00 -and $c -le 0xFF60) -or
+                        ($c -ge 0xFFE0 -and $c -le 0xFFE6)) { $w += 2 } else { $w += 1 }
+                }
+                return $w
+            }
+            # 超過寬度就截掉、補上 …（底下那幾行說明太長時不可以折行，一折整個畫面就錯位）
+            function Fit([string]$s, [int]$max) {
+                if ((Cells $s) -le $max) { return $s }
+                $out = ''; $w = 0
+                foreach ($ch in $s.ToCharArray()) { $cw = Cells ([string]$ch); if ($w + $cw -gt $max - 1) { break }; $out += $ch; $w += $cw }
+                return $out + '…'
+            }
+            # 小狼毫的顏色是 0xBBGGRR → 終端機真彩色用的 "R;G;B"
+            function Rgb([string]$v, [string]$fallback) {
+                if (-not $v -or $v -notmatch '^0x([0-9A-Fa-f]+)$') { return $fallback }
+                $h = $Matches[1].PadLeft(6, '0'); $h = $h.Substring($h.Length - 6)
+                return ('{0};{1};{2}' -f [Convert]::ToInt32($h.Substring(4, 2), 16), [Convert]::ToInt32($h.Substring(2, 2), 16), [Convert]::ToInt32($h.Substring(0, 2), 16))
+            }
+            # 選項值的顯示文字：「短名：說明」拆成兩段，短名放在列上、說明放在下面那行
+            function Short($row, [string]$v) {
+                $hit = $row.items | Where-Object { $_[0] -eq $v } | Select-Object -First 1
+                if (-not $hit) { return $v }
+                return (((($hit[1] -replace '（預設）', '') -replace '\s{2,}', ' ').Trim()) -split '：', 2)[0]
+            }
+            function Detail($row, [string]$v) {
+                $hit = $row.items | Where-Object { $_[0] -eq $v } | Select-Object -First 1
+                if (-not $hit) { return '' }
+                $p = ((($hit[1] -replace '（預設）', '') -replace '\s{2,}', ' ').Trim()) -split '：', 2
+                if ($p.Count -eq 2) { return $p[1] }
+                return ''
+            }
+
+            # 各主題的顏色：直接讀 repo 裡的配色定義，預覽畫的就是輸入法會用的那組顏色
+            $schemes = @{}; $cur = $null; $inPreset = $false
+            $themeFile = Join-Path $SrcDir 'rime\theme\na_weasel.yaml'
+            if (Test-Path -LiteralPath $themeFile) {
+                foreach ($ln in [IO.File]::ReadAllLines($themeFile, [Text.Encoding]::UTF8)) {
+                    if ($ln -match '^  preset_color_schemes:') { $inPreset = $true; continue }
+                    if (-not $inPreset) { continue }
+                    if ($ln -match '^    ([A-Za-z0-9_]+):\s*$') { $cur = $Matches[1]; $schemes[$cur] = @{}; continue }
+                    if ($cur -and $ln -match '^      ([a-z_]+):\s*(\S+)') { $schemes[$cur][$Matches[1]] = $Matches[2] }
+                }
+            }
+
+            # 進來時的樣子：Esc／Backspace 要還原回這裡，「改了什麼」也是跟它比
+            $snap = @{}; foreach ($k in @($opt.Keys)) { $snap[$k] = $opt[$k] }
+            $snapEdited = @{}; foreach ($k in @($edited.Keys)) { $snapEdited[$k] = $edited[$k] }
+            # 小狼毫對話框那邊的自訂（不是這套的配色、自己勾的方案清單）：沒在這裡動那一項就原樣留著
+            $custom = @{ theme = [bool]($guiTheme -and -not $guiThemeKnown); langs = [bool]$guiSchemas }
+            function Is-Custom([string]$key) { return ($custom[$key] -and -not $edited[$key]) }
+            function Is-Changed([string]$key) {
+                if ($opt[$key] -ne $snap[$key]) { return $true }
+                return ($custom[$key] -and $edited[$key] -and -not $snapEdited[$key])
+            }
+            function Old-Text($row) {
+                if ($row.key -eq 'theme' -and $custom.theme -and -not $snapEdited.theme) { return "自訂配色 $guiTheme" }
+                if ($row.key -eq 'langs' -and $custom.langs -and -not $snapEdited.langs) { return "自訂的 $guiSchemas 個方案" }
+                if ($row.multi) { return (Langs-Text $snap.langs) }
+                return (Short $row $snap[$row.key])
+            }
+            function Langs-Text([string]$v) {
+                $names = @($langItems | Where-Object { ($v -split ',') -contains $_[0] } | ForEach-Object { ($_[1] -split '：')[0] })
+                if ($names.Count) { return ($names -join '、') }
+                return '只有注音'
+            }
+
+            # 畫面上照組別排（外觀在前、輸入在後）。這是函式自己的 $rows，外面那份「輸入編號」用的順序不受影響
+            $rows = @($rows | Where-Object { $_.group -eq '外觀' }) + @($rows | Where-Object { $_.group -eq '輸入' })
+            $focus = 0; $chip = 0
+            $queue = $null
+            if ($scriptKeys) { $queue = New-Object System.Collections.Queue; foreach ($k in ($scriptKeys -split '[,\s]+' | Where-Object { $_ })) { $queue.Enqueue($k) } }
+            $dump = Pick '' 'NA_TUI_DUMP'
+
+            function Render {
+                $cols = 120
+                try { $cols = [Console]::WindowWidth } catch { }
+                $sb = New-Object System.Text.StringBuilder
+                function Put([string]$s) { [void]$sb.Append($s) }
+                function Block([int]$y, [int]$x, [int]$w, [string]$bg) { Put ((At $y $x) + "${CSI}48;2;${bg}m" + (' ' * $w) + $kReset) }
+                function Ink([int]$y, [int]$x, [string]$s, [string]$fg, [string]$bg, [bool]$bold) {
+                    $b = ''; if ($bold) { $b = $kBold }
+                    Put ((At $y $x) + "${CSI}48;2;${bg}m${CSI}38;2;${fg}m" + $b + $s + $kReset)
+                }
+
+                Put "${CSI}?25l"
+                for ($r = 1; $r -le 22; $r++) { Put ((At $r 1) + "${CSI}2K") }
+                Put ((At 2 3) + $kBold + '注音Na+ 設定' + $kReset)
+                if ($note) { Put ((At 2 18) + $kDim + (Fit $note ($cols - 20)) + $kReset) }
+
+                # ── 左邊：選項 ──
+                # 每一組前面一行灰色的組名，組與組之間空一行（相近的東西靠在一起，掃一眼就找得到）
+                $top = 4; $xLabel = 5; $xValue = 22
+                $y = $top - 1; $group = ''
+                for ($i = 0; $i -lt $rows.Count; $i++) {
+                    $row = $rows[$i]; $on = ($i -eq $focus)
+                    if ($row.group -ne $group) {
+                        if ($group) { $y += 2 } else { $y += 1 }
+                        $group = $row.group
+                        Put ((At $y 3) + $kDim + $group + $kReset)
+                    }
+                    $y++
+                    if (Is-Changed $row.key) { Put ((At $y 1) + $kAccent + '●' + $kReset) }
+                    if ($on) { Put ((At $y 3) + $kAccent + '▸' + $kReset + (At $y $xLabel) + $kBold + $row.title.Trim('　') + $kReset) }
+                    else { Put ((At $y $xLabel) + $row.title.Trim('　')) }
+                    Put (At $y $xValue)
+                    if (Is-Custom $row.key) {
+                        $t = "自訂配色 $guiTheme"; if ($row.multi) { $t = "自訂的 $guiSchemas 個方案" }
+                        if ($on) { Put ($kAccent + $kBold + $t + $kReset + $kDim + '   小狼毫對話框選的' + $kReset) } else { Put $t }
+                    } elseif ($row.multi) {
+                        # 可複選的那一項：一排核取方塊，←→ 移動、空白鍵勾選
+                        $set = @($opt.langs -split ',' | Where-Object { $_ -and $_ -ne 'none' })
+                        for ($j = 0; $j -lt $row.items.Count; $j++) {
+                            $box = '[ ] '; if ($set -contains $row.items[$j][0]) { $box = '[x] ' }
+                            $t = $box + (($row.items[$j][1] -split '：')[0])
+                            if ($on -and $j -eq $chip) { Put ($kReverse + $t + $kReset + '  ') } else { Put ($t + '  ') }
+                        }
+                    } else {
+                        $ids = @($row.items | ForEach-Object { $_[0] })
+                        $t = Short $row $opt[$row.key]
+                        if ($on) { Put ($kDim + '‹ ' + $kReset + $kAccent + $kBold + $t + $kReset + $kDim + (' ›   {0}/{1}' -f ([array]::IndexOf($ids, $opt[$row.key]) + 1), $ids.Count) + $kReset) }
+                        else { Put $t }
+                    }
+                }
+
+                # ── 下面：這一項在做什麼、目前這個值的說明 ──
+                $row = $rows[$focus]
+                $help = $row.hint; $more = ''
+                if (Is-Custom $row.key) { $more = '在小狼毫「輸入法設定」那邊選的，沒動這一項就原樣留著；用 ←→ 或空白鍵改成這裡的選項會取代它。' }
+                elseif ($row.multi) { $more = Detail $row $row.items[$chip][0]; if (-not $more) { $more = '注音一定有；勾起來的語言會出現在方案選單（Ctrl+` 或 F4）與右 Shift 的循環裡。' } }
+                else { $more = Detail $row $opt[$row.key] }
+                if (($row.key -eq 'theme' -or $row.key -eq 'dark') -and $sysDark -and $opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) {
+                    $more = '系統現在是深色模式，所以實際看到的是 Nat Dark。想在深色模式也用這個主題：把「系統深色模式」換成不跟隨。'
+                }
+                Put ((At 16 3) + (Fit $help ($cols - 4)))
+                Put ((At 17 3) + $kDim + (Fit $more ($cols - 4)) + $kReset)
+
+                # ── 改了什麼 ──
+                $diff = @()
+                foreach ($x in $rows) {
+                    if (-not (Is-Changed $x.key)) { continue }
+                    $new = Short $x $opt[$x.key]; if ($x.multi) { $new = Langs-Text $opt.langs }
+                    $diff += ('{0}：{1} → {2}' -f $x.title.Trim('　'), (Old-Text $x), $new)
+                }
+                if ($diff.Count) {
+                    # 一行放得下就列出「舊 → 新」；放不下改成只列改了哪幾項（寧可少講，也不要被截掉一半）
+                    $line = '已修改　' + ($diff -join '　｜　')
+                    if ((Cells $line) -gt ($cols - 4)) { $line = ('已修改 {0} 項　' -f $diff.Count) + (($diff | ForEach-Object { ($_ -split '：', 2)[0] }) -join '、') }
+                    Put ((At 19 1) + $kAccent + '●' + $kReset + (At 19 3) + (Fit $line ($cols - 4)))
+                }
+                else { Put ((At 19 3) + $kDim + '還沒有修改。直接按 Enter 就是什麼都不改。' + $kReset) }
+
+                # ── 按鍵提示（每一段各自定位，箭頭字元寬度算錯也不會擠到後面）──
+                $hints = @(@('↑↓', '選項目'), @('←→', '換一個'), @('空白', '勾選'), @('Backspace', '還原這一項'), @('Enter', '套用'), @('Esc', '取消'))
+                $x = 3
+                foreach ($h in $hints) { Put ((At 21 $x) + $kAccent + $h[0] + $kReset + ' ' + $kDim + $h[1] + $kReset); $x += (Cells $h[0]) + (Cells $h[1]) + 4 }
+
+                # ── 右邊：用主題真正的顏色畫一個候選窗 ──
+                $px = 70; $pw = 32
+                if ($cols -ge ($px + $pw + 2)) {
+                    $byKey = @{}; foreach ($x in $rows) { $byKey[$x.key] = $x }
+                    # 圖說只放英文名（「Nat Matcha 抹茶奶油色」取前兩個字），再帶上畫不出來的那兩項：排列與字級
+                    $name = $themeMap[$opt.theme]
+                    $caption = '{0} · {1} · 字級{2}' -f (((Short $byKey.theme $opt.theme) -split ' ')[0..1] -join ' '), (Short $byKey.layout $opt.layout), (Short $byKey.size $opt.size)
+                    if ($rows[$focus].key -eq 'dark' -and $opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) { $name = 'NatDark'; $caption = '系統切到深色模式時 → Nat Dark' }
+                    $c = $schemes[$name]
+                    if ((Is-Custom 'theme') -or -not $c) {
+                        Put ((At ($top + 3) $px) + $kDim + '（自訂配色，這裡沒有它的顏色資料）' + $kReset)
+                    } else {
+                        $back = Rgb $c.back_color '255;255;255'; $frame = Rgb $c.border_color $back
+                        $text = Rgb $c.text_color '0;0;0'; $hText = Rgb $c.hilited_text_color $text; $hBack = Rgb $c.hilited_back_color $back
+                        $label = Rgb $c.label_color $text; $cand = Rgb $c.candidate_text_color $text; $cmt = Rgb $c.comment_text_color $label
+                        $hcBack = Rgb $c.hilited_candidate_back_color $hBack; $hcText = Rgb $c.hilited_candidate_text_color $hText
+                        $hcLabel = Rgb $c.hilited_candidate_label_color $hcText; $hcCmt = Rgb $c.hilited_comment_text_color $hcText
+                        $mark = Rgb $c.hilited_mark_color $hcText; $page = Rgb $c.nextpage_color $text
+                        $ix = $px + 2; $iw = $pw - 4                    # 框裡面那一塊的左緣與寬度
+                        $cands = @(@('你好', ''), @('妳好', ''), @('さくら', '櫻花'), @('hello', '哈囉'))
+                        $tall = 8; if ($opt.layout -eq 'horizontal') { $tall = 5 }
+                        for ($k = 0; $k -lt $tall; $k++) { Block ($top + $k) $px $pw $frame }
+                        for ($k = 1; $k -lt $tall - 1; $k++) { Block ($top + $k) $ix $iw $back }
+                        # 編碼列：已確定的部分＋高亮段，右側是翻頁箭頭
+                        Ink ($top + 1) ($ix + 2) 'ㄋㄧ' $text $back $false
+                        Ink ($top + 1) ($ix + 7) ' ㄏㄠ ' $hText $hBack $false
+                        Ink ($top + 1) ($ix + $iw - 6) '<' $label $back $false
+                        Ink ($top + 1) ($ix + $iw - 3) '>' $page $back $true
+                        if ($opt.layout -eq 'horizontal') {
+                            $cx = $ix + 1
+                            for ($k = 0; $k -lt 3; $k++) {
+                                $w = (Cells $cands[$k][0]) + 4
+                                if ($k -eq 0) { Block ($top + 3) $cx $w $hcBack; Ink ($top + 3) ($cx + 1) '1' $hcLabel $hcBack $false; Ink ($top + 3) ($cx + 3) $cands[$k][0] $hcText $hcBack $true }
+                                else { Ink ($top + 3) ($cx + 1) ([string]($k + 1)) $label $back $false; Ink ($top + 3) ($cx + 3) $cands[$k][0] $cand $back $true }
+                                $cx += $w + 1
+                            }
+                        } else {
+                            for ($k = 0; $k -lt $cands.Count; $k++) {
+                                $y = $top + 3 + $k
+                                $bg = $back; $fgL = $label; $fgT = $cand; $fgC = $cmt
+                                if ($k -eq 0) {
+                                    $bg = $hcBack; $fgL = $hcLabel; $fgT = $hcText; $fgC = $hcCmt
+                                    Block $y ($ix + 1) ($iw - 2) $hcBack
+                                    Block $y ($ix + 1) 1 $mark              # 高亮列左側那條色條
+                                }
+                                Ink $y ($ix + 3) ([string]($k + 1)) $fgL $bg $false
+                                Ink $y ($ix + 6) $cands[$k][0] $fgT $bg $true
+                                if ($cands[$k][1]) { Ink $y ($ix + 8 + (Cells $cands[$k][0])) $cands[$k][1] $fgC $bg $false }
+                            }
+                        }
+                        Put ((At ($top + $tall) $px) + $kDim + (Fit $caption $pw) + $kReset)
+                    }
+                }
+                Put (At 22 1)
+                return $sb.ToString()
+            }
+
+            try {
+                while ($true) {
+                    $frame = Render
+                    # 一定要經過 PowerShell 的主機來寫（它走 Unicode）。用 [Console]::Write 的話會先照主控台的字碼頁
+                    # （繁中是 Big5）編碼，Big5 沒有的字 —— ▸、‹ ›、日文假名 —— 全部變成問號（真實截圖才看得出來）。
+                    $Host.UI.Write($frame)
+                    if ($dump) { [IO.File]::WriteAllText($dump, $frame, (New-Object Text.UTF8Encoding $false)) }
+                    $key = ''
+                    if ($queue) { if ($queue.Count) { $key = [string]$queue.Dequeue() } else { $key = 'Enter' } }
+                    else { $key = [string]([Console]::ReadKey($true)).Key }
+                    $row = $rows[$focus]
+                    $dir = 0
+                    if ($key -eq 'Wait') { Start-Sleep -Seconds 4; continue }   # 只有按鍵腳本會有：停在這一格（截圖用，見 tools\setup-screenshot.ps1）
+                    if ($key -match '^(Enter)$') { break }
+                    elseif ($key -match '^(Escape|Esc|Q)$') {
+                        # 全部不算：選項回到進來時的樣子
+                        foreach ($k in @($snap.Keys)) { $opt[$k] = $snap[$k] }
+                        $edited.Clear(); foreach ($k in @($snapEdited.Keys)) { $edited[$k] = $snapEdited[$k] }
+                        break
+                    }
+                    elseif ($key -match '^(UpArrow|Up|K)$')     { $focus = ($focus + $rows.Count - 1) % $rows.Count }
+                    elseif ($key -match '^(DownArrow|Down|J|Tab)$') { $focus = ($focus + 1) % $rows.Count }
+                    elseif ($key -match '^(Home|PageUp)$')      { $focus = 0 }
+                    elseif ($key -match '^(End|PageDown)$')     { $focus = $rows.Count - 1 }
+                    elseif ($key -match '^(?:D|NumPad)?([1-9])$' -and [int]$Matches[1] -le $rows.Count) { $focus = [int]$Matches[1] - 1 }
+                    elseif ($key -match '^(Backspace|Delete)$') {
+                        # 還原這一項（含「回到小狼毫對話框那邊的自訂」）
+                        $opt[$row.key] = $snap[$row.key]
+                        if ($snapEdited[$row.key]) { $edited[$row.key] = $true } else { $edited.Remove($row.key) }
+                    }
+                    elseif ($key -match '^(LeftArrow|Left|H)$')  { $dir = -1 }
+                    elseif ($key -match '^(RightArrow|Right|L)$') { $dir = 1 }
+                    elseif ($key -match '^(Spacebar|Space)$')    { $dir = 2 }      # 2＝空白鍵：單選是「下一個」，複選是「勾／取消」
+                    if (-not $dir) { continue }
+
+                    if ($row.multi) {
+                        if (Is-Custom $row.key) { $edited[$row.key] = $true; continue }   # 第一下只是「改成在這裡選」，不動內容
+                        if ($dir -eq 2) {
+                            $id = $row.items[$chip][0]
+                            $set = @($opt.langs -split ',' | Where-Object { $_ -and $_ -ne 'none' })
+                            if ($set -contains $id) { $set = @($set | Where-Object { $_ -ne $id }) } else { $set += $id }
+                            # 照清單的順序排，不然同樣的選擇會因為勾的先後不同而被當成有變動
+                            $set = @($row.items | ForEach-Object { $_[0] } | Where-Object { $set -contains $_ })
+                            if ($set.Count) { $opt.langs = ($set -join ',') } else { $opt.langs = 'none' }
+                            $edited[$row.key] = $true
+                        } else { $chip = ($chip + $dir + $row.items.Count) % $row.items.Count }
+                    } else {
+                        if ($dir -eq 2) { $dir = 1 }
+                        $ids = @($row.items | ForEach-Object { $_[0] })
+                        $i = [array]::IndexOf($ids, $opt[$row.key]); if ($i -lt 0) { $i = 0 }
+                        if (-not (Is-Custom $row.key)) { $i = ($i + $dir + $ids.Count) % $ids.Count }   # 從自訂換過來的第一下：停在選項檔原本那個
+                        $opt[$row.key] = $ids[$i]
+                        $edited[$row.key] = $true
+                    }
+                }
+            } finally {
+                # 不管怎麼離開，終端機都要回到正常狀態（游標、顏色），畫面清乾淨給後面的訊息用
+                $Host.UI.Write("${CSI}0m${CSI}?25h${CSI}2J${CSI}H")
+            }
+        }
+
+        $screenDone = $false
+        $tuiKeys = Pick '' 'NA_TUI_KEYS'
+        $useScreen = [bool]$tuiKeys
+        if (-not $useScreen -and -not (Pick '' 'NA_PLAIN')) {
+            try {
+                $useScreen = [bool]$Host.UI.SupportsVirtualTerminal -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected -and
+                             [Console]::WindowWidth -ge 72 -and [Console]::WindowHeight -ge 23
+            } catch { $useScreen = $false }
+        }
+        if ($useScreen) {
+            $optBackup = @{}; foreach ($k in @($opt.Keys)) { $optBackup[$k] = $opt[$k] }
+            $editedBackup = @{}; foreach ($k in @($edited.Keys)) { $editedBackup[$k] = $edited[$k] }
+            try { Show-OptionsScreen $tuiKeys $launchNote.Trim('　'); $screenDone = $true }
+            catch {
+                # 畫面出了狀況就退回輸入編號的版本，選項回到進來前的樣子，不要帶著改到一半的值往下走
+                foreach ($k in @($optBackup.Keys)) { $opt[$k] = $optBackup[$k] }
+                $edited.Clear(); foreach ($k in @($editedBackup.Keys)) { $edited[$k] = $editedBackup[$k] }
+                Warn "選項畫面開不起來（$($_.Exception.Message)），改用輸入編號的方式。"
+            }
+        }
+
+        # ════ 輸入編號的版本（終端機不支援上面那個畫面時用）════
+        while (-not $screenDone) {
             Write-Host ''
             Write-Host "目前的設定$launchNote" -ForegroundColor Cyan
             $launchNote = ''

@@ -671,10 +671,12 @@ switch ($Mode) {
     function Reapply { (& (Join-Path $Repo 'scripts\rime-apply.ps1') -RimeDir $Sandbox -NoLaunchers -AllowDowngrade -Quiet | Select-Object -Last 1).Build }
     # 跟 scripts\rime-setup.cmd 同樣的跑法（明確用 UTF-8 讀進來當 script block）：目標指到沙盒、不問、不部署。
     # -Font system：別在測試裡下載安裝字型。
-    function Setup([string]$extraArgs) {
-      $names = 'NA_HOME', 'NA_LOCAL', 'NA_NO_DEPLOY', 'NA_RIME_DIR', 'NA_YES', 'NA_INSTALL'
+    # $keys：不給＝不詢問（-Yes）；給了＝開選項畫面、照這串按鍵操作（"Right,Enter" 之類，見 install.ps1 的 NA_TUI_KEYS）
+    function Setup([string]$extraArgs, [string]$keys) {
+      $names = 'NA_HOME', 'NA_LOCAL', 'NA_NO_DEPLOY', 'NA_RIME_DIR', 'NA_YES', 'NA_INSTALL', 'NA_FORCE_INTERACTIVE', 'NA_TUI_KEYS'
       $old = @{}; foreach ($n in $names) { $old[$n] = [Environment]::GetEnvironmentVariable($n) }
       $env:NA_HOME = $Repo; $env:NA_LOCAL = '1'; $env:NA_NO_DEPLOY = '1'; $env:NA_RIME_DIR = $Sandbox; $env:NA_YES = '1'
+      if ($keys) { $env:NA_YES = $null; $env:NA_FORCE_INTERACTIVE = '1'; $env:NA_TUI_KEYS = $keys }
       $env:NA_INSTALL = Join-Path $Repo 'install.ps1'
       try {
         $out = & pwsh -NoProfile -ExecutionPolicy Bypass -Command "`$global:NaSetupOk = `$false; & ([scriptblock]::Create([IO.File]::ReadAllText(`$env:NA_INSTALL, [Text.Encoding]::UTF8))) -Font system $extraArgs; if (-not `$global:NaSetupOk) { exit 1 }" 2>&1
@@ -739,6 +741,21 @@ switch ($Mode) {
       Check 'G27 自訂配色原樣留著'               (Color) 'my_own_scheme'
       Check 'G28 setup 重選主題'                 (Setup '-Theme light') $true
       Check 'G29 自訂配色被 setup 取代'          (Color) 'NatLight'
+
+      # ── 選項畫面（方向鍵那個）：照按鍵腳本操作，看寫出來的設定對不對 ──
+      # 畫面上的順序：外觀＝主題、深色模式、排列、字級、字型；輸入＝emoji、語言、釋義。
+      # 現在的狀態：主題 light、語言只有日文、沒有對話框那邊的自訂。
+      Check 'S01 → 再 Enter：主題換下一個'       ((Setup '' 'Right,Enter') -and (Color) -eq 'NatFluent') $true
+      Check 'S02 → 再 Esc：取消，什麼都不變'     ((Setup '' 'Right,Right,Escape') -and (Color) -eq 'NatFluent') $true
+      Check 'S03 → 再 Backspace：還原那一項'     ((Setup '' 'Right,Backspace,Enter') -and (Color) -eq 'NatFluent') $true
+      Check 'S04 ← 會繞回最後一個'               ((Setup '' 'Left,Left,Left,Enter') -and (Color) -eq 'NatLee') $true
+      Check 'S05 語言：移到韓文、空白鍵勾起來'   ((Setup '' 'Down,Down,Down,Down,Down,Down,Right,Space,Enter') -and (Schemas) -eq 'bopomo_onionplus,jpnin1,hangeul_hnc') $true
+      Check 'S06 數字鍵跳到那一項（3＝排列）'    ((Setup '' '3,Right,Enter') -and ((Text 'na_style.custom.yaml') -match '(?m)^  horizontal: true')) $true
+      # 對話框選了不是這套的配色：畫面上那一項顯示「自訂」，沒動它就原樣留著；動了再 Backspace 也要回到自訂
+      [void][RimeT]::DialogPickColorScheme('my_own_scheme')
+      Check 'S07 自訂配色：沒動那一項就留著'     ((Setup '' 'Down,Down,Right,Enter') -and (Color) -eq 'my_own_scheme') $true
+      Check 'S08 自訂配色：動了再還原，仍是自訂' ((Setup '' 'Right,Right,Backspace,Enter') -and (Color) -eq 'my_own_scheme') $true
+      Check 'S09 自訂配色：改選主題就取代它'     ((Setup '' 'Right,Enter') -and (Color) -eq 'NatLee') $true
 
       # ── 舊版面升級：weasel.custom.yaml 整個是 repo 的內容＋檔尾有對話框選的配色 ──
       [IO.File]::WriteAllText((Join-Path $Sandbox 'weasel.custom.yaml'), "patch:`n  style:`n    color_scheme: { __include: `"na_options:/theme`" }`n`n  `"style/color_scheme`": $pick`n")
