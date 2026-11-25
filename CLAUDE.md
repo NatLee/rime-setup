@@ -29,7 +29,7 @@ PowerShell 5.1 跑、個人資料不可進版控。
    `pwsh tools\rime-test.ps1 -Sync -Mode basic` → 黃金樣本（目前 59 條）必須全 PASS 才算沒退步。
    沙盒是 `%TEMP%\rime_sandbox`，用同一支 `rime-apply.ps1` 攤平，不碰使用者真實資料夾與詞庫。
    沙盒裡「開檔案／跑腳本」的動作一律只記錄、不執行，測試不會開瀏覽器也不會真的跑更新。
-   動到套用腳本、安裝腳本的選項段、或 `weasel`／`default` 的檔案配置，再加跑 `-Mode gui`（33 條）。
+   動到套用腳本、安裝腳本的選項段、或 `weasel`／`default` 的檔案配置，再加跑 `-Mode gui`（42 條，含選項畫面的按鍵操作）。
 
 3. **個人資料不進 repo**
    詞頻（`*.userdb/`、`sync/`）、個人短語（`bopomo_onionplus_phrase.txt`）、個人安裝選項（`na_style.custom.yaml`、`na_input.custom.yaml`、`na_menu.custom.yaml`）、
@@ -96,7 +96,7 @@ PowerShell 5.1 跑、個人資料不可進版控。
 | emoji 聯想、字集過濾、符號標註的對照表 | `rime/opencc/*.txt` 是來源，輸入法讀的是編譯後的 `.ocd2`。**改了 .txt 要跑 `pwsh tools\opencc-build.ps1` 重編**（需要 Docker），兩個檔一起提交 |
 | 候選字型（粉圓體／系統字型） | 預設值（系統字型）在 `rime/core/na_style.yaml` 的 `font_face`／`comment_font_face`／`mac_*`；安裝腳本選粉圓體時偵測或下載安裝字型，再把實際的字型名稱寫進個人選項檔。字型檔不進 repo |
 | 新增一個主題 | 配色加進 `rime/theme/na_weasel.yaml` **和** `squirrel.custom.yaml` → `install.ps1`、`install.sh` 的主題清單與對照表 → `pwsh tools\theme-preview.ps1` 重產預覽圖 → README「主題」那張表加一格 |
-| `'/setup`（選項畫面） | 就是安裝腳本的互動選單：`install.ps1`／`install.sh` 裡「目前的設定」那個迴圈。輸入法端的入口在 `p_run_pattern.lua` 的 `setup` 與 `mf_menu_data.lua` 的 `set` 選單。它開的視窗成功會自己關（`scripts/rime-setup.cmd`）。小狼毫對話框選的配色／方案清單怎麼跟選項並存：GOTCHAS「小狼毫設定對話框與 `*.custom.yaml`」 |
+| `'/setup`（選項畫面） | 就是安裝腳本的互動選單。Windows 是 `install.ps1` 的 `Show-OptionsScreen`（方向鍵操作、右邊即時預覽主題；用 `NA_TUI_KEYS` 給按鍵腳本來測；改了版面要跑 `pwsh toolssetup-screenshot.ps1` 重產 README 的截圖並打開來看），終端機不支援時退回「目前的設定」那個輸入編號的迴圈；macOS 的 `install.sh` 只有輸入編號的版本。輸入法端的入口在 `p_run_pattern.lua` 的 `setup` 與 `mf_menu_data.lua` 的 `set` 選單。它開的視窗成功會自己關（`scripts/rime-setup.cmd`）。小狼毫對話框選的配色／方案清單怎麼跟選項並存：GOTCHAS「小狼毫設定對話框與 `*.custom.yaml`」 |
 | 自訂詞（打 `email` 出信箱那種） | 個人的：使用者資料夾的 `bopomo_onionplus_phrase.txt`（改完要**部署**）；給新使用者的範本：`rime/bopomofo/bopomo_onionplus_phrase.sample.txt` |
 | `'/` 開頭的多功能（日期／計算機／Unicode…） | `rime/lua/mf_components/` → 見 [架構文件](docs/ARCHITECTURE.md) |
 | `'/ts`、`'/uuid`、`'/pw`、`'/rgb`、`'/cs` | `rime/lua/translator_devkit.lua` |
