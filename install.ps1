@@ -7,10 +7,11 @@
 #
 # 不想被問（自動化／固定選項）：先設環境變數再跑，或直接帶參數
 #   $env:NA_THEME='light'; $env:NA_EMOJI='off'; $env:NA_YES='1'; irm <網址> | iex
+#   （-Yes＝全部用預設答案，所以缺 git／小狼毫時會直接安裝）
 #   & ([scriptblock]::Create((irm <網址>))) -Theme light -Emoji off -Langs ja,en -Yes
 #
 # 這支腳本會：
-#   確認 git／小狼毫 → 把設定 repo 下載到 %USERPROFILE%\.na-plus（已有就更新）
+#   確認 git／小狼毫（沒有就自動安裝）→ 把設定 repo 下載到 %USERPROFILE%\.na-plus（已有就更新）
 #   → 第一次：備份既有的 RIME 使用者資料夾，並還原你的打字詞頻與個人短語
 #   → 問選項 → 把檔案套用到使用者資料夾 → 部署並重啟小狼毫
 #
@@ -189,19 +190,91 @@ function Install-NaPlus {
     try { if ([Console]::IsInputRedirected) { $interactive = $false } } catch { }
     if (Pick '' 'NA_FORCE_INTERACTIVE') { $interactive = $true }   # 測試用：從 stdin 餵答案
 
+    # ── 缺的程式自動裝 ────────────────────────────────────────────────
+    # 安裝程式只把新路徑寫進登錄檔的 PATH，已經開著的視窗（包括正在跑這支腳本的這個）
+    # 看不到 —— 以前裝完 git 要「開新視窗再跑一次」就是這個原因。這裡從登錄檔讀回來。
+    function Update-SessionPath {
+        $all = @()
+        foreach ($scope in 'Machine', 'User') {
+            $p = [Environment]::GetEnvironmentVariable('Path', $scope)
+            if ($p) { $all += ($p -split ';') }
+        }
+        $all += ($env:PATH -split ';')   # 這個視窗自己加過的也留著
+        $seen = @{}; $out = @()
+        foreach ($d in $all) {
+            $d = [Environment]::ExpandEnvironmentVariables($d.Trim())
+            if ($d -and -not $seen.ContainsKey($d.ToLower())) { $seen[$d.ToLower()] = $true; $out += $d }
+        }
+        $env:PATH = $out -join ';'
+    }
+
+    function Find-Git {
+        if (Get-Command git.exe -ErrorAction SilentlyContinue) { return $true }
+        Update-SessionPath
+        if (Get-Command git.exe -ErrorAction SilentlyContinue) { return $true }
+        # 登錄檔也還沒有（少數安裝方式不寫 PATH）：直接找常見的安裝位置
+        foreach ($base in $env:ProgramFiles, $env:ProgramW6432, (Join-Path $env:LOCALAPPDATA 'Programs')) {
+            if (-not $base) { continue }
+            $cmd = Join-Path $base 'Git\cmd'
+            if (Test-Path (Join-Path $cmd 'git.exe')) { $env:PATH = "$cmd;$env:PATH"; return $true }
+        }
+        return $false
+    }
+
+    # 預設是「要裝」：-Yes 直接裝；能問就問；不能問（輸入被導向）就不裝。
+    function Confirm-Install ([string]$what) {
+        if ($Yes) { return $true }
+        if (-not $interactive) { return $false }
+        return ((Read-Host "  找不到${what}。要自動安裝嗎？[Y/n]").Trim() -notmatch '^[nN]')
+    }
+
+    # 先用 winget；沒有 winget（舊版 Windows 10、LTSC、Windows 沙箱）或它失敗，
+    # 就從 GitHub 下載官方安裝檔靜默安裝。兩條路都會跳一次 UAC（都裝到 Program Files）。
+    # $found：裝完用來確認「真的裝好了」的檢查，不看安裝程式的 exit code。
+    function Install-App ([string]$name, [string]$wingetId, [string]$override,
+                          [string]$ghRepo, [string]$assetPattern, [string]$silentArgs, [scriptblock]$found) {
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            Say "  用 winget 安裝${name}…"
+            $wa = @('install', '--id', $wingetId, '-e', '--source', 'winget', '--accept-source-agreements', '--accept-package-agreements')
+            if ($override) { $wa += @('--override', $override) }
+            $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+            try { & winget @wa } catch { } finally { $ErrorActionPreference = $old }
+            if (& $found) { return $true }
+            Warn 'winget 沒有裝成功，改從 GitHub 下載官方安裝檔。'
+        }
+        $tmp = $null
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+            $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/$ghRepo/releases/latest" -UseBasicParsing -Headers @{ 'User-Agent' = 'na-plus-installer' }
+            $asset = @($rel.assets | Where-Object { $_.name -match $assetPattern }) | Select-Object -First 1
+            if (-not $asset) { throw "在 $ghRepo $($rel.tag_name) 找不到安裝檔" }
+            $tmp = Join-Path ([IO.Path]::GetTempPath()) ('na-plus-' + [Guid]::NewGuid().ToString('N'))
+            New-Item -ItemType Directory -Force $tmp | Out-Null
+            $exe = Join-Path $tmp $asset.name
+            Say ('  下載 {0}（{1:N0} MB）…' -f $asset.name, ($asset.size / 1MB))
+            $old = $ProgressPreference; $ProgressPreference = 'SilentlyContinue'   # 5.1 的進度條會讓下載慢十倍
+            try { Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $exe -UseBasicParsing } finally { $ProgressPreference = $old }
+            Say '  安裝中（跳出「是否允許變更」時請按「是」）…'
+            Start-Process -FilePath $exe -ArgumentList $silentArgs -Verb RunAs -Wait | Out-Null
+        } catch {
+            Warn "自動安裝${name}失敗：$($_.Exception.Message)"
+        } finally {
+            if ($tmp) { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+        }
+        return [bool](& $found)
+    }
+    $isArm = ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') -or ($env:PROCESSOR_ARCHITEW6432 -eq 'ARM64')
+
     # ── [1] git ───────────────────────────────────────────────────────
     Step '檢查 git'
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        $gitCmd = Join-Path $env:ProgramFiles 'Git\cmd'
-        if (Test-Path (Join-Path $gitCmd 'git.exe')) {
-            $env:PATH = "$gitCmd;$env:PATH"   # 裝了但這個視窗的 PATH 還沒更新
-        } elseif ((Get-Command winget -ErrorAction SilentlyContinue) -and $interactive -and
-                  ((Read-Host '  找不到 git。要用 winget 安裝嗎？[Y/n]').Trim() -notmatch '^[nN]')) {
-            winget install --id Git.Git -e --source winget --accept-source-agreements --accept-package-agreements
-            if (Test-Path (Join-Path $gitCmd 'git.exe')) { $env:PATH = "$gitCmd;$env:PATH" }
+    if (-not (Find-Git)) {
+        $gitAsset = '^Git-[\d.]+-64-bit\.exe$'
+        if ($isArm) { $gitAsset = '^Git-[\d.]+-arm64\.exe$' }
+        if (Confirm-Install ' git') {
+            [void](Install-App ' git' 'Git.Git' '' 'git-for-windows/git' $gitAsset '/VERYSILENT /NORESTART /NOCANCEL /SP- /SUPPRESSMSGBOXES' { Find-Git })
         }
-        if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            Die '需要 git。請先安裝 https://git-scm.com/download/win （或 winget install Git.Git），開新的 PowerShell 視窗後再跑一次。'
+        if (-not (Find-Git)) {
+            Die '需要 git。請先安裝 https://git-scm.com/download/win （或 winget install Git.Git），再跑一次這行指令。'
         }
     }
     Ok ((Run-Git --version) -join ' ')
@@ -220,10 +293,12 @@ function Install-NaPlus {
     }
     $weaselRoot = Find-Weasel
     if (-not $weaselRoot -and -not $NoDeploy) {
-        if ((Get-Command winget -ErrorAction SilentlyContinue) -and $interactive -and
-            ((Read-Host '  找不到小狼毫。要用 winget 安裝嗎？[Y/n]').Trim() -notmatch '^[nN]')) {
-            winget install --id Rime.Weasel -e --source winget --accept-source-agreements --accept-package-agreements
+        # /S＝靜默、/T＝註冊成「中文（台灣）」的輸入法。只給 /S 會註冊成簡體中文
+        # （小狼毫安裝檔 install.nsi 的行為；winget 預設就只給 /S，所以要 --override）。
+        if (Confirm-Install '小狼毫') {
+            [void](Install-App '小狼毫' 'Rime.Weasel' '/S /T' 'rime/weasel' '^weasel-[\d.]+-installer\.exe$' '/S /T' { [bool](Find-Weasel) })
             $weaselRoot = Find-Weasel
+            if ($weaselRoot) { Ok '小狼毫裝好了。之後在工作列的輸入法清單（Win＋空白鍵）選「小狼毫」就能用。' }
         }
         if (-not $weaselRoot) {
             Die '找不到小狼毫。請先安裝 https://rime.im/download/ （安裝時語言選「繁體中文」），再跑一次這行指令。'

@@ -26,15 +26,16 @@ irm https://raw.githubusercontent.com/NatLee/rime-setup/main/install.ps1 | iex
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/NatLee/rime-setup/main/install.sh)"
 ```
 
-需要先有：
+**全新的電腦也可以直接跑**：輸入法本體和 git 沒裝的話，腳本會問一聲然後自動裝好，裝完就接著往下走，不用重開視窗。
 
 | | Windows | macOS |
 |---|---|---|
-| 輸入法本體 | [小狼毫](https://rime.im/download/)（建議 0.17 以上，主題用到的圓角／陰影／深色模式是新版功能） | [鼠鬚管](https://rime.im/download/) 新版（語言模型要用內建的 octagram 外掛） |
-| git | [Git for Windows](https://git-scm.com/download/win) | `xcode-select --install` |
+| 輸入法本體 | [小狼毫](https://rime.im/download/)：用 winget 裝，沒有 winget 就下載官方安裝檔（註冊成「中文（台灣）」輸入法） | [鼠鬚管](https://rime.im/download/)：有 Homebrew 就用 brew，沒有就下載官方安裝檔（要輸入登入密碼） |
+| git | [Git for Windows](https://git-scm.com/download/win)：同上 | Apple 的 Command Line Tools：跳出的視窗按「安裝」，腳本會等它裝完 |
 
-缺的話腳本會提示；電腦上有 `winget`／Homebrew 時會問你要不要順便裝。
-下載量約 100 MB，第一次部署要編譯詞典，約 2～5 分鐘。
+安裝程式要寫進 Program Files（`/Library`），所以 Windows 會跳一次「是否允許變更」、macOS 會要密碼。
+已經裝好的話不會重裝；小狼毫建議 0.17 以上（主題用到的圓角／陰影／深色模式是新版功能）。
+下載量約 100 MB（還要裝輸入法本體與 git 的話再多約 100 MB），第一次部署要編譯詞典，約 2～5 分鐘。
 
 macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 

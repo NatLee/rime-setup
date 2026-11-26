@@ -112,6 +112,12 @@ if ($SkipPull) {
 } elseif (-not (Test-Path (Join-Path $Repo '.git'))) {
     Write-Host '      （這份設定不是 git clone 來的，略過 git pull）'
 } else {
+    if (-not (Get-Command git.exe -ErrorAction SilentlyContinue)) {
+        # 輸入法服務比 git 早啟動（例如安裝時才裝 git）時，從它開出來的視窗 PATH 裡沒有 git：
+        # 從登錄檔把最新的 PATH 讀回來
+        $env:PATH = (@([Environment]::GetEnvironmentVariable('Path', 'Machine'), [Environment]::GetEnvironmentVariable('Path', 'User'), $env:PATH) |
+                     Where-Object { $_ }) -join ';'
+    }
     git -C $Repo pull --ff-only
     if ($LASTEXITCODE -ne 0) {
         Write-Host ''
