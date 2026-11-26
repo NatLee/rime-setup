@@ -398,6 +398,19 @@ echo "備份保留在 ${BACKUP}，確認後可刪除" # 正確
 現代 bash（5.x，含 Linux 與 Homebrew 版）**不會**重現這個錯誤，所以在 CI 或
 Linux 沙盒測過不代表 Mac 會過。→ 中文字串裡的變數一律加大括號。
 
+3.2 的另一個坑：**`$( … )` 裡面的 `case` 不可以用 `值)` 的寫法**，那個 `)` 會被當成命令替換的結尾：
+
+```bash
+echo "$( case "${SIZE}" in small) echo 小 ;; *) echo 中 ;; esac )"     # 3.2：syntax error near unexpected token
+echo "$( case "${SIZE}" in (small) echo 小 ;; (*) echo 中 ;; esac )"   # 正確：模式前面補左括號
+```
+
+`install.sh` 的「輸入編號」選單有兩行這樣寫，在 Mac 上一直顯示成錯誤訊息，直到在 Mac 上實際跑才發現。
+→ **測 Mac 的腳本一律用 `/bin/bash` 跑**，不要用 PATH 上的 bash（Homebrew 裝的是 5.x）。
+
+同類的還有「一個 `ls` 檢查兩個路徑」：`ls 甲 乙` 只要其中一個不存在就回傳失敗。安裝腳本原本這樣
+判斷粉圓體裝了沒，結果字型明明在，每次都重新下載。→ 每個路徑各自用 `[ -f ]` 檢查。
+
 ### Caps Lock 切不了中英 → 被 macOS 搶在前面
 系統設定 → 鍵盤 → 輸入方式的「使用大寫鎖定鍵切換輸入法」會攔截 Caps，
 `ascii_composer/switch_key` 永遠等不到事件。**必須手動關掉**，腳本改不到。
@@ -733,6 +746,24 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
 - **改了版面一定要重產截圖並打開來看**：`pwsh tools\setup-screenshot.ps1`。它開真的終端機視窗、把畫面帶到指定狀態後截下那個視窗
   （目標是臨時資料夾，截完就結束行程，不會碰到真正的輸入法），存到 `docs/setup/`，README 用的就是這幾張。
   這同時是唯一能看到「它在真實終端機上有沒有歪掉、有沒有變問號」的檢查；會在桌面上開視窗，每張約五秒。
+
+**macOS 版**（`install.sh` 的 `tui_run`）另外要注意的：
+- **bash 3.2 的 `read -t` 只吃整數秒**，所以方向鍵序列 `ESC [ A` 是「讀到 ESC 後再等最多 1 秒讀兩個字」。
+  副作用是單按 Esc 要等一秒才生效 —— 所以另外給了 `q` 當取消。
+- **繪製時不可以開子 shell**：`$(…)` 每個約 1～2 ms，畫一格要上百次，按鍵會明顯延遲。函式一律把結果放進全域變數
+  （`V`、`SHORT`、`CELLS`、`FIT`…），色塊的空白用預先準備好的 `PAD` 切，不用 `$(printf '%*s')`。
+- 中日文字寬度用「字元數＋(位元組數−字元數)/2」估（`cells`）：靠的是在函式裡 `local LC_ALL=C` 拿位元組數，
+  bash 3.2 會跟著切換 locale、離開函式時換回來。箭頭這類窄字元會被多算一格，按鍵提示那一列有特別扣回來。
+- **重導向的順序**：`stty size 2>/dev/null < /dev/tty`，`2>/dev/null` 要寫在前面。寫在後面的話，沒有終端機時
+  `< /dev/tty` 先失敗、錯誤訊息照樣印出來。
+- 真彩色看 `COLORTERM`（macOS 26 起的「終端機」會設 `truecolor`），沒有就換算成 256 色；`NA_TRUECOLOR=0/1` 可強制。
+- **怎麼測**：同 Windows，`NA_TUI_KEYS`＋`NA_TUI_DUMP`，再加 `NA_TUI_COLS=110`（沒有終端機時的寬度）、`NA_SYS_DARK=1`
+  （假裝系統是深色模式）。真的鍵盤路徑用 `script` 開虛擬終端機、把 `printf '\033[C'` 這類位元組餵進去測。
+  別忘了 `NA_NO_DEPLOY=1` 與 `NA_RIME_DIR` 指到臨時資料夾，`NA_FONT_DIR` 也指過去（否則會去檢查／下載真的字型）。
+- 看版面：Claude Code 之類的工具沒有螢幕錄製權限、截不到「終端機」視窗時，可以把 `NA_TUI_DUMP` 的控制碼轉成 HTML，
+  再用 Chrome 的 `--headless --screenshot` 截圖。
+- `'/setup` 開的 `na-setup.command` 成功後會用 `osascript` 關掉自己那個「終端機」視窗（依 tty 找）。要等 shell 結束後才關，
+  否則會跳「要終止程序嗎」—— 所以是丟到背景、先 `delay 0.5`。只對「終端機」做，iTerm2 等照舊按 Enter 關。
 
 ### PowerShell：只有一個元素的「陣列的陣列」會被攤平
 `@( @('jpnin1', '日文') )` 得到的是兩個字串，不是「一個含兩元素的陣列」，
