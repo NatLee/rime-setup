@@ -33,6 +33,8 @@
 # ⚠ 寫給維護者：
 #   ‧ macOS 內建 bash 是 3.2：沒有關聯陣列、沒有 ${var,,}、沒有 mapfile。
 #   ‧ 3.2 底下 `$VAR` 後面緊接中文會把中文吃進變數名 → 一律寫 ${VAR}。
+#   ‧ 3.2 底下 `$( case … in 值) … esac )` 的 `)` 會被當成命令替換的結尾 → 寫成 `(值)`。
+#   ‧ 測試一律用 /bin/bash 跑（PATH 上的可能是 Homebrew 的 5.x，上面兩個錯都重現不了）。
 #   ‧ 全部包在 main() 裡、最後一行才呼叫：curl 下載到一半斷線時不會執行半支腳本。
 #   ‧ `bash -c "$(curl …)"` 時 stdin 仍是終端機；但保險起見提問一律讀 /dev/tty。
 
@@ -331,7 +333,437 @@ main() {
     LANGS="$(lower "${G_LANGS:-${P_LANGS:-ja,ko,en,extra}}")"
     GLOSS="$(lower "${G_GLOSS:-${P_GLOSS:-zh}}")"
 
-    if [ ${INTERACTIVE} = 1 ]; then
+    # 系統現在是不是深色模式：選項畫面用來提示「為什麼換了主題沒變」（NA_SYS_DARK=1/0 給測試用）
+    local SYS_DARK="${NA_SYS_DARK:-}"
+    if [ -z "${SYS_DARK}" ]; then
+        SYS_DARK=0; [ "$(defaults read -g AppleInterfaceStyle 2>/dev/null)" = "Dark" ] && SYS_DARK=1
+    fi
+    dark_note_needed() { # 系統深色＋跟隨系統＋主題本身不是深色 → 實際看到的是 Nat Dark
+        [ "${SYS_DARK}" = 1 ] && [ "${DARK}" = "auto" ] && case "${THEME}" in dark|midnight) return 1 ;; *) return 0 ;; esac
+    }
+
+    local TUI_KEYS="${NA_TUI_KEYS:-}" SCREEN_DONE=0
+    if [ ${INTERACTIVE} = 1 ] || [ -n "${TUI_KEYS}" ]; then
+        # ════ 選項畫面（install.ps1 的 Show-OptionsScreen 的 bash 版）════════════
+        # 一個畫面、方向鍵操作：↑↓ 選項目、←→ 直接換值；右邊用主題真正的顏色畫一個候選窗，
+        # 換到哪個就看到哪個；改了什麼列在下面，Backspace 還原那一項，Esc 全部不算。
+        # 版面、按鍵、文字跟 Windows 版一致；改了一邊記得看另一邊。幾個刻意的決定：
+        #   ‧ bash 3.2：沒有關聯陣列、read -t 只吃整數秒（所以單按 Esc 要等一秒才生效；q 也是取消）。
+        #   ‧ 繪製時不開子 shell（每開一個約 1～2 ms，畫一格要上百個）：函式一律把結果放進全域變數。
+        #   ‧ 中日文字佔幾格：用「字元數＋(位元組數−字元數)/2」估。中日文字（3 位元組）算 2 格，
+        #     ASCII 算 1 格，箭頭這類 3 位元組的窄字元會多算一格 —— 只會讓截斷提早一點，不會溢出折行。
+        #   ‧ 所有文字都用絕對座標定位（同 Windows 版），寬度估錯只會歪一個字。
+        #   ‧ 顏色讀 repo 的 squirrel.custom.yaml，預覽畫的就是鼠鬚管會用的那組顏色。終端機有
+        #     COLORTERM=truecolor（macOS 26 起的「終端機」、iTerm2…）用真彩色，否則換算成 256 色。
+        #   ‧ 用替代畫面（離開後終端機回到原本的內容）；Ctrl+C 也會把終端機還原。
+        #   ‧ 終端機太小、不是終端機、或 NA_PLAIN=1 → 退回下面「輸入編號」的版本。
+        #   ‧ 測試用：NA_TUI_KEYS（例如 "Down,Right,Enter"；Wait＝停四秒）＝不讀鍵盤，照這串按鍵走；
+        #     NA_TUI_DUMP＝把最後一格畫面（含控制碼）寫進這個檔；NA_TUI_COLS＝假裝的終端機寬度。
+
+        # 選項的值與文字：key|值|短名|說明（短名放在列上，說明放在下面那行）
+        local IT_KEY=() IT_ID=() IT_SHORT=() IT_DETAIL=() it_a it_b it_c it_d
+        while IFS='|' read -r it_a it_b it_c it_d; do
+            [ -n "${it_a}" ] || continue
+            IT_KEY[${#IT_KEY[@]}]="${it_a}"; IT_ID[${#IT_ID[@]}]="${it_b}"
+            IT_SHORT[${#IT_SHORT[@]}]="${it_c}"; IT_DETAIL[${#IT_DETAIL[@]}]="${it_d}"
+        done <<'ITEMS'
+theme|matcha|Nat Matcha 抹茶奶油色|
+theme|light|Nat Light 明亮白底|
+theme|fluent|Nat Fluent 低調淡灰＋藍色條|
+theme|sakura|Nat Sakura 櫻花粉|
+theme|ocean|Nat Ocean 海洋藍|
+theme|latte|Nat Latte 拿鐵棕|
+theme|dark|Nat Dark 深色|
+theme|midnight|Nat Midnight 午夜藍（深色）|
+theme|classic|Nat Classic 經典黃綠|
+dark|auto|跟隨系統|系統切到深色模式時，候選窗自動換成 Nat Dark
+dark|off|不跟隨|永遠用上面選的主題
+layout|vertical|直排|
+layout|horizontal|橫排|
+size|small|小|
+size|medium|中|
+size|large|大|
+font|huninn|粉圓體|圓潤的開源字型 jf open 粉圓（沒裝會自動下載安裝，約 5 MB）
+font|system|系統字型|蘋方
+emoji|on|開|候選裡附帶對應的 emoji
+emoji|off|關|
+langs|ja|日文|
+langs|ko|韓文|
+langs|en|英文|
+langs|extra|其他|注音文、全形、英文大寫、英文附釋義、符號
+gloss|zh|中文|
+gloss|en|英文|
+gloss|ja|日文|
+ITEMS
+        # 畫面上的列（外觀在前、輸入在後）
+        local R_KEY=(theme dark layout size font emoji langs gloss)
+        local R_GROUP=(外觀 外觀 外觀 外觀 外觀 輸入 輸入 輸入)
+        local R_TITLE=(主題 系統深色模式 候選排列 候選字級 候選字型 '候選附 emoji' 選單裡的語言 釋義語言)
+        local R_HINT=('候選窗的配色。用 ←→ 換，右邊就是它實際的顏色。'
+                      '系統切到深色模式時，候選窗要不要跟著換成深色。'
+                      '候選字直的排，還是橫的排成一列。'
+                      '候選字的大小，標籤與註釋會跟著調整。'
+                      '候選字用哪一套字型。'
+                      '打字時候選裡要不要附上對應的 emoji。這是預設狀態，之後仍可在方案選單臨時切換。'
+                      '方案選單與右 Shift 循環裡要放哪些語言（注音一定有）。←→ 移動，空白鍵勾選。'
+                      '日文、英文候選旁邊的釋義，用哪種語言顯示。')
+
+        # 讀寫選項值（結果放 V）
+        optv() { case "$1" in theme) V="${THEME}" ;; dark) V="${DARK}" ;; layout) V="${LAYOUT}" ;; size) V="${SIZE}" ;;
+                 font) V="${FONT}" ;; emoji) V="${EMOJI}" ;; langs) V="${LANGS}" ;; gloss) V="${GLOSS}" ;; esac; }
+        setv() { case "$1" in theme) THEME="$2" ;; dark) DARK="$2" ;; layout) LAYOUT="$2" ;; size) SIZE="$2" ;;
+                 font) FONT="$2" ;; emoji) EMOJI="$2" ;; langs) LANGS="$2" ;; gloss) GLOSS="$2" ;; esac; }
+        snapv() { eval "V=\"\${SNAP_$1}\""; }
+        # 某一項的選項範圍（IS＝第一個在 IT_* 的位置、IN＝個數）
+        item_range() {
+            local i=0; IS=-1; IN=0
+            while [ ${i} -lt ${#IT_KEY[@]} ]; do
+                if [ "${IT_KEY[i]}" = "$1" ]; then [ ${IS} -lt 0 ] && IS=${i}; IN=$(( IN + 1 )); fi
+                i=$(( i + 1 ))
+            done
+        }
+        # 值 → 短名（SHORT）、說明（DETAIL）、在這一項裡是第幾個（POS，從 0 起；找不到 -1）
+        item_of() {
+            local i=0; SHORT="$2"; DETAIL=""; POS=-1
+            while [ ${i} -lt ${#IT_KEY[@]} ]; do
+                if [ "${IT_KEY[i]}" = "$1" ]; then
+                    POS=$(( POS + 1 ))
+                    if [ "${IT_ID[i]}" = "$2" ]; then SHORT="${IT_SHORT[i]}"; DETAIL="${IT_DETAIL[i]}"; return 0; fi
+                fi
+                i=$(( i + 1 ))
+            done
+            POS=-1
+        }
+        langs_text() { # langs 值 → LT（例如「日文、英文」）
+            local l; LT=""
+            for l in ja ko en extra; do
+                case ",$1," in *",${l},"*) item_of langs "${l}"; LT="${LT}${LT:+、}${SHORT}" ;; esac
+            done
+            LT="${LT:-只有注音}"
+        }
+        # 字串在終端機上大約佔幾格（CELLS）；超過寬度就截掉補 …（FIT）
+        cells() { local s="$1" n; n=${#s}; local LC_ALL=C; CELLS=$(( n + (${#s} - n) / 2 )); }
+        fit() {
+            local s="$1" n
+            cells "${s}"; if [ ${CELLS} -le $2 ]; then FIT="${s}"; return; fi
+            n=${#s}
+            while [ ${n} -gt 0 ]; do n=$(( n - 1 )); cells "${s:0:n}"; [ ${CELLS} -le $(( $2 - 1 )) ] && break; done
+            FIT="${s:0:n}…"
+        }
+
+        tui_run() {
+            local ESC=$'\033'
+            local CSI="${ESC}["
+            local K_RESET="${CSI}0m" K_DIM="${CSI}90m" K_ACC="${CSI}36m" K_BOLD="${CSI}1m" K_REV="${CSI}7m"
+            local TRUECOLOR=0
+            case "${NA_TRUECOLOR:-${COLORTERM:-}}" in truecolor|24bit|1) TRUECOLOR=1 ;; esac
+            local SCRIPTED="${TUI_KEYS}" QUEUE="" DUMP="${NA_TUI_DUMP:-}"
+            [ -n "${SCRIPTED}" ] && QUEUE="$(printf '%s' "${SCRIPTED}" | tr ' ' ',')"
+            # 字元處理要 UTF-8（從 Finder 開的 .command 有時沒有 LANG）
+            case "$(locale charmap 2>/dev/null)" in UTF-8|utf8|UTF8) ;; *) local LC_ALL=en_US.UTF-8 ;; esac
+
+            # 各主題的顏色（鼠鬚管的 0xBBGGRR）→ PC_<配色>_<鍵>
+            local tf="${SRC_DIR}/rime/theme/squirrel.custom.yaml" ln cur="" ck cv
+            if [ -f "${tf}" ]; then
+                while IFS= read -r ln; do
+                    case "${ln}" in
+                        '  "preset_color_schemes/'*'":'*) cur="${ln#*preset_color_schemes/}"; cur="${cur%%\"*}"
+                            case "${cur}" in *[!A-Za-z0-9_]*|'') cur="" ;; esac ;;
+                        '    '[a-z]*': 0x'*)
+                            [ -n "${cur}" ] || continue
+                            ck="${ln#    }"; ck="${ck%%:*}"; cv="${ln#*: 0x}"; cv="${cv%% *}"
+                            case "${ck}${cv}" in *[!A-Za-z0-9_]*) continue ;; esac
+                            eval "PC_${cur}_${ck}=\${cv}" ;;
+                        '  '[!\ ]*|[!\ ]*) cur="" ;;
+                    esac
+                done < "${tf}"
+            fi
+            # 顏色 → SGR 片段（GC 放 "38;2;r;g;b" 或 "38;5;n"）。$1＝配色、$2＝鍵、$3＝沒有這個鍵時的後備鍵、$4＝38 前景／48 背景
+            pc() {
+                local h="" v r g b
+                eval "h=\"\${PC_$1_$2:-}\""
+                [ -z "${h}" ] && [ -n "$3" ] && eval "h=\"\${PC_$1_$3:-}\""
+                [ -z "${h}" ] && h=FFFFFF
+                v=$(( 16#${h} )); r=$(( v & 255 )); g=$(( (v >> 8) & 255 )); b=$(( (v >> 16) & 255 ))
+                if [ ${TRUECOLOR} = 1 ]; then GC="$4;2;${r};${g};${b}"; return; fi
+                c6() { if [ $1 -lt 48 ]; then C6=0; elif [ $1 -lt 115 ]; then C6=1; else C6=$(( ($1 - 35) / 40 )); fi; }
+                c6 ${r}; r=${C6}; c6 ${g}; g=${C6}; c6 ${b}; b=${C6}
+                GC="$4;5;$(( 16 + 36 * r + 6 * g + b ))"
+            }
+
+            # 進來時的樣子：Esc／Backspace 還原回這裡，「改了什麼」也是跟它比
+            local k
+            for k in ${R_KEY[@]}; do optv "${k}"; eval "local SNAP_${k}=\"\${V}\""; done
+            local NROWS=${#R_KEY[@]} focus=0 chip=0 F=""
+            local PAD='                                                                '   # 64 格空白，畫色塊用
+
+            put()   { F="${F}$1"; }
+            at()    { F="${F}${CSI}$1;$2H"; }
+            block() { at $1 $2; F="${F}${CSI}${3}m${PAD:0:$4}${K_RESET}"; }   # block <列> <欄> <背景SGR> <寬>
+            ink()   { at $1 $2; F="${F}${CSI}${3};${4}m${5:+${K_BOLD}}$6${K_RESET}"; }   # ink <列> <欄> <背景SGR> <前景SGR> <粗體?> <字>
+            changed() { optv "$1"; local cv1="${V}"; snapv "$1"; [ "${cv1}" != "${V}" ]; }
+
+            render() {
+                local cols="${NA_TUI_COLS:-}" r y i key group="" on
+                if [ -z "${cols}" ]; then cols="$(stty size 2>/dev/null < /dev/tty)"; cols="${cols#* }"; fi
+                case "${cols}" in ''|*[!0-9]*) cols=120 ;; esac
+                F="${CSI}?25l"
+                r=1; while [ ${r} -le 22 ]; do at ${r} 1; put "${CSI}2K"; r=$(( r + 1 )); done
+                at 2 3; put "${K_BOLD}注音Na+ 設定${K_RESET}"
+
+                # ── 左邊：選項 ──
+                local top=4 xl=5 xv=22
+                y=$(( top - 1 )); i=0
+                while [ ${i} -lt ${NROWS} ]; do
+                    key="${R_KEY[i]}"; on=0; [ ${i} = ${focus} ] && on=1
+                    if [ "${R_GROUP[i]}" != "${group}" ]; then
+                        if [ -n "${group}" ]; then y=$(( y + 2 )); else y=$(( y + 1 )); fi
+                        group="${R_GROUP[i]}"
+                        at ${y} 3; put "${K_DIM}${group}${K_RESET}"
+                    fi
+                    y=$(( y + 1 ))
+                    if changed "${key}"; then at ${y} 1; put "${K_ACC}●${K_RESET}"; fi
+                    if [ ${on} = 1 ]; then at ${y} 3; put "${K_ACC}▸${K_RESET}"; at ${y} ${xl}; put "${K_BOLD}${R_TITLE[i]}${K_RESET}"
+                    else at ${y} ${xl}; put "${R_TITLE[i]}"; fi
+                    at ${y} ${xv}
+                    optv "${key}"
+                    if [ "${key}" = "langs" ]; then
+                        # 可複選的那一項：一排核取方塊，←→ 移動、空白鍵勾選
+                        local j=0 lv="${V}" box id
+                        item_range langs
+                        while [ ${j} -lt ${IN} ]; do
+                            id="${IT_ID[IS + j]}"
+                            case ",${lv}," in *",${id},"*) box='[x] ' ;; *) box='[ ] ' ;; esac
+                            if [ ${on} = 1 ] && [ ${j} = ${chip} ]; then put "${K_REV}${box}${IT_SHORT[IS + j]}${K_RESET}  "
+                            else put "${box}${IT_SHORT[IS + j]}  "; fi
+                            j=$(( j + 1 ))
+                        done
+                    else
+                        item_of "${key}" "${V}"; item_range "${key}"
+                        if [ ${on} = 1 ]; then put "${K_DIM}‹ ${K_RESET}${K_ACC}${K_BOLD}${SHORT}${K_RESET}${K_DIM} ›   $(( POS + 1 ))/${IN}${K_RESET}"
+                        else put "${SHORT}"; fi
+                    fi
+                    i=$(( i + 1 ))
+                done
+
+                # ── 下面：這一項在做什麼、目前這個值的說明 ──
+                key="${R_KEY[focus]}"
+                local more=""
+                if [ "${key}" = "langs" ]; then
+                    item_range langs; more="${IT_DETAIL[IS + chip]}"
+                    [ -z "${more}" ] && more='注音一定有；勾起來的語言會出現在方案選單（Ctrl+` 或 F4）與右 Shift 的循環裡。'
+                else optv "${key}"; item_of "${key}" "${V}"; more="${DETAIL}"; fi
+                if { [ "${key}" = theme ] || [ "${key}" = dark ]; } && dark_note_needed; then
+                    more='系統現在是深色模式，所以實際看到的是 Nat Dark。想在深色模式也用這個主題：把「系統深色模式」換成不跟隨。'
+                fi
+                fit "${R_HINT[focus]}" $(( cols - 4 )); at 16 3; put "${FIT}"
+                fit "${more}" $(( cols - 4 )); at 17 3; put "${K_DIM}${FIT}${K_RESET}"
+
+                # ── 改了什麼 ──
+                local diff="" names="" n=0 old new
+                i=0
+                while [ ${i} -lt ${NROWS} ]; do
+                    key="${R_KEY[i]}"
+                    if changed "${key}"; then
+                        if [ "${key}" = langs ]; then snapv langs; langs_text "${V}"; old="${LT}"; langs_text "${LANGS}"; new="${LT}"
+                        else snapv "${key}"; item_of "${key}" "${V}"; old="${SHORT}"; optv "${key}"; item_of "${key}" "${V}"; new="${SHORT}"; fi
+                        diff="${diff}${diff:+　｜　}${R_TITLE[i]}：${old} → ${new}"
+                        names="${names}${names:+、}${R_TITLE[i]}"; n=$(( n + 1 ))
+                    fi
+                    i=$(( i + 1 ))
+                done
+                if [ ${n} -gt 0 ]; then
+                    # 一行放得下就列出「舊 → 新」；放不下改成只列改了哪幾項（寧可少講，也不要被截掉一半）
+                    diff="已修改　${diff}"
+                    cells "${diff}"; [ ${CELLS} -gt $(( cols - 4 )) ] && diff="已修改 ${n} 項　${names}"
+                    fit "${diff}" $(( cols - 4 ))
+                    at 19 1; put "${K_ACC}●${K_RESET}"; at 19 3; put "${FIT}"
+                else
+                    at 19 3; put "${K_DIM}還沒有修改。直接按 Enter 就是什麼都不改。${K_RESET}"
+                fi
+
+                # ── 按鍵提示（每一段各自定位）──
+                local x=3 hk hd
+                for hk in '↑↓|選項目' '←→|換一個' '空白|勾選' 'Backspace|還原這一項' 'Enter|套用' 'Esc|取消'; do
+                    hd="${hk#*|}"; hk="${hk%%|*}"
+                    at 21 ${x}; put "${K_ACC}${hk}${K_RESET} ${K_DIM}${hd}${K_RESET}"
+                    cells "${hk}${hd}"; x=$(( x + CELLS + 4 ))
+                    case "${hk}" in "↑↓"|"←→") x=$(( x - 2 )) ;; esac   # 箭頭是窄字元，估算時多算了兩格
+                done
+
+                # ── 右邊：用主題真正的顏色畫一個候選窗 ──
+                local px=70 pw=32
+                if [ ${cols} -ge $(( px + pw + 2 )) ]; then
+                    local name scheme caption
+                    item_of theme "${THEME}"; name="${SHORT#Nat }"; name="Nat ${name%% *}"
+                    item_of layout "${LAYOUT}"; caption="${name} · ${SHORT}"
+                    item_of size "${SIZE}"; caption="${caption} · 字級${SHORT}"
+                    scheme="$(theme_scheme "${THEME}")"
+                    if [ "${R_KEY[focus]}" = dark ] && [ "${DARK}" = auto ]; then
+                        case "${THEME}" in dark|midnight) ;; *) scheme=NatDark; caption='系統切到深色模式時 → Nat Dark' ;; esac
+                    fi
+                    local back frame text hb ht label cand cmt hcb hct hcl hcc ix=$(( px + 2 )) iw=$(( pw - 4 )) tall=8
+                    pc ${scheme} back_color '' 48; back="${GC}"
+                    pc ${scheme} border_color back_color 48; frame="${GC}"
+                    pc ${scheme} text_color '' 38; text="${GC}"
+                    pc ${scheme} hilited_back_color back_color 48; hb="${GC}"
+                    pc ${scheme} hilited_text_color text_color 38; ht="${GC}"
+                    pc ${scheme} label_color text_color 38; label="${GC}"
+                    pc ${scheme} candidate_text_color text_color 38; cand="${GC}"
+                    pc ${scheme} comment_text_color label_color 38; cmt="${GC}"
+                    pc ${scheme} hilited_candidate_back_color hilited_back_color 48; hcb="${GC}"
+                    pc ${scheme} hilited_candidate_text_color hilited_text_color 38; hct="${GC}"
+                    pc ${scheme} hilited_candidate_label_color hilited_candidate_text_color 38; hcl="${GC}"
+                    pc ${scheme} hilited_comment_text_color hilited_candidate_text_color 38; hcc="${GC}"
+                    [ "${LAYOUT}" = horizontal ] && tall=5
+                    r=0; while [ ${r} -lt ${tall} ]; do block $(( top + r )) ${px} "${frame}" ${pw}; r=$(( r + 1 )); done
+                    r=1; while [ ${r} -lt $(( tall - 1 )) ]; do block $(( top + r )) ${ix} "${back}" ${iw}; r=$(( r + 1 )); done
+                    # 編碼列：已確定的部分＋高亮段（鼠鬚管的翻頁箭頭畫在候選窗左緣，這裡不畫）
+                    ink $(( top + 1 )) $(( ix + 2 )) "${back}" "${text}" '' 'ㄋㄧ'
+                    ink $(( top + 1 )) $(( ix + 7 )) "${hb}" "${ht}" '' ' ㄏㄠ '
+                    local cw=(你好 妳好 さくら hello) cc=('' '' 櫻花 哈囉) cx
+                    if [ "${LAYOUT}" = horizontal ]; then
+                        cx=$(( ix + 1 )); r=0
+                        while [ ${r} -lt 3 ]; do
+                            cells "${cw[r]}"
+                            if [ ${r} = 0 ]; then
+                                block $(( top + 3 )) ${cx} "${hcb}" $(( CELLS + 4 ))
+                                ink $(( top + 3 )) $(( cx + 1 )) "${hcb}" "${hcl}" '' 1
+                                ink $(( top + 3 )) $(( cx + 3 )) "${hcb}" "${hct}" 1 "${cw[r]}"
+                            else
+                                ink $(( top + 3 )) $(( cx + 1 )) "${back}" "${label}" '' $(( r + 1 ))
+                                ink $(( top + 3 )) $(( cx + 3 )) "${back}" "${cand}" 1 "${cw[r]}"
+                            fi
+                            cx=$(( cx + CELLS + 4 )); r=$(( r + 1 ))
+                        done
+                    else
+                        r=0
+                        while [ ${r} -lt 4 ]; do
+                            y=$(( top + 3 + r ))
+                            if [ ${r} = 0 ]; then
+                                block ${y} $(( ix + 1 )) "${hcb}" $(( iw - 2 ))
+                                ink ${y} $(( ix + 3 )) "${hcb}" "${hcl}" '' 1
+                                ink ${y} $(( ix + 6 )) "${hcb}" "${hct}" 1 "${cw[r]}"
+                                [ -n "${cc[r]}" ] && { cells "${cw[r]}"; ink ${y} $(( ix + 8 + CELLS )) "${hcb}" "${hcc}" '' "${cc[r]}"; }
+                            else
+                                ink ${y} $(( ix + 3 )) "${back}" "${label}" '' $(( r + 1 ))
+                                ink ${y} $(( ix + 6 )) "${back}" "${cand}" 1 "${cw[r]}"
+                                [ -n "${cc[r]}" ] && { cells "${cw[r]}"; ink ${y} $(( ix + 8 + CELLS )) "${back}" "${cmt}" '' "${cc[r]}"; }
+                            fi
+                            r=$(( r + 1 ))
+                        done
+                    fi
+                    fit "${caption}" ${pw}; at $(( top + tall )) ${px}; put "${K_DIM}${FIT}${K_RESET}"
+                fi
+                at 22 1
+            }
+
+            # 讀一個鍵（KEY）。方向鍵是 ESC [ A 這種序列；bash 3.2 的 read -t 只吃整數秒
+            read_key() {
+                KEY=""
+                if [ -n "${SCRIPTED}" ]; then
+                    if [ -n "${QUEUE}" ]; then
+                        KEY="${QUEUE%%,*}"
+                        case "${QUEUE}" in *,*) QUEUE="${QUEUE#*,}" ;; *) QUEUE="" ;; esac
+                    else KEY=Enter; fi
+                    return
+                fi
+                local c="" rest=""
+                IFS= read -rsn1 c < /dev/tty || { KEY=Esc; return; }
+                case "${c}" in
+                    "${ESC}")
+                        IFS= read -rsn2 -t 1 rest < /dev/tty
+                        case "${rest}" in
+                            '[A'|OA) KEY=Up ;; '[B'|OB) KEY=Down ;; '[C'|OC) KEY=Right ;; '[D'|OD) KEY=Left ;;
+                            '[H'|OH) KEY=Home ;; '[F'|OF) KEY=End ;;
+                            '[3') IFS= read -rsn1 -t 1 rest < /dev/tty; KEY=Backspace ;;   # Delete（fn+Backspace）
+                            '[5') IFS= read -rsn1 -t 1 rest < /dev/tty; KEY=Home ;;
+                            '[6') IFS= read -rsn1 -t 1 rest < /dev/tty; KEY=End ;;
+                            '') KEY=Esc ;;
+                            *) KEY=Other ;;
+                        esac ;;
+                    '') KEY=Enter ;;
+                    ' ') KEY=Space ;;
+                    $'\t') KEY=Down ;;
+                    $'\177'|$'\010') KEY=Backspace ;;
+                    q|Q) KEY=Esc ;;
+                    k|K) KEY=Up ;; j|J) KEY=Down ;; h|H) KEY=Left ;; l|L) KEY=Right ;;
+                    [1-9]) KEY="${c}" ;;
+                    *) KEY=Other ;;
+                esac
+            }
+
+            # 不管怎麼離開，終端機都要回到正常狀態（游標、顏色、回顯、原本的畫面）
+            local STTY_SAVED=""
+            tui_restore() {
+                printf '%s' "${CSI}0m${CSI}?25h${CSI}?1049l"
+                [ -n "${STTY_SAVED}" ] && stty "${STTY_SAVED}" 2>/dev/null < /dev/tty
+            }
+            if [ -z "${SCRIPTED}" ]; then
+                STTY_SAVED="$(stty -g 2>/dev/null < /dev/tty)"
+                stty -echo 2>/dev/null < /dev/tty
+            fi
+            trap 'tui_restore; printf "\n已取消。\n"; exit 130' INT TERM
+            printf '%s' "${CSI}?1049h"
+
+            local row dir id set ni
+            while :; do
+                render
+                printf '%s' "${F}"
+                [ -n "${DUMP}" ] && printf '%s' "${F}" > "${DUMP}"
+                read_key
+                row="${R_KEY[focus]}"; dir=0
+                case "${KEY}" in
+                    Wait) sleep 4; continue ;;   # 只有按鍵腳本會有：停在這一格（截圖用）
+                    Enter) break ;;
+                    Esc|Escape|Q)
+                        for k in ${R_KEY[@]}; do snapv "${k}"; setv "${k}" "${V}"; done
+                        break ;;
+                    Up|K)      focus=$(( (focus + NROWS - 1) % NROWS )) ;;
+                    Down|J|Tab) focus=$(( (focus + 1) % NROWS )) ;;
+                    Home|PageUp) focus=0 ;;
+                    End|PageDown) focus=$(( NROWS - 1 )) ;;
+                    [1-9]) [ ${KEY} -le ${NROWS} ] && focus=$(( KEY - 1 )) ;;
+                    Backspace|Delete) snapv "${row}"; setv "${row}" "${V}" ;;   # 還原這一項
+                    Left|H)   dir=-1 ;;
+                    Right|L)  dir=1 ;;
+                    Space)    dir=2 ;;   # 空白鍵：單選是「下一個」，複選是「勾／取消」
+                esac
+                [ ${dir} = 0 ] && continue
+                item_range "${row}"
+                if [ "${row}" = langs ]; then
+                    if [ ${dir} = 2 ]; then
+                        id="${IT_ID[IS + chip]}"; set=""
+                        # 照清單的順序排，不然同樣的選擇會因為勾的先後不同而被當成有變動
+                        for k in ja ko en extra; do
+                            case ",${LANGS}," in *",${k},"*) [ "${k}" = "${id}" ] || set="${set}${set:+,}${k}" ;;
+                                *) [ "${k}" = "${id}" ] && set="${set}${set:+,}${k}" ;; esac
+                        done
+                        LANGS="${set:-none}"
+                    else chip=$(( (chip + dir + IN) % IN )); fi
+                else
+                    [ ${dir} = 2 ] && dir=1
+                    optv "${row}"; item_of "${row}" "${V}"; ni=${POS}; [ ${ni} -lt 0 ] && ni=0
+                    ni=$(( (ni + dir + IN) % IN ))
+                    setv "${row}" "${IT_ID[IS + ni]}"
+                fi
+            done
+            tui_restore
+            trap - INT TERM
+            return 0
+        }
+
+        local use_screen=0 tsize=""
+        if [ -n "${TUI_KEYS}" ]; then use_screen=1
+        elif [ -z "${NA_PLAIN:-}" ] && [ "${TTY}" = /dev/tty ] && [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then
+            tsize="$(stty size 2>/dev/null < /dev/tty)"
+            case "${tsize}" in *' '*) [ "${tsize% *}" -ge 23 ] 2>/dev/null && [ "${tsize#* }" -ge 72 ] 2>/dev/null && use_screen=1 ;; esac
+        fi
+        if [ ${use_screen} = 1 ]; then tui_run && SCREEN_DONE=1; fi
+    fi
+
+    if [ ${INTERACTIVE} = 1 ] && [ ${SCREEN_DONE} = 0 ]; then
+        # ════ 輸入編號的版本（終端機不支援上面那個畫面時用）════
         # 一個畫面列出全部設定：想改哪一項就輸入它的編號，都不改就直接按 Enter。
         # （以前是一題一題問完七題才結束，只想換個主題也得按六次 Enter。）
         local CHOICE="" pick=""
@@ -353,11 +785,16 @@ main() {
             printf '  1) 主題　　　　　%s\n' "$(theme_label "${THEME}")"
             printf '  2) 系統深色模式　%s\n' "$( [ "${DARK}" = "auto" ] && echo '跟隨系統（深色模式時換成 Nat Dark）' || echo '不跟隨' )"
             printf '  3) 候選排列　　　%s\n' "$( [ "${LAYOUT}" = "horizontal" ] && echo '橫排' || echo '直排' )"
-            printf '  4) 候選字級　　　%s\n' "$( case "${SIZE}" in small) echo '小' ;; large) echo '大' ;; *) echo '中' ;; esac )"
+            printf '  4) 候選字級　　　%s\n' "$( case "${SIZE}" in (small) echo '小' ;; (large) echo '大' ;; (*) echo '中' ;; esac )"
             printf '  5) 候選附 emoji　%s\n' "$( [ "${EMOJI}" = "off" ] && echo '關' || echo '開' )"
             printf '  6) 選單裡的語言　%s\n' "$(langs_label "${LANGS}")"
-            printf '  7) 釋義語言　　　%s\n' "$( case "${GLOSS}" in en) echo '英文' ;; ja) echo '日文' ;; *) echo '中文' ;; esac )"
+            printf '  7) 釋義語言　　　%s\n' "$( case "${GLOSS}" in (en) echo '英文' ;; (ja) echo '日文' ;; (*) echo '中文' ;; esac )"
             printf '  8) 候選字型　　　%s\n' "$( [ "${FONT}" = "system" ] && echo '系統字型（蘋方）' || echo '粉圓體' )"
+            # 最常見的「換了主題怎麼沒變」：系統在深色模式＋跟隨系統，看到的一直是 Nat Dark
+            if dark_note_needed; then
+                printf '\033[90m%s\033[0m\n' '  ※ 系統現在是深色模式，所以候選窗顯示的是 Nat Dark；第 1 項的主題要等系統切回淺色才看得到。'
+                printf '\033[90m%s\033[0m\n' '    想在深色模式也用第 1 項的主題：把第 2 項改成「不跟隨」。'
+            fi
             ask '  輸入編號 1-8 修改那一項；直接按 Enter 套用：'
             pick="${REPLY}"
             [ -z "${pick}" ] && break
@@ -430,7 +867,10 @@ main() {
     # 下載失敗就退回系統字型，不中斷安裝。鼠鬚管認字型用的是 PostScript 名稱 jf-openhuninn-2.1。
     local FONT_DIR="${NA_FONT_DIR:-${HOME}/Library/Fonts}" FONT_URL="${NA_FONT_URL:-https://github.com/justfont/open-huninn-font/releases/download/v2.1/jf-openhuninn-2.1.ttf}"
     if [ "${FONT}" = "huninn" ]; then
-        if ! ls "${FONT_DIR}"/jf-openhuninn-*.ttf /Library/Fonts/jf-openhuninn-*.ttf >/dev/null 2>&1; then
+        # 兩個資料夾各自檢查：寫成一個 ls 的話，只要其中一個沒有就算失敗，每次都會重新下載
+        local have_font=0 ff
+        for ff in "${FONT_DIR}"/jf-openhuninn-*.ttf /Library/Fonts/jf-openhuninn-*.ttf; do [ -f "${ff}" ] && have_font=1; done
+        if [ ${have_font} = 0 ]; then
             step '下載並安裝粉圓體（jf open 粉圓，約 5 MB）'
             mkdir -p "${FONT_DIR}"
             if curl -fsSL "${FONT_URL}" -o "${FONT_DIR}/jf-openhuninn-2.1.ttf.part" \

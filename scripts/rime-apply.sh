@@ -198,11 +198,26 @@ if [ -z "${NA_NO_LAUNCHERS:-}" ]; then
         printf 'exec bash %q "$@"\n' "${REPO}/scripts/rime-update.command"
     } > "${RIME_DIR}/na-update.command"
     chmod +x "${RIME_DIR}/na-update.command"
+    # 成功就自己關視窗（同 Windows 的 rime-setup.cmd），失敗才停下來等人看訊息。
+    # 「終端機」在程式結束後不會自己關窗（預設設定），所以結束後由背景的 osascript 關掉
+    # 「tty 是這一個」的那個視窗：那時 shell 已經結束，關窗不會跳「要終止程序嗎」。
+    # 只認「終端機」；iTerm2 等其他終端機照舊按 Enter 關。NA_KEEP_OPEN=1 不自動關。
     {
         echo "#!/bin/bash"
         echo "# 由 rime-apply.sh 產生：開選項畫面（主題、字級、語言…），改完自動套用"
         printf 'bash %q --local\n' "${REPO}/install.sh"
-        echo 'read -r -p "按 Enter 關閉…" _'
+        cat <<'LAUNCH'
+if [ $? = 0 ] && [ "${TERM_PROGRAM:-}" = "Apple_Terminal" ] && [ -z "${NA_KEEP_OPEN:-}" ]; then
+    echo "  視窗 2 秒後自動關閉…"; sleep 2
+    t="$(tty)"
+    nohup osascript -e 'on run argv' -e 'delay 0.5' -e 'tell application "Terminal"' \
+        -e 'repeat with w in windows' -e 'repeat with b in tabs of w' \
+        -e 'if tty of b is (item 1 of argv) then close w' \
+        -e 'end repeat' -e 'end repeat' -e 'end tell' -e 'end run' "${t}" >/dev/null 2>&1 &
+    exit 0
+fi
+read -r -p "按 Enter 關閉…" _
+LAUNCH
     } > "${RIME_DIR}/na-setup.command"
     chmod +x "${RIME_DIR}/na-setup.command"
 fi
