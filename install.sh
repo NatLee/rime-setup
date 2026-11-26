@@ -26,7 +26,7 @@
 #   NA_REPO／NA_BRANCH（來源）、NA_SQUIRREL（鼠鬚管執行檔，測試用）
 #
 # 這支腳本會：
-#   確認 git／鼠鬚管 → 把設定 repo 下載到 ~/.na-plus（已有就更新）
+#   確認 git／鼠鬚管（沒有就自動安裝）→ 把設定 repo 下載到 ~/.na-plus（已有就更新）
 #   → 第一次：備份既有的 ~/Library/Rime，並還原你的打字詞頻與個人短語
 #   → 問選項 → 把檔案套用到使用者資料夾 → 重新部署
 #
@@ -165,20 +165,67 @@ main() {
     say ''
     say '════════ 注音Na+ 安裝／設定（macOS 鼠鬚管）════════'
 
+    # ── 缺的程式自動裝 ────────────────────────────────────────────────
+    # 預設是「要裝」：--yes 直接裝；能問就問；沒有終端機就不裝。
+    confirm_install() { # confirm_install <名稱>
+        [ -n "${YES}" ] && return 0
+        [ ${INTERACTIVE} = 1 ] || return 1
+        ask "  找不到${1}。要自動安裝嗎？[Y/n] "
+        case "${REPLY}" in n|N|no|NO) return 1 ;; esac
+        return 0
+    }
+    # /usr/bin/git 在還沒裝 Command Line Tools 時只是個殼：command -v 找得到，一執行就失敗
+    # （還會自己跳安裝視窗）。所以要看 xcode-select -p，不能只看 command -v。
+    git_ready() {
+        local g
+        g="$(command -v git 2>/dev/null)" || return 1
+        if [ "${g}" = /usr/bin/git ]; then xcode-select -p >/dev/null 2>&1 || return 1; fi
+        git --version >/dev/null 2>&1
+    }
+    # 鼠鬚管官方安裝檔（.pkg）：沒有 Homebrew，或 brew 失敗時用
+    install_squirrel_pkg() {
+        local url tmp pkg rc
+        url="$(curl -fsSL https://api.github.com/repos/rime/squirrel/releases/latest |
+               grep -o '"browser_download_url": *"[^"]*\.pkg"' | head -1 | sed 's/.*"\(https:[^"]*\)"$/\1/')"
+        [ -n "${url}" ] || { warn '查不到鼠鬚管的最新版本（GitHub 連不上？）'; return 1; }
+        tmp="$(mktemp -d)" || return 1
+        pkg="${tmp}/${url##*/}"
+        say "  下載 ${url##*/}…"
+        if ! curl -fL --progress-bar -o "${pkg}" "${url}"; then rm -rf "${tmp}"; return 1; fi
+        say '  安裝中（要輸入這台 Mac 的登入密碼；輸入時畫面不會顯示）…'
+        sudo /usr/sbin/installer -pkg "${pkg}" -target /; rc=$?
+        rm -rf "${tmp}"
+        return ${rc}
+    }
+    local BREW=""
+    BREW="$(command -v brew 2>/dev/null || true)"
+    if [ -z "${BREW}" ]; then   # 裝了 Homebrew 但這個 shell 沒設 PATH（Apple 晶片常見）
+        for b in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "${b}" ] && { BREW="${b}"; break; }; done
+    fi
+
     # ── [1] git ───────────────────────────────────────────────────────
     step '檢查 git'
-    command -v git >/dev/null 2>&1 || { die '需要 git。請先執行：xcode-select --install，裝完再跑一次這行指令。'; return 1; }
+    if ! git_ready && confirm_install ' git（Apple 的 Command Line Tools）'; then
+        # 跳出系統的安裝視窗，這裡等它裝完就接著往下走，不必重跑指令
+        xcode-select --install >/dev/null 2>&1 || true
+        say '  請在跳出的視窗按「安裝」（約 5～15 分鐘）。裝好後這裡會自動繼續；要中止按 Ctrl+C。'
+        local waited=0
+        while ! git_ready && [ ${waited} -lt 3600 ]; do sleep 5; waited=$(( waited + 5 )); done
+    fi
+    git_ready || { die '需要 git。請先執行：xcode-select --install，裝完再跑一次這行指令。'; return 1; }
     ok "$(git --version)"
 
     # ── [2] 鼠鬚管 ────────────────────────────────────────────────────
     step '檢查鼠鬚管（Squirrel）'
     if [ ! -x "${SQUIRREL}" ] && [ -z "${NO_DEPLOY}" ]; then
-        if command -v brew >/dev/null 2>&1 && [ ${INTERACTIVE} = 1 ]; then
-            ask '  找不到鼠鬚管。要用 Homebrew 安裝嗎？[Y/n] '
-            case "${REPLY}" in
-                n|N) ;;
-                *) brew install --cask squirrel-app || brew install --cask squirrel || true ;;
-            esac
+        if confirm_install '鼠鬚管'; then
+            if [ -n "${BREW}" ]; then
+                "${BREW}" install --cask squirrel-app || "${BREW}" install --cask squirrel || true
+            fi
+            [ -x "${SQUIRREL}" ] || install_squirrel_pkg || true
+            if [ -x "${SQUIRREL}" ]; then
+                ok '鼠鬚管裝好了，已加進輸入方式。如果選單列切不到它，登出再登入一次。'
+            fi
         fi
         if [ ! -x "${SQUIRREL}" ]; then
             die "找不到鼠鬚管（${SQUIRREL_APP}）。請先安裝 https://rime.im/download/ ，
