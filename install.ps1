@@ -35,6 +35,7 @@ param(
     [string]$Layout,     # vertical | horizontal
     [string]$Size,       # small | medium | large（候選字級）
     [string]$Font,       # huninn（粉圓體，沒裝會自動下載）| system（系統內建）
+    [string]$Paging,     # on | off（翻頁提示：編碼列右側可以點的 < >）
     [string]$Emoji,      # on | off
     [string]$Langs,      # ja,ko,en,extra 任意組合；none＝只留注音
     [string]$Gloss,      # zh | en | ja
@@ -46,7 +47,7 @@ param(
 )
 
 function Install-NaPlus {
-    param($Theme, $Dark, $Layout, $Size, $Font, $Emoji, $Langs, $Gloss, [bool]$Yes, [bool]$NoDeploy, $Repo, $Branch, $RimeDir)
+    param($Theme, $Dark, $Layout, $Size, $Font, $Paging, $Emoji, $Langs, $Gloss, [bool]$Yes, [bool]$NoDeploy, $Repo, $Branch, $RimeDir)
 
     $ErrorActionPreference = 'Stop'
 
@@ -156,6 +157,7 @@ function Install-NaPlus {
     }
     $layoutItems = @( @('vertical', '直排（預設）'), @('horizontal', '橫排') )
     $emojiItems  = @( @('on', '開：候選裡附帶對應的 emoji（預設）'), @('off', '關') )
+    $pagingItems = @( @('on', '開：編碼列右側顯示可以點的 < >，還能往哪邊翻，那邊就是主題色（預設）'), @('off', '關') )
     $langItems   = @(
         @('ja',    '日文'),
         @('ko',    '韓文'),
@@ -174,7 +176,7 @@ function Install-NaPlus {
     $fontItems  = @( @('huninn', '粉圓體：圓潤的開源字型 jf open 粉圓（預設；沒裝會自動下載安裝，約 5 MB）'), @('system', '系統字型：微軟正黑體') )
     $glossMap   = @{ zh = 0; en = 1; ja = 2 }
 
-    $defaults = @{ theme = 'matcha'; dark = 'auto'; size = 'medium'; font = 'huninn'; layout = 'vertical'; emoji = 'on'; langs = 'ja,ko,en,extra'; gloss = 'zh' }
+    $defaults = @{ theme = 'matcha'; dark = 'auto'; size = 'medium'; font = 'huninn'; paging = 'on'; layout = 'vertical'; emoji = 'on'; langs = 'ja,ko,en,extra'; gloss = 'zh' }
 
     # ── 開始 ──────────────────────────────────────────────────────────
     Say ''
@@ -447,7 +449,7 @@ function Install-NaPlus {
     foreach ($k in $themeMap.Keys) { if ($guiTheme -and $themeMap[$k] -eq $guiTheme) { $prev['theme'] = $k; $guiThemeKnown = $true } }
 
     $opt = @{}
-    $given = @{ theme = (Pick $Theme 'NA_THEME'); dark = (Pick $Dark 'NA_DARK'); size = (Pick $Size 'NA_SIZE'); font = (Pick $Font 'NA_FONT'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
+    $given = @{ theme = (Pick $Theme 'NA_THEME'); dark = (Pick $Dark 'NA_DARK'); size = (Pick $Size 'NA_SIZE'); font = (Pick $Font 'NA_FONT'); paging = (Pick $Paging 'NA_PAGING'); layout = (Pick $Layout 'NA_LAYOUT'); emoji = (Pick $Emoji 'NA_EMOJI')
                 langs = (Pick $Langs 'NA_LANGS'); gloss = (Pick $Gloss 'NA_GLOSS') }
     $edited = @{}   # 這次明確指定過的項目（參數／環境變數／在選項畫面改過）
     foreach ($k in $defaults.Keys) {
@@ -463,7 +465,7 @@ function Install-NaPlus {
     if ($opt.theme -eq 'auto') { $opt.theme = 'light'; if (-not $given.dark) { $opt.dark = 'auto' } }
 
     if ($interactive) {
-        # 全部設定。這裡的順序是「輸入編號」版本的 1~8，跟 macOS 的 install.sh 一致，不要動；
+        # 全部設定。這裡的順序是「輸入編號」版本的 1~9，跟 macOS 的 install.sh 一致，不要動；
         # 選項畫面會照 group 重新排成兩組：外觀（看得到的）與輸入（打字時的行為）。
         # ask 是「輸入編號」版本問的那句；hint 是選項畫面底下那行「這一項在做什麼」。
         $rows = @(
@@ -474,7 +476,8 @@ function Install-NaPlus {
             @{ key = 'emoji';  group = '輸入'; title = '候選附 emoji'; items = $emojiItems;  ask = '打字時候選附帶 emoji（之後仍可在方案選單臨時切換）'; hint = '打字時候選裡要不要附上對應的 emoji。這是預設狀態，之後仍可在方案選單臨時切換。' },
             @{ key = 'langs';  group = '輸入'; title = '選單裡的語言'; items = $langItems;   ask = '方案選單要放哪些語言（注音一定有）'; multi = $true; hint = '方案選單與右 Shift 循環裡要放哪些語言（注音一定有）。←→ 移動，空白鍵勾選。' },
             @{ key = 'gloss';  group = '輸入'; title = '釋義語言　　'; items = $glossItems;  ask = '日文／英文候選的釋義要用哪種語言顯示'; hint = '日文、英文候選旁邊的釋義，用哪種語言顯示。' },
-            @{ key = 'font';   group = '外觀'; title = '候選字型　　'; items = $fontItems;   ask = '候選字型'; hint = '候選字用哪一套字型。' }
+            @{ key = 'font';   group = '外觀'; title = '候選字型　　'; items = $fontItems;   ask = '候選字型'; hint = '候選字用哪一套字型。' },
+            @{ key = 'paging'; group = '外觀'; title = '翻頁提示　　'; items = $pagingItems; ask = '翻頁提示（編碼列右側可以點的 < >）'; hint = '編碼列右側要不要顯示可以點的 < >，看得出前後還有沒有候選。' }
         )
         function Show-Value($row) {
             $v = $opt[$row.key]
@@ -618,6 +621,8 @@ function Install-NaPlus {
                 return '只有注音'
             }
 
+            # 數字鍵照「輸入編號」的編號跳（外面那份 $rows 的順序），兩種畫面的同一個數字才會是同一項
+            $numbered = @($rows | ForEach-Object { $_.key })
             # 畫面上照組別排（外觀在前、輸入在後）。這是函式自己的 $rows，外面那份「輸入編號」用的順序不受影響
             $rows = @($rows | Where-Object { $_.group -eq '外觀' }) + @($rows | Where-Object { $_.group -eq '輸入' })
             $focus = 0; $chip = 0
@@ -637,7 +642,7 @@ function Install-NaPlus {
                 }
 
                 Put "${CSI}?25l"
-                for ($r = 1; $r -le 22; $r++) { Put ((At $r 1) + "${CSI}2K") }
+                for ($r = 1; $r -le 23; $r++) { Put ((At $r 1) + "${CSI}2K") }
                 Put ((At 2 3) + $kBold + '注音Na+ 設定' + $kReset)
                 if ($note) { Put ((At 2 18) + $kDim + (Fit $note ($cols - 20)) + $kReset) }
 
@@ -685,8 +690,12 @@ function Install-NaPlus {
                 if (($row.key -eq 'theme' -or $row.key -eq 'dark') -and $sysDark -and $opt.dark -eq 'auto' -and $darkThemes -notcontains $opt.theme) {
                     $more = '系統現在是深色模式，所以實際看到的是 Nat Dark。想在深色模式也用這個主題：把「系統深色模式」換成不跟隨。'
                 }
-                Put ((At 16 3) + (Fit $help ($cols - 4)))
-                Put ((At 17 3) + $kDim + (Fit $more ($cols - 4)) + $kReset)
+                # 這一項只管這套的主題（每套配色有一行 __patch 接開關）；對話框選的自訂配色管不到
+                if ($row.key -eq 'paging' -and (Is-Custom 'theme')) {
+                    $more = "現在用的是在小狼毫對話框選的「$guiTheme」，這一項管不到它：它的 < > 照它自己的配色設定。"
+                }
+                Put ((At 17 3) + (Fit $help ($cols - 4)))
+                Put ((At 18 3) + $kDim + (Fit $more ($cols - 4)) + $kReset)
 
                 # ── 改了什麼 ──
                 $diff = @()
@@ -699,14 +708,14 @@ function Install-NaPlus {
                     # 一行放得下就列出「舊 → 新」；放不下改成只列改了哪幾項（寧可少講，也不要被截掉一半）
                     $line = '已修改　' + ($diff -join '　｜　')
                     if ((Cells $line) -gt ($cols - 4)) { $line = ('已修改 {0} 項　' -f $diff.Count) + (($diff | ForEach-Object { ($_ -split '：', 2)[0] }) -join '、') }
-                    Put ((At 19 1) + $kAccent + '●' + $kReset + (At 19 3) + (Fit $line ($cols - 4)))
+                    Put ((At 20 1) + $kAccent + '●' + $kReset + (At 20 3) + (Fit $line ($cols - 4)))
                 }
-                else { Put ((At 19 3) + $kDim + '還沒有修改。直接按 Enter 就是什麼都不改。' + $kReset) }
+                else { Put ((At 20 3) + $kDim + '還沒有修改。直接按 Enter 就是什麼都不改。' + $kReset) }
 
                 # ── 按鍵提示（每一段各自定位，箭頭字元寬度算錯也不會擠到後面）──
                 $hints = @(@('↑↓', '選項目'), @('←→', '換一個'), @('空白', '勾選'), @('Backspace', '還原這一項'), @('Enter', '套用'), @('Esc', '取消'))
                 $x = 3
-                foreach ($h in $hints) { Put ((At 21 $x) + $kAccent + $h[0] + $kReset + ' ' + $kDim + $h[1] + $kReset); $x += (Cells $h[0]) + (Cells $h[1]) + 4 }
+                foreach ($h in $hints) { Put ((At 22 $x) + $kAccent + $h[0] + $kReset + ' ' + $kDim + $h[1] + $kReset); $x += (Cells $h[0]) + (Cells $h[1]) + 4 }
 
                 # ── 右邊：用主題真正的顏色畫一個候選窗 ──
                 $px = 70; $pw = 32
@@ -731,11 +740,13 @@ function Install-NaPlus {
                         $tall = 8; if ($opt.layout -eq 'horizontal') { $tall = 5 }
                         for ($k = 0; $k -lt $tall; $k++) { Block ($top + $k) $px $pw $frame }
                         for ($k = 1; $k -lt $tall - 1; $k++) { Block ($top + $k) $ix $iw $back }
-                        # 編碼列：已確定的部分＋高亮段，右側是翻頁箭頭
+                        # 編碼列：已確定的部分＋高亮段，右側是翻頁箭頭（翻頁提示開的時候；第一頁 < 是一般文字色＝不能往前）
                         Ink ($top + 1) ($ix + 2) 'ㄋㄧ' $text $back $false
                         Ink ($top + 1) ($ix + 7) ' ㄏㄠ ' $hText $hBack $false
-                        Ink ($top + 1) ($ix + $iw - 6) '<' $label $back $false
-                        Ink ($top + 1) ($ix + $iw - 3) '>' $page $back $true
+                        if ($opt.paging -eq 'on') {
+                            Ink ($top + 1) ($ix + $iw - 6) '<' $label $back $false
+                            Ink ($top + 1) ($ix + $iw - 3) '>' $page $back $true
+                        }
                         if ($opt.layout -eq 'horizontal') {
                             $cx = $ix + 1
                             for ($k = 0; $k -lt 3; $k++) {
@@ -761,7 +772,7 @@ function Install-NaPlus {
                         Put ((At ($top + $tall) $px) + $kDim + (Fit $caption $pw) + $kReset)
                     }
                 }
-                Put (At 22 1)
+                Put (At 23 1)
                 return $sb.ToString()
             }
 
@@ -789,7 +800,10 @@ function Install-NaPlus {
                     elseif ($key -match '^(DownArrow|Down|J|Tab)$') { $focus = ($focus + 1) % $rows.Count }
                     elseif ($key -match '^(Home|PageUp)$')      { $focus = 0 }
                     elseif ($key -match '^(End|PageDown)$')     { $focus = $rows.Count - 1 }
-                    elseif ($key -match '^(?:D|NumPad)?([1-9])$' -and [int]$Matches[1] -le $rows.Count) { $focus = [int]$Matches[1] - 1 }
+                    elseif ($key -match '^(?:D|NumPad)?([1-9])$' -and [int]$Matches[1] -le $numbered.Count) {
+                        $want = $numbered[[int]$Matches[1] - 1]
+                        for ($k = 0; $k -lt $rows.Count; $k++) { if ($rows[$k].key -eq $want) { $focus = $k } }
+                    }
                     elseif ($key -match '^(Backspace|Delete)$') {
                         # 還原這一項（含「回到小狼毫對話框那邊的自訂」）
                         $opt[$row.key] = $snap[$row.key]
@@ -832,7 +846,7 @@ function Install-NaPlus {
         if (-not $useScreen -and -not (Pick '' 'NA_PLAIN')) {
             try {
                 $useScreen = [bool]$Host.UI.SupportsVirtualTerminal -and -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected -and
-                             [Console]::WindowWidth -ge 72 -and [Console]::WindowHeight -ge 23
+                             [Console]::WindowWidth -ge 72 -and [Console]::WindowHeight -ge 24
             } catch { $useScreen = $false }
         }
         if ($useScreen) {
@@ -880,6 +894,7 @@ function Install-NaPlus {
     if (-not $sizeMap.ContainsKey($opt.size)) { Die "不認得的字級：$($opt.size)（可用：small medium large）" }
     if ('vertical', 'horizontal' -notcontains $opt.layout) { Die "不認得的排列：$($opt.layout)（可用：vertical horizontal）" }
     if ('on', 'off' -notcontains $opt.emoji) { Die "不認得的 emoji 設定：$($opt.emoji)（可用：on off）" }
+    if ('on', 'off' -notcontains $opt.paging) { Die "不認得的翻頁提示設定：$($opt.paging)（可用：on off）" }
     if (-not $glossMap.ContainsKey($opt.gloss)) { Die "不認得的釋義語言：$($opt.gloss)（可用：zh en ja）" }
     if ('huninn', 'system' -notcontains $opt.font) { Die "不認得的字型：$($opt.font)（可用：huninn system）" }
 
@@ -938,6 +953,9 @@ function Install-NaPlus {
 
     $horizontal = 'false'; $mac = 'stacked'
     if ($opt.layout -eq 'horizontal') { $horizontal = 'true'; $mac = 'linear' }
+    # 翻頁提示關掉：小狼毫的 < > 是把配色裡的兩個翻頁顏色蓋成透明（見 na_weasel.yaml）；Mac 的 lua 看 paging_hint
+    $pagingHint = 'true'; $weaselPaging = '{}'
+    if ($opt.paging -eq 'off') { $pagingHint = 'false'; $weaselPaging = '{ prevpage_color: "0x00000000", nextpage_color: "0x00000000" }' }
     $emojiNum = 1
     if ($opt.emoji -eq 'off') { $emojiNum = 0 }
     $scheme = $themeMap[$opt.theme]
@@ -978,7 +996,7 @@ function Install-NaPlus {
         "# na_style.custom.yaml — 個人選項：候選窗的長相（由 '/setup 產生，不進版控）",
         "# 想換：輸入法裡打 '/setup；或手動改下面的值後重新部署。各鍵說明見 na_style.yaml。",
         $note,
-        "# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) font=$($opt.font)",
+        "# na-options: theme=$($opt.theme) dark=$($opt.dark) layout=$($opt.layout) size=$($opt.size) font=$($opt.font) paging=$($opt.paging)",
         'patch:',
         "  theme: $scheme",
         "  theme_dark: $schemeDark",
@@ -991,7 +1009,9 @@ function Install-NaPlus {
         "  mac_font_face: $macFont",
         "  mac_comment_font_face: $macComment",
         "  horizontal: $horizontal",
-        "  candidate_list_layout: $mac"
+        "  candidate_list_layout: $mac",
+        "  paging_hint: $pagingHint",
+        "  weasel_paging: $weaselPaging"
     )
     Write-Option $inputFile @(
         "# na_input.custom.yaml — 個人選項：輸入時的行為（由 '/setup 產生，不進版控）",
@@ -1019,7 +1039,10 @@ function Install-NaPlus {
     $themeShown = $opt.theme; $langsShown = $opt.langs
     if ($guiTheme -and -not $guiThemeKnown -and -not $edited.theme) { $themeShown = "$guiTheme（小狼毫對話框選的）" }
     if ($guiSchemas -and -not $edited.langs) { $langsShown = "自訂的 $guiSchemas 個方案（小狼毫對話框勾的）" }
-    Say "    主題 $themeShown｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜字型 $($opt.font)｜emoji $($opt.emoji)｜語言 $langsShown｜釋義 $($opt.gloss)"
+    if ($opt.paging -eq 'off' -and $guiTheme -and -not $guiThemeKnown -and -not $edited.theme) {
+        Warn "翻頁提示關掉只對這套的主題有效。現在用的「$guiTheme」是在小狼毫對話框選的，它的配色如果有翻頁顏色，< > 還是會出現。"
+    }
+    Say "    主題 $themeShown｜深色模式 $($opt.dark)｜排列 $($opt.layout)｜字級 $($opt.size)｜字型 $($opt.font)｜翻頁提示 $($opt.paging)｜emoji $($opt.emoji)｜語言 $langsShown｜釋義 $($opt.gloss)"
 
     # ── [6] 套用檔案＋部署 ────────────────────────────────────────────
     # 交給 repo 裡的 rime-update.ps1：它會把 rime\ 攤平複製到使用者資料夾，並自己判斷要不要
@@ -1061,7 +1084,7 @@ function Install-NaPlus {
 }
 
 try {
-    Install-NaPlus -Theme $Theme -Dark $Dark -Layout $Layout -Size $Size -Font $Font -Emoji $Emoji -Langs $Langs -Gloss $Gloss `
+    Install-NaPlus -Theme $Theme -Dark $Dark -Layout $Layout -Size $Size -Font $Font -Paging $Paging -Emoji $Emoji -Langs $Langs -Gloss $Gloss `
         -Yes ([bool]$Yes) -NoDeploy ([bool]$NoDeploy) -Repo $Repo -Branch $Branch -RimeDir $RimeDir
 } catch {
     Write-Host ''

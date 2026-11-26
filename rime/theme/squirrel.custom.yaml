@@ -43,9 +43,13 @@ patch:
   "style/border_width": 1
   "style/line_spacing": 5 # 候選列之間。光棒的高度是「文字＋這個值」，所以它同時決定光棒的上下內距
   "style/spacing": 6 # 編碼列與候選之間（Windows：layout/spacing 6）
-  # 翻頁箭頭（Windows：配色裡的 prevpage_color／nextpage_color）。鼠鬚管畫的是候選窗左緣的小三角形，
-  # 位置跟 Windows（編碼列右側的 < >）不一樣，但功能相同：可點、看得出還有沒有上下頁。
-  "style/show_paging": true
+  # 鼠鬚管內建的翻頁箭頭關掉：它寫死在程式裡，是兩個浮在候選窗「外面」左邊的小三角形，還會把整個候選窗
+  # 往右推「標籤字級 ×1.5」（約 22px），候選窗就跟游標對不齊。位置、形狀、顏色都沒有鍵可以調，只能開或關。
+  # 改用編碼列後面的「1 ›」「‹ 2 ›」「‹ 3」（lua/processor_paging_hint.lua；開關是下面的 na_paging_hint）。
+  # 觸控板在候選窗上滑動照樣能翻頁。
+  "style/show_paging": false
+  # 翻頁提示的安裝選項。鼠鬚管不認得這個鍵，是給 lua/processor_paging_hint.lua 讀的。
+  na_paging_hint: { __include: "na_style:/paging_hint" }
   # Windows 有、鼠鬚管沒有的：高亮列左側的圓角色條（mark）、滑鼠懸停反白的開關（鼠鬚管內建就會）。
   # 鼠鬚管的 shadow_size 是「光棒底下」的陰影，不是整個視窗的陰影，跟 Windows 的不是同一件事，所以不設。
 

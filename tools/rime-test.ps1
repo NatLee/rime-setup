@@ -743,13 +743,13 @@ switch ($Mode) {
       Check 'G29 自訂配色被 setup 取代'          (Color) 'NatLight'
 
       # ── 選項畫面（方向鍵那個）：照按鍵腳本操作，看寫出來的設定對不對 ──
-      # 畫面上的順序：外觀＝主題、深色模式、排列、字級、字型；輸入＝emoji、語言、釋義。
+      # 畫面上的順序：外觀＝主題、深色模式、排列、字級、字型、翻頁提示；輸入＝emoji、語言、釋義。
       # 現在的狀態：主題 light、語言只有日文、沒有對話框那邊的自訂。
       Check 'S01 → 再 Enter：主題換下一個'       ((Setup '' 'Right,Enter') -and (Color) -eq 'NatFluent') $true
       Check 'S02 → 再 Esc：取消，什麼都不變'     ((Setup '' 'Right,Right,Escape') -and (Color) -eq 'NatFluent') $true
       Check 'S03 → 再 Backspace：還原那一項'     ((Setup '' 'Right,Backspace,Enter') -and (Color) -eq 'NatFluent') $true
       Check 'S04 ← 會繞回最後一個'               ((Setup '' 'Left,Left,Left,Enter') -and (Color) -eq 'NatLee') $true
-      Check 'S05 語言：移到韓文、空白鍵勾起來'   ((Setup '' 'Down,Down,Down,Down,Down,Down,Right,Space,Enter') -and (Schemas) -eq 'bopomo_onionplus,jpnin1,hangeul_hnc') $true
+      Check 'S05 語言：移到韓文、空白鍵勾起來'   ((Setup '' 'Down,Down,Down,Down,Down,Down,Down,Right,Space,Enter') -and (Schemas) -eq 'bopomo_onionplus,jpnin1,hangeul_hnc') $true
       Check 'S06 數字鍵跳到那一項（3＝排列）'    ((Setup '' '3,Right,Enter') -and ((Text 'na_style.custom.yaml') -match '(?m)^  horizontal: true')) $true
       # 對話框選了不是這套的配色：畫面上那一項顯示「自訂」，沒動它就原樣留著；動了再 Backspace 也要回到自訂
       [void][RimeT]::DialogPickColorScheme('my_own_scheme')

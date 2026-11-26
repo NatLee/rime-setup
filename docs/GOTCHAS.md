@@ -506,6 +506,7 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
   `mark_text` 填了字就改成畫那個字。
 - **翻頁箭頭 `<` `>`**（編碼列右側，可點）：配色**同時**有 `prevpage_color` 和 `nextpage_color` 才出現，
   而且只在 `inline_preedit: false` 時畫。不能翻的那個方向用一般文字色。
+  開關是安裝選項「翻頁提示」（關掉＝蓋成透明），見下面「翻頁提示」。
 - `style/hover_type` 只認 `none`／`semi_hilite`／`hilite`；`style/layout/align_type` 只認 `top`／`center`／`bottom`。
 - `margin_y` 會被自動撐到至少等於 `hilite_padding_y`，設小了沒用。
 - 光棒圓角是 `layout/round_corner`，視窗圓角是 `layout/corner_radius`，兩個名字很像、別寫反。
@@ -521,11 +522,36 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
   | 邊框粗細 | `layout/border_width` | `border_width` 與 `border_height` 取小的 |
   | 候選列距與光棒內距 | `candidate_spacing`、`hilite_padding_*` | `line_spacing` 一個值兼任兩者 |
   | 編碼列與候選的間距 | `layout/spacing` | `spacing` |
-  | 翻頁箭頭 | 配色的 `prevpage_color`＋`nextpage_color` | `show_paging: true`（畫在左緣，是三角形） |
+  | 翻頁箭頭 | 配色的 `prevpage_color`＋`nextpage_color` | `show_paging: true`：畫成浮在候選窗外面左邊的兩個三角形，還把候選窗往右推「標籤字級 ×1.5」，跟游標對不齊；位置／樣式不能調。觸控板在候選窗上滑動就能翻頁，不受這個鍵影響。本專案關掉，改用 lua（見下面「翻頁提示」） |
   | 註釋字重 | `comment_font_face` | `comment_font_face` |
   | 高亮列的色條 | `mark_text: ""`＋`hilited_mark_color` | **沒有** |
   | 視窗陰影 | `layout/shadow_radius` | **沒有**（`shadow_size` 是光棒底下的陰影，不是同一件事） |
 - 鼠鬚管這份排版是照原始碼的算法換算的，沒有在 Mac 上實際看過，上機後可能要微調數值。
+
+### 翻頁提示：Windows 用內建的 `< >`、Mac 用 lua 的「‹ 2 ›」
+安裝選項 `paging`，兩個平台同一個開關，實作完全不同。預設值在 `na_style.yaml`（`paging_hint`＋`weasel_paging` 兩個鍵，安裝腳本一起寫）。
+- **Windows**：小狼毫內建、在編碼列右側、可以點。關掉的做法是把配色裡的 `prevpage_color`／`nextpage_color`
+  蓋成透明 `0x00000000`（小狼毫看到 alpha 為 0 就不畫）：`na_weasel.yaml` 每套配色最後一行
+  `__patch: na_style:/weasel_paging`，開的時候那個鍵是空的 `{}`、什麼都不改。**新增一套配色也要加那行**，否則那套關不掉。
+  使用者在小狼毫「輸入法設定」對話框選的自訂配色沒有那行，管不到：`'/setup` 在那一項和最後的摘要會明講。
+  用 librime 編譯過 `weasel.yaml` 確認：開＝原本的顏色、關＝九套都是 `0x00000000`。
+- **macOS**：鼠鬚管內建的 `show_paging` 是浮在候選窗外面左邊的三角形、還把候選窗往右推，不能調，所以關掉、
+  改由 `lua/processor_paging_hint.lua` 改 `segment.prompt`，在編碼列後面顯示 `1 ›`／`‹ 2 ›`／`‹ 3`。
+  這支 lua 只在 distribution 是 Squirrel 時作用（`rime-test.ps1` 的沙盒自稱 Weasel，所以 Windows 的回歸不受影響）。
+- **Mac 上用的符號要先畫出來看**。`◂▸◃▹`、`◀▶◁▷` 不在粉圓、蘋方裡，四個會各自掉到不同的後備字型，空心跟實心大小差一大截；
+  `▲▼△▽` 大小一致但太重。`‹ ›` 跟文字同一套字形、線條輕。（用 CoreText 照實際字型畫出來比過）
+- **prompt 是插在游標位置的**（`Composition::GetPreedit`）。游標移進編碼中間時不顯示，否則會把編碼切成兩半。
+  候選自己在編碼列後面接的那段（preedit 裡 `\t` 後面，例如英文的「（個排：字數）」）一定在 prompt 後面，
+  所以那種情況提示後面多空兩格。
+- **編碼列直接顯示在 App 裡（inline）時不能加**，否則「1 ›」會出現在使用者的文件裡。lua 不必自己解析 `inline_preedit`／`app_options`：
+  鼠鬚管把算好的結果寫進 librime 的 `soft_cursor` 選項（在候選窗裡＝true），但它是換方案**之後**才設，
+  所以還要掛 `option_update_notifier`，換方案後的第一個鍵才不會漏。用 librime 測提示時要先 `set_option soft_cursor`。
+- **只掛 `update_notifier` 不夠**：只選了前半段（ㄋㄧˇㄏㄠˇ 先選「你」）時，引擎直接重新組字、不發 update，
+  剩下那段的提示要等下一個鍵才出現。要連 `select_notifier` 一起掛。引擎自己的處理比 lua 先掛、先跑，
+  輪到 lua 時新的候選已經在了。
+- **Mac 的開關從 `build/squirrel.yaml` 讀**（頂層的 `na_paging_hint`，由 `squirrel.custom.yaml` 從 `na_style` 帶過去）。
+  方案設定讀不到 `na_style`，而把 `na_style` 引進方案會讓「換主題」也重編所有方案。
+  librime 的 API 測試程式不會自己部署前端設定，沒有那個檔時當成「開」。
 
 ### 小狼毫設定對話框與 `*.custom.yaml`：那兩個檔是使用者的，repo 不可以放東西進去
 工作列圖示右鍵 →「輸入法設定」會連開兩個對話框，按確定就**把整個檔重寫**（註解全掉、鍵重新排序、

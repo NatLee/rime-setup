@@ -44,3 +44,12 @@ mac_label_font_point: 15 # macOS：標籤與註釋
 # ── 候選排列 ──
 horizontal: false # Windows：true 橫排／false 直排
 candidate_list_layout: stacked # macOS：linear 橫排／stacked 直排
+
+# ── 翻頁提示 ──
+# 候選不只一頁時，看得出前後還有沒有候選。兩個平台長得不一樣，開關是同一個（'/setup 的「翻頁提示」）：
+#   Windows：小狼毫內建、可以點的 < >（編碼列右側）。關掉＝把配色裡的兩個翻頁顏色蓋成透明，見 na_weasel.yaml。
+#   macOS：編碼列後面的「1 ›」「‹ 2 ›」「‹ 3」（頁碼＋前後還有沒有），lua/processor_paging_hint.lua 畫的。
+#          鼠鬚管內建的箭頭不用，原因見那支 lua 的檔頭。
+# 兩個鍵要一起改（安裝腳本會一起寫）：
+paging_hint: true # macOS：true 顯示／false 不顯示（經 squirrel.custom.yaml 的 na_paging_hint 給 lua 讀）
+weasel_paging: {} # Windows：空的＝顯示；不顯示時寫成 { prevpage_color: "0x00000000", nextpage_color: "0x00000000" }

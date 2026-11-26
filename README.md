@@ -51,6 +51,7 @@ macOS 裝完還有兩個系統設定要手動改（腳本改不到）：
 | 候選排列 `layout` | `vertical` 直排／`horizontal` 橫排 | `vertical` |
 | 候選字級 `size` | `small`／`medium`／`large` | `medium` |
 | 候選字型 `font` | `huninn` 粉圓體（[jf open 粉圓](https://github.com/justfont/open-huninn-font)，沒裝會自動下載安裝，約 5 MB）／`system` 系統內建（正黑體、蘋方） | `huninn` |
+| 翻頁提示 `paging` | `on` 候選不只一頁時顯示：Windows 是編碼列右側可以點的 `< >`，macOS 是編碼列後面的 `‹ 2 ›`（第幾頁，前後還有候選的那邊加箭頭）／`off` 不顯示 | `on` |
 | 候選附帶 emoji `emoji` | `on`／`off` | `on` |
 | 方案選單裡的語言 `langs` | `ja` 日文、`ko` 韓文、`en` 英文、`extra`（注音文、全形、符號…）任意組合；`none` 只留注音 | 全部 |
 | 釋義語言 `gloss` | `zh`／`en`／`ja` | `zh` |
