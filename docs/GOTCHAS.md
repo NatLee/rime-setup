@@ -582,6 +582,19 @@ key_binder 綁不了「單按右 Shift」；`ascii_composer/switch_key` 認得�
 
 ## 安裝腳本與安裝選項
 
+### 自動安裝 git／小狼毫／鼠鬚管的幾個坑
+- **裝完 git，同一個 PowerShell 視窗還是找不到 git**：安裝程式只改登錄檔的 PATH，已經開著的程序不會知道。
+  `install.ps1` 的 `Update-SessionPath` 從登錄檔（Machine＋User）把 PATH 讀回這個視窗，所以不必「開新視窗再跑一次」。
+  同理，比 git 早啟動的 WeaselServer 開出來的 `'/git` 視窗也看不到 git → `rime-update.ps1` 找不到 git 時也會讀一次登錄檔。
+- **小狼毫靜默安裝要給 `/S /T`**：安裝檔（`install.nsi`）只看到 `/S` 時用 `WeaselSetup.exe /s` 註冊成**簡體中文**輸入法，
+  加 `/T` 才是「中文（台灣）」。winget 預設只給 `/S`，所以要 `--override "/S /T"`。
+- **沒有 winget**（舊版 Windows 10、LTSC、Windows 沙箱）或 winget 失敗 → 從 GitHub releases 下載官方安裝檔，`Start-Process -Verb RunAs` 靜默裝（會跳一次 UAC）。
+  裝完一律用「找得到執行檔」判斷成功，不看安裝程式的 exit code。
+- **macOS 的 `command -v git` 不可信**：沒裝 Command Line Tools 時 `/usr/bin/git` 只是個殼，一執行就失敗並跳安裝視窗。
+  要看 `xcode-select -p`。`install.sh` 會叫出 `xcode-select --install` 的視窗，然後輪詢等它裝完再繼續。
+- **鼠鬚管 pkg 的 postinstall 會自己註冊、啟用並選取輸入法**，不必叫使用者手動加；少數情況要登出再登入才切得到。
+- `-Yes`／`--yes` 的意思是「全部用預設答案」，而「要不要安裝」的預設答案是要 —— 所以 `-Yes` 會直接安裝缺的程式。
+
 ### 安裝選項放在 `na_style`／`na_input`／`na_menu` 三個檔，不要寫死在 `*.custom.yaml`
 主題、深色模式、直／橫排、字級、字型、emoji 預設、釋義語言、方案清單是「每個人裝的時候自己選」的東西。
 作法：
