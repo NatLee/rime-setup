@@ -65,6 +65,11 @@ patch:
       shadow_offset_y: 3
   preset_color_schemes:
     # 顏色格式為 0xBBGGRR（含透明度時 0xAABBGGRR）
+    #
+    # 翻頁箭頭 < >（編碼列右側，可以點）：配色同時有 prevpage_color 和 nextpage_color 才畫，顏色透明就不畫。
+    # 每套配色最後那行 __patch 接安裝選項「翻頁提示」：開的時候 na_style:/weasel_paging 是空的、什麼都不改；
+    # 關的時候安裝腳本在 na_style.custom.yaml 把它寫成兩個透明色（0x00000000），蓋掉上面的顏色。
+    # ⚠ 新增一套配色也要加那行 __patch，否則那套配色關不掉箭頭。
     NatMatcha:
       name: Nat Matcha
       author: NatLee
@@ -84,6 +89,7 @@ patch:
       hilited_mark_color: 0xF4FDFF # 高亮候選前的小標記：奶油白 #FFFDF4
       prevpage_color: 0x786607 # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0x786607 # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     NatLight:
       name: Nat Light
@@ -104,6 +110,7 @@ patch:
       hilited_mark_color: 0xD6620F # 高亮候選前的小標記：藍 #0F62D6
       prevpage_color: 0xD6620F # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0xD6620F # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 深色主題（安裝時選「跟隨系統」會把它設成 color_scheme_dark）
     NatDark:
@@ -125,6 +132,7 @@ patch:
       hilited_mark_color: 0xF2A55C # #5CA5F2
       prevpage_color: 0xF2A55C # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0xF2A55C # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 低調：淡灰光棒＋藍色色條（高亮不靠大色塊，靠左側那條強調色）
     NatFluent:
@@ -146,6 +154,7 @@ patch:
       hilited_mark_color: 0xB85F00 # 高亮候選左側的色條：強調藍
       prevpage_color: 0xB85F00 # 翻頁箭頭 <
       nextpage_color: 0xB85F00 # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 櫻花：粉白底＋莓紅光棒
     NatSakura:
@@ -167,6 +176,7 @@ patch:
       hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
       prevpage_color: 0x6B45C2 # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0x6B45C2 # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 海洋：霧白底＋海藍光棒
     NatOcean:
@@ -188,6 +198,7 @@ patch:
       hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
       prevpage_color: 0xA46F0B # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0xA46F0B # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 拿鐵：奶泡底＋咖啡光棒
     NatLatte:
@@ -209,6 +220,7 @@ patch:
       hilited_mark_color: 0xEEF8FF # 高亮候選前的小標記
       prevpage_color: 0x2B5B9A # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0x2B5B9A # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 午夜：深藍底＋靛藍光棒（深色）
     NatMidnight:
@@ -230,6 +242,7 @@ patch:
       hilited_mark_color: 0xFFFFFF # 高亮候選前的小標記
       prevpage_color: 0xFFB48F # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0xFFB48F # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）
 
     # 經典主題
     NatLee:
@@ -250,3 +263,4 @@ patch:
       hilited_mark_color: 0xc7f1fb # 高亮候選左側的色條
       prevpage_color: 0x36383c # 翻頁箭頭 <（還能往前翻時的顏色）
       nextpage_color: 0x36383c # 翻頁箭頭 >
+      __patch: na_style:/weasel_paging # 翻頁箭頭的開關（見上面 preset_color_schemes 的說明）

@@ -79,7 +79,7 @@ PowerShell 5.1 跑、個人資料不可進版控。
 
 | 需求 | 檔案 |
 |---|---|
-| **安裝時可選的項目**（目前用哪個主題、直／橫排、emoji 預設、釋義語言、方案清單） | 預設值分三個檔：`rime/core/na_style.yaml`（主題、字型、字級、排列）、`na_input.yaml`（emoji、釋義語言）、`na_menu.yaml`（方案清單）—— **新選項要放進對的那個檔**，放錯會讓換主題也重編所有方案；詢問與寫檔 `install.ps1`＋`install.sh`（**兩支要同步改**，只重寫內容有變的檔）；個人值在使用者資料夾對應的 `na_*.custom.yaml`。**別把這些值寫死回 `na_weasel.yaml`／`squirrel.custom.yaml`／方案的 `*.custom.yaml`**，原委見 GOTCHAS「安裝腳本與安裝選項」 |
+| **安裝時可選的項目**（目前用哪個主題、直／橫排、翻頁提示、emoji 預設、釋義語言、方案清單） | 預設值分三個檔：`rime/core/na_style.yaml`（主題、字型、字級、排列、翻頁提示）、`na_input.yaml`（emoji、釋義語言）、`na_menu.yaml`（方案清單）—— **新選項要放進對的那個檔**，放錯會讓換主題也重編所有方案；詢問與寫檔 `install.ps1`＋`install.sh`（**兩支要同步改**，只重寫內容有變的檔）；個人值在使用者資料夾對應的 `na_*.custom.yaml`。**別把這些值寫死回 `na_weasel.yaml`／`squirrel.custom.yaml`／方案的 `*.custom.yaml`**，原委見 GOTCHAS「安裝腳本與安裝選項」 |
 | 安裝／重新設定流程 | `install.ps1`（Windows，**UTF-8 無 BOM**）、`install.sh`（macOS，bash 3.2 相容）；本機重跑入口 `scripts/rime-setup.cmd`（使用者資料夾裡的 `na-setup.cmd` 會轉過來） |
 | 檔案怎麼從 repo 進到使用者資料夾 | `scripts/rime-apply.ps1`／`rime-apply.sh`（攤平、只複製有變的、依 `na_manifest.txt` 清舊檔、建立使用者的 `weasel.custom.yaml`／`default.custom.yaml`、轉換舊版面的個人檔、產生啟動器） |
 | 配色定義、字型、視窗排版（Windows） | `rime/theme/na_weasel.yaml`（使用者資料夾的 `weasel.custom.yaml` 用 `__include` 接它，見規則 7） |
@@ -95,7 +95,7 @@ PowerShell 5.1 跑、個人資料不可進版控。
 | 方案顯示名稱 | **直接改 `*.schema.yaml` 的 `schema/name`**（少數允許直接改上游檔的地方）。小狼毫的「輸入法設定」對話框讀的是原始名稱，不吃 custom 的 patch；只 patch 的話選單對了、對話框還是舊名 |
 | emoji 聯想、字集過濾、符號標註的對照表 | `rime/opencc/*.txt` 是來源，輸入法讀的是編譯後的 `.ocd2`。**改了 .txt 要跑 `pwsh tools\opencc-build.ps1` 重編**（需要 Docker），兩個檔一起提交 |
 | 候選字型（粉圓體／系統字型） | 預設值（系統字型）在 `rime/core/na_style.yaml` 的 `font_face`／`comment_font_face`／`mac_*`；安裝腳本選粉圓體時偵測或下載安裝字型，再把實際的字型名稱寫進個人選項檔。字型檔不進 repo |
-| 新增一個主題 | 配色加進 `rime/theme/na_weasel.yaml` **和** `squirrel.custom.yaml` → `install.ps1`、`install.sh` 的主題清單與對照表 → `pwsh tools\theme-preview.ps1` 重產預覽圖 → README「主題」那張表加一格 |
+| 新增一個主題 | 配色加進 `rime/theme/na_weasel.yaml` **和** `squirrel.custom.yaml`（小狼毫那套最後一行要有 `__patch: na_style:/weasel_paging`，否則「翻頁提示」關不掉它的 `< >`）→ `install.ps1`、`install.sh` 的主題清單與對照表 → `pwsh tools\theme-preview.ps1` 重產預覽圖 → README「主題」那張表加一格 |
 | `'/setup`（選項畫面） | 就是安裝腳本的互動選單。Windows 是 `install.ps1` 的 `Show-OptionsScreen`（方向鍵操作、右邊即時預覽主題；用 `NA_TUI_KEYS` 給按鍵腳本來測；改了版面要跑 `pwsh toolssetup-screenshot.ps1` 重產 README 的截圖並打開來看），終端機不支援時退回「目前的設定」那個輸入編號的迴圈；macOS 是 `install.sh` 裡的 `tui_run`（同一個畫面的 bash 3.2 版，**兩邊版面要同步改**；一樣吃 `NA_TUI_KEYS`／`NA_TUI_DUMP`，另有 `NA_TUI_COLS`、`NA_SYS_DARK` 給測試用）。輸入法端的入口在 `p_run_pattern.lua` 的 `setup` 與 `mf_menu_data.lua` 的 `set` 選單。它開的視窗成功會自己關（Windows：`scripts/rime-setup.cmd`；macOS：`rime-apply.sh` 產生的 `na-setup.command`）。小狼毫對話框選的配色／方案清單怎麼跟選項並存：GOTCHAS「小狼毫設定對話框與 `*.custom.yaml`」 |
 | 自訂詞（打 `email` 出信箱那種） | 個人的：使用者資料夾的 `bopomo_onionplus_phrase.txt`（改完要**部署**）；給新使用者的範本：`rime/bopomofo/bopomo_onionplus_phrase.sample.txt` |
 | `'/` 開頭的多功能（日期／計算機／Unicode…） | `rime/lua/mf_components/` → 見 [架構文件](docs/ARCHITECTURE.md) |

@@ -30,6 +30,8 @@ mix_apc_s2rm_ltk = require("processor_mix_apc_s2rm_ltk")
 p_select_keys = require("processor_p_select_keys")
 -- 單按右 Shift 循環切換語言方案
 schema_cycle = require("processor_schema_cycle")
+-- 翻頁提示（macOS）：候選不只一頁時，編碼列後面顯示「‹ 2 ›」（安裝選項，可在 '/setup 關掉；小狼毫用內建的 < >）
+paging_hint = require("processor_paging_hint")
 
 --------------------------------------------------------------------------
 -- translator

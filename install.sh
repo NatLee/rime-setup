@@ -18,6 +18,7 @@
 #   --langs   ja,ko,en,extra 任意組合；none＝只留注音
 #   --gloss   zh | en | ja
 #   --font    huninn（粉圓體，沒裝會自動下載）| system（系統內建的蘋方）
+#   --paging  on | off（翻頁提示：候選不只一頁時，編碼列後面顯示「‹ 2 ›」）
 #   --yes     不詢問：沿用上次的選擇（第一次則用預設值）
 #   --local   用這支腳本所在的那份 repo，不連網（不 clone、不 pull）
 #   --no-deploy  只複製檔案與寫設定，不重新部署（測試用）
@@ -50,18 +51,19 @@ main() {
     local SQUIRREL="${NA_SQUIRREL:-${SQUIRREL_APP}/Contents/MacOS/Squirrel}"
     local YES="${NA_YES:-}" NO_DEPLOY="${NA_NO_DEPLOY:-}"
     local G_THEME="${NA_THEME:-}" G_LAYOUT="${NA_LAYOUT:-}" G_EMOJI="${NA_EMOJI:-}"
-    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}" G_DARK="${NA_DARK:-}" G_SIZE="${NA_SIZE:-}" G_FONT="${NA_FONT:-}"
+    local G_LANGS="${NA_LANGS:-}" G_GLOSS="${NA_GLOSS:-}" G_DARK="${NA_DARK:-}" G_SIZE="${NA_SIZE:-}" G_FONT="${NA_FONT:-}" G_PAGING="${NA_PAGING:-}"
     local BACKUP=""
 
     while [ $# -gt 0 ]; do
         case "$1" in
-            --theme|--dark|--layout|--size|--font|--emoji|--langs|--gloss)
+            --theme|--dark|--layout|--size|--font|--paging|--emoji|--langs|--gloss)
                 [ $# -ge 2 ] || { echo "✗ $1 後面要接一個值" >&2; return 2; }
                 case "$1" in
                     --theme)  G_THEME="$2" ;;
                     --dark)   G_DARK="$2" ;;
                     --size)   G_SIZE="$2" ;;
                     --font)   G_FONT="$2" ;;
+                    --paging) G_PAGING="$2" ;;
                     --layout) G_LAYOUT="$2" ;;
                     --emoji)  G_EMOJI="$2" ;;
                     --langs)  G_LANGS="$2" ;;
@@ -302,7 +304,7 @@ main() {
     # 先讀它、再讓新檔蓋過去（舊檔之後由 rime-apply.sh 收掉）。
     local STYLE_FILE="${RIME_DIR}/na_style.custom.yaml" INPUT_FILE="${RIME_DIR}/na_input.custom.yaml" MENU_FILE="${RIME_DIR}/na_menu.custom.yaml"
     local FIRST_INSTALL=1; [ -f "${RIME_DIR}/na_manifest.txt" ] && FIRST_INSTALL=0
-    local P_DARK="" P_SIZE="" P_FONT=""
+    local P_DARK="" P_SIZE="" P_FONT="" P_PAGING=""
     local P_THEME="" P_LAYOUT="" P_EMOJI="" P_LANGS="" P_GLOSS="" line kv pf
     for pf in "${RIME_DIR}/na_options.custom.yaml" "${STYLE_FILE}" "${INPUT_FILE}" "${MENU_FILE}"; do
         [ -f "${pf}" ] || continue
@@ -313,6 +315,7 @@ main() {
                 dark=*)   P_DARK="${kv#dark=}" ;;
                 size=*)   P_SIZE="${kv#size=}" ;;
                 font=*)   P_FONT="${kv#font=}" ;;
+                paging=*) P_PAGING="${kv#paging=}" ;;
                 layout=*) P_LAYOUT="${kv#layout=}" ;;
                 emoji=*)  P_EMOJI="${kv#emoji=}" ;;
                 langs=*)  P_LANGS="${kv#langs=}" ;;
@@ -326,6 +329,7 @@ main() {
     DARK="$(lower "${G_DARK:-${P_DARK:-auto}}")"
     SIZE="$(lower "${G_SIZE:-${P_SIZE:-medium}}")"
     local FONT; FONT="$(lower "${G_FONT:-${P_FONT:-huninn}}")"
+    local PAGING; PAGING="$(lower "${G_PAGING:-${P_PAGING:-on}}")"
     # 舊值相容：以前「跟隨系統」是主題的一個選項（auto），現在拆成獨立的 dark 選項
     if [ "${THEME}" = "auto" ]; then THEME=light; [ -z "${G_DARK}" ] && DARK=auto; fi
     LAYOUT="$(lower "${G_LAYOUT:-${P_LAYOUT:-vertical}}")"
@@ -385,6 +389,8 @@ size|medium|中|
 size|large|大|
 font|huninn|粉圓體|圓潤的開源字型 jf open 粉圓（沒裝會自動下載安裝，約 5 MB）
 font|system|系統字型|蘋方
+paging|on|開|編碼列後面顯示「‹ 2 ›」：第幾頁，前後還有候選的那邊加箭頭
+paging|off|關|
 emoji|on|開|候選裡附帶對應的 emoji
 emoji|off|關|
 langs|ja|日文|
@@ -395,24 +401,28 @@ gloss|zh|中文|
 gloss|en|英文|
 gloss|ja|日文|
 ITEMS
+        # 「輸入編號」版本（下面那個 1-9 的清單）的順序。選項畫面上按數字鍵也照這個編號跳，
+        # 兩種畫面的同一個數字才會是同一項（畫面上的列是照組別重排過的，順序不一樣）。
+        local NUM_KEY=(theme dark layout size emoji langs gloss font paging)
         # 畫面上的列（外觀在前、輸入在後）
-        local R_KEY=(theme dark layout size font emoji langs gloss)
-        local R_GROUP=(外觀 外觀 外觀 外觀 外觀 輸入 輸入 輸入)
-        local R_TITLE=(主題 系統深色模式 候選排列 候選字級 候選字型 '候選附 emoji' 選單裡的語言 釋義語言)
+        local R_KEY=(theme dark layout size font paging emoji langs gloss)
+        local R_GROUP=(外觀 外觀 外觀 外觀 外觀 外觀 輸入 輸入 輸入)
+        local R_TITLE=(主題 系統深色模式 候選排列 候選字級 候選字型 翻頁提示 '候選附 emoji' 選單裡的語言 釋義語言)
         local R_HINT=('候選窗的配色。用 ←→ 換，右邊就是它實際的顏色。'
                       '系統切到深色模式時，候選窗要不要跟著換成深色。'
                       '候選字直的排，還是橫的排成一列。'
                       '候選字的大小，標籤與註釋會跟著調整。'
                       '候選字用哪一套字型。'
+                      '候選不只一頁時，編碼列後面要不要顯示「‹ 2 ›」，看得出在第幾頁、前後還有沒有。'
                       '打字時候選裡要不要附上對應的 emoji。這是預設狀態，之後仍可在方案選單臨時切換。'
                       '方案選單與右 Shift 循環裡要放哪些語言（注音一定有）。←→ 移動，空白鍵勾選。'
                       '日文、英文候選旁邊的釋義，用哪種語言顯示。')
 
         # 讀寫選項值（結果放 V）
         optv() { case "$1" in theme) V="${THEME}" ;; dark) V="${DARK}" ;; layout) V="${LAYOUT}" ;; size) V="${SIZE}" ;;
-                 font) V="${FONT}" ;; emoji) V="${EMOJI}" ;; langs) V="${LANGS}" ;; gloss) V="${GLOSS}" ;; esac; }
+                 font) V="${FONT}" ;; paging) V="${PAGING}" ;; emoji) V="${EMOJI}" ;; langs) V="${LANGS}" ;; gloss) V="${GLOSS}" ;; esac; }
         setv() { case "$1" in theme) THEME="$2" ;; dark) DARK="$2" ;; layout) LAYOUT="$2" ;; size) SIZE="$2" ;;
-                 font) FONT="$2" ;; emoji) EMOJI="$2" ;; langs) LANGS="$2" ;; gloss) GLOSS="$2" ;; esac; }
+                 font) FONT="$2" ;; paging) PAGING="$2" ;; emoji) EMOJI="$2" ;; langs) LANGS="$2" ;; gloss) GLOSS="$2" ;; esac; }
         snapv() { eval "V=\"\${SNAP_$1}\""; }
         # 某一項的選項範圍（IS＝第一個在 IT_* 的位置、IN＝個數）
         item_range() {
@@ -508,7 +518,7 @@ ITEMS
                 if [ -z "${cols}" ]; then cols="$(stty size 2>/dev/null < /dev/tty)"; cols="${cols#* }"; fi
                 case "${cols}" in ''|*[!0-9]*) cols=120 ;; esac
                 F="${CSI}?25l"
-                r=1; while [ ${r} -le 22 ]; do at ${r} 1; put "${CSI}2K"; r=$(( r + 1 )); done
+                r=1; while [ ${r} -le 23 ]; do at ${r} 1; put "${CSI}2K"; r=$(( r + 1 )); done
                 at 2 3; put "${K_BOLD}注音Na+ 設定${K_RESET}"
 
                 # ── 左邊：選項 ──
@@ -556,8 +566,8 @@ ITEMS
                 if { [ "${key}" = theme ] || [ "${key}" = dark ]; } && dark_note_needed; then
                     more='系統現在是深色模式，所以實際看到的是 Nat Dark。想在深色模式也用這個主題：把「系統深色模式」換成不跟隨。'
                 fi
-                fit "${R_HINT[focus]}" $(( cols - 4 )); at 16 3; put "${FIT}"
-                fit "${more}" $(( cols - 4 )); at 17 3; put "${K_DIM}${FIT}${K_RESET}"
+                fit "${R_HINT[focus]}" $(( cols - 4 )); at 17 3; put "${FIT}"
+                fit "${more}" $(( cols - 4 )); at 18 3; put "${K_DIM}${FIT}${K_RESET}"
 
                 # ── 改了什麼 ──
                 local diff="" names="" n=0 old new
@@ -577,16 +587,16 @@ ITEMS
                     diff="已修改　${diff}"
                     cells "${diff}"; [ ${CELLS} -gt $(( cols - 4 )) ] && diff="已修改 ${n} 項　${names}"
                     fit "${diff}" $(( cols - 4 ))
-                    at 19 1; put "${K_ACC}●${K_RESET}"; at 19 3; put "${FIT}"
+                    at 20 1; put "${K_ACC}●${K_RESET}"; at 20 3; put "${FIT}"
                 else
-                    at 19 3; put "${K_DIM}還沒有修改。直接按 Enter 就是什麼都不改。${K_RESET}"
+                    at 20 3; put "${K_DIM}還沒有修改。直接按 Enter 就是什麼都不改。${K_RESET}"
                 fi
 
                 # ── 按鍵提示（每一段各自定位）──
                 local x=3 hk hd
                 for hk in '↑↓|選項目' '←→|換一個' '空白|勾選' 'Backspace|還原這一項' 'Enter|套用' 'Esc|取消'; do
                     hd="${hk#*|}"; hk="${hk%%|*}"
-                    at 21 ${x}; put "${K_ACC}${hk}${K_RESET} ${K_DIM}${hd}${K_RESET}"
+                    at 22 ${x}; put "${K_ACC}${hk}${K_RESET} ${K_DIM}${hd}${K_RESET}"
                     cells "${hk}${hd}"; x=$(( x + CELLS + 4 ))
                     case "${hk}" in "↑↓"|"←→") x=$(( x - 2 )) ;; esac   # 箭頭是窄字元，估算時多算了兩格
                 done
@@ -618,9 +628,10 @@ ITEMS
                     [ "${LAYOUT}" = horizontal ] && tall=5
                     r=0; while [ ${r} -lt ${tall} ]; do block $(( top + r )) ${px} "${frame}" ${pw}; r=$(( r + 1 )); done
                     r=1; while [ ${r} -lt $(( tall - 1 )) ]; do block $(( top + r )) ${ix} "${back}" ${iw}; r=$(( r + 1 )); done
-                    # 編碼列：已確定的部分＋高亮段（鼠鬚管的翻頁箭頭畫在候選窗左緣，這裡不畫）
+                    # 編碼列：已確定的部分＋高亮段＋翻頁提示（第一頁：「1 ›」）
                     ink $(( top + 1 )) $(( ix + 2 )) "${back}" "${text}" '' 'ㄋㄧ'
                     ink $(( top + 1 )) $(( ix + 7 )) "${hb}" "${ht}" '' ' ㄏㄠ '
+                    [ "${PAGING}" = on ] && ink $(( top + 1 )) $(( ix + 15 )) "${back}" "${text}" '' '1 ›'
                     local cw=(你好 妳好 さくら hello) cc=('' '' 櫻花 哈囉) cx
                     if [ "${LAYOUT}" = horizontal ]; then
                         cx=$(( ix + 1 )); r=0
@@ -655,7 +666,7 @@ ITEMS
                     fi
                     fit "${caption}" ${pw}; at $(( top + tall )) ${px}; put "${K_DIM}${FIT}${K_RESET}"
                 fi
-                at 22 1
+                at 23 1
             }
 
             # 讀一個鍵（KEY）。方向鍵是 ESC [ A 這種序列；bash 3.2 的 read -t 只吃整數秒
@@ -723,7 +734,12 @@ ITEMS
                     Down|J|Tab) focus=$(( (focus + 1) % NROWS )) ;;
                     Home|PageUp) focus=0 ;;
                     End|PageDown) focus=$(( NROWS - 1 )) ;;
-                    [1-9]) [ ${KEY} -le ${NROWS} ] && focus=$(( KEY - 1 )) ;;
+                    [1-9])   # 照「輸入編號」的編號跳（見 NUM_KEY）
+                        if [ ${KEY} -le ${#NUM_KEY[@]} ]; then
+                            for k in $(seq 0 $(( NROWS - 1 ))); do
+                                [ "${R_KEY[k]}" = "${NUM_KEY[KEY - 1]}" ] && focus=${k}
+                            done
+                        fi ;;
                     Backspace|Delete) snapv "${row}"; setv "${row}" "${V}" ;;   # 還原這一項
                     Left|H)   dir=-1 ;;
                     Right|L)  dir=1 ;;
@@ -757,7 +773,7 @@ ITEMS
         if [ -n "${TUI_KEYS}" ]; then use_screen=1
         elif [ -z "${NA_PLAIN:-}" ] && [ "${TTY}" = /dev/tty ] && [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then
             tsize="$(stty size 2>/dev/null < /dev/tty)"
-            case "${tsize}" in *' '*) [ "${tsize% *}" -ge 23 ] 2>/dev/null && [ "${tsize#* }" -ge 72 ] 2>/dev/null && use_screen=1 ;; esac
+            case "${tsize}" in *' '*) [ "${tsize% *}" -ge 24 ] 2>/dev/null && [ "${tsize#* }" -ge 72 ] 2>/dev/null && use_screen=1 ;; esac
         fi
         if [ ${use_screen} = 1 ]; then tui_run && SCREEN_DONE=1; fi
     fi
@@ -790,12 +806,13 @@ ITEMS
             printf '  6) 選單裡的語言　%s\n' "$(langs_label "${LANGS}")"
             printf '  7) 釋義語言　　　%s\n' "$( case "${GLOSS}" in (en) echo '英文' ;; (ja) echo '日文' ;; (*) echo '中文' ;; esac )"
             printf '  8) 候選字型　　　%s\n' "$( [ "${FONT}" = "system" ] && echo '系統字型（蘋方）' || echo '粉圓體' )"
+            printf '  9) 翻頁提示　　　%s\n' "$( [ "${PAGING}" = "off" ] && echo '關' || echo '開（編碼列後面顯示「‹ 2 ›」）' )"
             # 最常見的「換了主題怎麼沒變」：系統在深色模式＋跟隨系統，看到的一直是 Nat Dark
             if dark_note_needed; then
                 printf '\033[90m%s\033[0m\n' '  ※ 系統現在是深色模式，所以候選窗顯示的是 Nat Dark；第 1 項的主題要等系統切回淺色才看得到。'
                 printf '\033[90m%s\033[0m\n' '    想在深色模式也用第 1 項的主題：把第 2 項改成「不跟隨」。'
             fi
-            ask '  輸入編號 1-8 修改那一項；直接按 Enter 套用：'
+            ask '  輸入編號 1-9 修改那一項；直接按 Enter 套用：'
             pick="${REPLY}"
             [ -z "${pick}" ] && break
             case "${pick}" in
@@ -847,6 +864,9 @@ ITEMS
             8)  choose_one '候選字型' "${FONT}" \
                     huninn '粉圓體：圓潤的開源字型 jf open 粉圓（預設；沒裝會自動下載安裝，約 5 MB）' system '系統字型：蘋方'
                 FONT="${CHOICE}" ;;
+            9)  choose_one '翻頁提示（候選不只一頁時，編碼列後面顯示「‹ 2 ›」：第幾頁，前後還有候選的那邊加箭頭）' "${PAGING}" \
+                    on '開（預設）' off '關'
+                PAGING="${CHOICE}" ;;
             *)  say '  請輸入清單上的數字。' ;;
             esac
         done
@@ -892,6 +912,7 @@ ITEMS
     fi
     case "${LAYOUT}" in vertical|horizontal) ;; *) die "不認得的排列：${LAYOUT}（可用：vertical horizontal）"; return 1 ;; esac
     case "${EMOJI}" in on|off) ;; *) die "不認得的 emoji 設定：${EMOJI}（可用：on off）"; return 1 ;; esac
+    case "${PAGING}" in on|off) ;; *) die "不認得的翻頁提示設定：${PAGING}（可用：on off）"; return 1 ;; esac
     local gnum
     gnum="$(gloss_num "${GLOSS}")" || { die "不認得的釋義語言：${GLOSS}（可用：zh en ja）"; return 1; }
     # 語言：正規化成固定順序、去重
@@ -905,9 +926,11 @@ ITEMS
     done
     LANGS="${norm:-none}"
 
-    local horizontal=false mac=stacked emoji_num=1
+    local horizontal=false mac=stacked emoji_num=1 paging_hint=true weasel_paging="{}"
     [ "${LAYOUT}" = "horizontal" ] && { horizontal=true; mac=linear; }
     [ "${EMOJI}" = "off" ] && emoji_num=0
+    # 翻頁提示關掉：Mac 的 lua 看 paging_hint；小狼毫的 < > 是把配色裡的兩個翻頁顏色蓋成透明（見 na_weasel.yaml）
+    [ "${PAGING}" = "off" ] && { paging_hint=false; weasel_paging="{ prevpage_color: \"0x00000000\", nextpage_color: \"0x00000000\" }"; }
 
     # 只重寫內容真的變了的檔：RIME 是看檔案時間決定要不要重編的，沒變卻重寫等於白白重編一輪。
     # 用法：先把內容寫進 ${OPT_TMP}，再 write_option <目標檔>（不能用管線接：管線右邊是子 shell，計數帶不出來）
@@ -922,7 +945,7 @@ ITEMS
         printf '%s\n' "# na_style.custom.yaml — 個人選項：候選窗的長相（由 '/setup 產生，不進版控）"
         printf '%s\n' "# 想換：輸入法裡打 '/setup；或手動改下面的值後重新部署。各鍵說明見 na_style.yaml。"
         printf '%s\n' "${note}"
-        printf '# na-options: theme=%s dark=%s layout=%s size=%s font=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${FONT}"
+        printf '# na-options: theme=%s dark=%s layout=%s size=%s font=%s paging=%s\n' "${THEME}" "${DARK}" "${LAYOUT}" "${SIZE}" "${FONT}" "${PAGING}"
         printf 'patch:\n'
         printf '  theme: %s\n' "${scheme}"
         printf '  theme_dark: %s\n' "${scheme_dark}"
@@ -930,6 +953,7 @@ ITEMS
         printf '  font_face: "%s"\n  comment_font_face: "%s"\n  mac_font_face: "%s"\n  mac_comment_font_face: "%s"\n' "${win_font}" "${win_comment}" "${mac_font}" "${mac_comment}"
         printf '  horizontal: %s\n' "${horizontal}"
         printf '  candidate_list_layout: %s\n' "${mac}"
+        printf '  paging_hint: %s\n  weasel_paging: %s\n' "${paging_hint}" "${weasel_paging}"
     } > "${OPT_TMP}" && write_option "${STYLE_FILE}" || { die "寫不進 ${STYLE_FILE}"; return 1; }
     {
         printf '%s\n' "# na_input.custom.yaml — 個人選項：輸入時的行為（由 '/setup 產生，不進版控）"
@@ -957,7 +981,7 @@ ITEMS
         done
     } > "${OPT_TMP}" && write_option "${MENU_FILE}" || { die "寫不進 ${MENU_FILE}"; return 1; }
     if [ ${OPT_CHANGED} -gt 0 ]; then step '已寫入選項'; else step '選項沒有變動'; fi
-    say "    主題 ${THEME}｜深色模式 ${DARK}｜排列 ${LAYOUT}｜字級 ${SIZE}｜字型 ${FONT}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
+    say "    主題 ${THEME}｜深色模式 ${DARK}｜排列 ${LAYOUT}｜字級 ${SIZE}｜字型 ${FONT}｜翻頁提示 ${PAGING}｜emoji ${EMOJI}｜語言 ${LANGS}｜釋義 ${GLOSS}"
 
     # ── [5] 套用檔案＋重新部署 ────────────────────────────────────────
     # 交給 repo 裡的 rime-update.command：把 rime/ 攤平複製到使用者資料夾，有變動才重新部署。

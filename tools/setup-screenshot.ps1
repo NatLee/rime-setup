@@ -32,7 +32,7 @@ New-Item -ItemType Directory -Force $OutDir | Out-Null
 $shots = @(
   @{ name = 'setup-theme';  keys = 'Right,Right,Right,Wait' },                                  # 換主題，右邊即時預覽
   @{ name = 'setup-layout'; keys = 'Left,Left,Left,Down,Down,Right,Wait' },                     # 深色主題＋橫排
-  @{ name = 'setup-langs';  keys = 'Down,Down,Down,Down,Down,Down,Right,Space,Wait' }           # 語言的勾選
+  @{ name = 'setup-langs';  keys = 'Down,Down,Down,Down,Down,Down,Down,Right,Space,Wait' }      # 語言的勾選
 )
 
 Add-Type -AssemblyName System.Drawing
