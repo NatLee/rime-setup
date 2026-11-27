@@ -139,7 +139,7 @@ NA_THEME=dark NA_EMOJI=off NA_YES=1 bash -c "$(curl -fsSL https://raw.githubuser
 bash ~/.na-plus/install.sh --local --theme dark --langs ja,en --yes
 ```
 
-環境變數：`NA_THEME` `NA_DARK` `NA_LAYOUT` `NA_SIZE` `NA_FONT` `NA_EMOJI` `NA_LANGS` `NA_GLOSS`，`NA_YES=1`＝不詢問（沒指定的沿用上次）。
+環境變數：`NA_THEME` `NA_DARK` `NA_LAYOUT` `NA_SIZE` `NA_FONT` `NA_PAGING` `NA_EMOJI` `NA_LANGS` `NA_GLOSS`，`NA_YES=1`＝不詢問（沒指定的沿用上次）。
 
 ### 更新
 

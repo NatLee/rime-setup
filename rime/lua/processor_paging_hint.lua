@@ -47,6 +47,8 @@
 ■ 要掛在每一個選單方案的 engine/processors（跟 schema_cycle 同一批方案）；放哪個位置都可以，它不吃鍵。
 --]]
 
+local key_util = require("p_components/p_key_util")
+
 local kNoop = 2
 
 local GAP = "  "          -- 編碼與提示之間
@@ -91,8 +93,8 @@ local function update(env, ctx)
   local menu = seg.menu
   if menu and not menu:empty() and ctx.caret_pos == #ctx.input and ctx:get_option("soft_cursor") then
     local ps = env.page_size
-    local page = math.floor(seg.selected_index / ps)
-    local start = page * ps
+    local start = key_util.page_base(seg, ps)   -- 當頁第一列的序號（跟其他 processor 用同一個算法）
+    local page = math.floor(start / ps)
     local has_prev = page > 0
     local has_next = menu:prepare(start + ps + 1) > start + ps
     if has_prev or has_next then
